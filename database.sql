@@ -3,6 +3,7 @@ CREATE TABLE users (
                        chat_id BIGINT NOT NULL,
                        telegram_id BIGINT NOT NULL,
                        mobile_number VARCHAR(20),
+                       melliCode VARCHAR(10),
                        name VARCHAR(255),
                        date_of_birth DATE,
                        gender ENUM('Male', 'Female', 'Other')
