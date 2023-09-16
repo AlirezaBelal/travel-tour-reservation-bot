@@ -1,22 +1,51 @@
 <?php
-// Replace with your bot's API token
-$apiToken = '6651831731:AAFNCyqXksvssiFLtVY9002_c1yE3XVDp6E';
+require_once __DIR__ . '/vendor/autoload.php'; // Include the Composer autoloader
 
-// Define the base Telegram API URL
-$telegramApiUrl = "https://api.telegram.org/bot$apiToken";
+use Dotenv\Dotenv;
 
-// Set the webhook URL
-$webhookUrl = "https://jamesbond007.space/test.php";
+// Load environment variables from .env
+$dotenv = Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 
-// Create the request URL
-$requestUrl = $telegramApiUrl . "/setWebhook?url=" . urlencode($webhookUrl);
+// Telegram Bot API token
+$botToken = getenv('TELEGRAM_BOT_TOKEN');
 
-// Send the request to Telegram
-$response = file_get_contents($requestUrl);
+// Create a function to get the chat ID
+function getChatId($botToken)
+{
+    $url = "https://api.telegram.org/bot{$botToken}/getUpdates";
 
-if ($response === false) {
-    echo "Error setting the webhook: " . error_get_last()['message'];
-} else {
-    echo "Webhook set successfully!";
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    $response = curl_exec($ch);
+
+    if ($response === false) {
+        $errorMessage = "Error: " . curl_error($ch);
+        curl_close($ch);
+        return $errorMessage;
+    }
+
+    curl_close($ch);
+
+    $data = json_decode($response, true);
+
+    // Check if there are updates and get the chat ID of the most recent one
+    if (!empty($data['result'])) {
+        $chatId = $data['result'][0]['message']['chat']['id'];
+        return "Chat ID: " . $chatId;
+    } else {
+        return "No recent messages found.";
+    }
 }
-?>
+
+// Get the Chat ID or error message
+$result = getChatId($botToken);
+
+// Log the result to a file
+$logFileName = 'log.txt';
+$logMessage = date('Y-m-d H:i:s') . " - " . $result . PHP_EOL;
+file_put_contents($logFileName, $logMessage, FILE_APPEND);
+
+// Output the result to the browser
+echo $result;
