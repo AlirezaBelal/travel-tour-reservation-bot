@@ -15,26 +15,35 @@ const API_KEY = 'YOUR_TELEGRAM_API_KEY';
 $admin = '70532057';
 
 $telegram = json_decode(file_get_contents('php://input'), true);
-$data = $telegram['message']['chat'];
-$text = $telegram['message']['text'];
 
-if ($text == "/start") {
-    $exist = $DB->query("SELECT id FROM users WHERE user_id=?", [$data["id"]]);
+// Check if 'message' key exists in the $telegram array
+if (isset($telegram['message'])) {
+    $messageData = $telegram['message'];
 
-    if (count($exist) !== 1) {
-        $DB->query("INSERT INTO users (first_name, last_name, username, user_id) VALUES (?, ?, ?, ?)",
-            [$data["first_name"], $data["last_name"], $data["username"], $data["id"]]);
-    }
+    // Check if 'chat' and 'text' keys exist in the $messageData array
+    if (isset($messageData['chat'], $messageData['text'])) {
+        $data = $messageData['chat'];
+        $text = $messageData['text'];
 
-    $message = (count($exist) === 0) ? "اطلاعات شما در دیتابیس ذخیره شد." : "اطلاعات شما در دیتابیس موجود می باشد.";
+        if ($text == "/start") {
+            $exist = $DB->query("SELECT id FROM users WHERE user_id=?", [$data["id"]]);
 
-    sendMessage($data['id'], $message);
-} else {
-    if ($data["id"] == $admin) {
-        $allUser = $DB->query("SELECT user_id FROM users");
+            if (count($exist) !== 1) {
+                $DB->query("INSERT INTO users (first_name, last_name, username, user_id) VALUES (?, ?, ?, ?)",
+                    [$data["first_name"] ?? '', $data["last_name"] ?? '', $data["username"] ?? '', $data["id"]]);
+            }
 
-        foreach ($allUser as $user) {
-            sendMessage($user['user_id'], $text);
+            $message = (count($exist) === 0) ? "اطلاعات شما در دیتابیس ذخیره شد." : "اطلاعات شما در دیتابیس موجود می باشد.";
+
+            sendMessage($data['id'], $message);
+        } else {
+            if ($data["id"] == $admin) {
+                $allUser = $DB->query("SELECT user_id FROM users");
+
+                foreach ($allUser as $user) {
+                    sendMessage($user['user_id'], $text);
+                }
+            }
         }
     }
 }
