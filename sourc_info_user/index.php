@@ -2,12 +2,13 @@
 require("pdo.php");
 
 // Database Configuration
-$dbHost = 'localhost';
-$dbName = 'jamesbon_hiva';
-$dbUser = 'jamesbon_admin';
-$dbPass = 'OI3j}0ro7#I?';
-
-$DB = new Db($dbHost, $dbName, $dbUser, $dbPass);
+$dbConfig = [
+    'host' => 'localhost',
+    'name' => 'jamesbon_hiva',
+    'user' => 'jamesbon_admin',
+    'pass' => 'OI3j}0ro7#I?',
+];
+$DB = new Db($dbConfig['host'], $dbConfig['name'], $dbConfig['user'], $dbConfig['pass']);
 
 // Telegram Bot Configuration
 define('API_KEY', 'YOUR_TELEGRAM_API_KEY');
@@ -18,7 +19,7 @@ $data = $telegram['message']['chat'];
 $text = $telegram['message']['text'];
 
 if ($text == "/start") {
-    $exist = $DB->query("SELECT id FROM users WHERE user_id=" . $data["id"]);
+    $exist = $DB->query("SELECT id FROM users WHERE user_id=?", [$data["id"]]);
 
     if (count($exist) !== 1) {
         $DB->query("INSERT INTO users (first_name, last_name, username, user_id) VALUES (?, ?, ?, ?)",
@@ -27,30 +28,29 @@ if ($text == "/start") {
 
     $message = (count($exist) === 0) ? "اطلاعات شما در دیتابیس ذخیره شد." : "اطلاعات شما در دیتابیس موجود می باشد.";
 
-    bot('sendMessage', [
-        'chat_id' => $data['id'],
-        'text' => $message,
-    ]);
+    sendMessage($data['id'], $message);
 } else {
     if ($data["id"] == $admin) {
         $allUser = $DB->query("SELECT user_id FROM users");
 
         foreach ($allUser as $user) {
-            bot('sendMessage', [
-                'chat_id' => $user['user_id'],
-                'text' => $text,
-            ]);
+            sendMessage($user['user_id'], $text);
         }
     }
 }
 
-function bot($method, $datas = []) {
-    $url = "https://api.telegram.org/bot" . API_KEY . "/" . $method;
-    $ch = curl_init();
+function sendMessage($chatId, $message)
+{
+    $url = "https://api.telegram.org/bot" . API_KEY . "/sendMessage";
+    $data = [
+        'chat_id' => $chatId,
+        'text' => $message,
+    ];
 
+    $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $datas);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
 
     $res = curl_exec($ch);
 
