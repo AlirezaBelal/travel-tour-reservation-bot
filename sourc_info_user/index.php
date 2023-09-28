@@ -11,8 +11,8 @@ $dbConfig = [
 $DB = new Db($dbConfig['host'], $dbConfig['name'], $dbConfig['user'], $dbConfig['pass']);
 
 // Telegram Bot Configuration
-const API_KEY = 'YOUR_TELEGRAM_API_KEY';
-$admin = '70532057';
+const API_KEY = '6540963935:AAFwkyBqvFMXs6p4GDuXWZKn96uC30LzFLU';
+$admin = '6540963935';
 
 $telegram = json_decode(file_get_contents('php://input'), true);
 
