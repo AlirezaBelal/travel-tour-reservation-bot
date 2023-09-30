@@ -1,71 +1,88 @@
 <?php
-require("pdo.php");
-
 // Database Configuration
-$dbConfig = [
-    'host' => 'localhost',
-    'name' => 'jamesbon_hiva',
-    'user' => 'jamesbon_admin',
-    'pass' => 'OI3j}0ro7#I?',
-];
-$DB = new Db($dbConfig['host'], $dbConfig['name'], $dbConfig['user'], $dbConfig['pass']);
+$hostname = "localhost";
+$db = "jamesbon_hiva";
+$user = "jamesbon_admin";
+$pass = "OI3j}0ro7#I?";
 
-// Telegram Bot Configuration
-const API_KEY = 'YOUR_TELEGRAM_API_KEY';
-$admin = '70532057';
+// Function to establish a database connection
+function connectToDatabase($hostname, $user, $pass, $db)
+{
+    $dbconn = mysqli_connect($hostname, $user, $pass, $db) or die(mysqli_error($dbconn));
+    mysqli_set_charset($dbconn, 'utf8');
+    return $dbconn;
+}
 
-$telegram = json_decode(file_get_contents('php://input'), true);
+// Function to send a message via the Telegram Bot API
+function sendMessage($chat_id, $text, $token)
+{
+    $url = "https://api.telegram.org/bot" . $token . "/sendMessage";
+    $data = [
+        'chat_id' => $chat_id,
+        'text' => $text,
+    ];
 
-// Check if 'message' key exists in the $telegram array
-if (isset($telegram['message'])) {
-    $messageData = $telegram['message'];
+    $options = [
+        'http' => [
+            'method' => 'POST',
+            'header' => 'Content-Type: application/x-www-form-urlencoded',
+            'content' => http_build_query($data),
+        ],
+    ];
 
-    // Check if 'chat' and 'text' keys exist in the $messageData array
-    if (isset($messageData['chat'], $messageData['text'])) {
-        $data = $messageData['chat'];
-        $text = $messageData['text'];
+    $context = stream_context_create($options);
+    $result = file_get_contents($url, false, $context);
 
-        if ($text == "/start") {
-            $exist = $DB->query("SELECT id FROM users WHERE user_id=?", [$data["id"]]);
+    if ($result === false) {
+        // Handle error here
+        return false;
+    } else {
+        return json_decode($result, true);
+    }
+}
 
-            if (count($exist) !== 1) {
-                $DB->query("INSERT INTO users (first_name, last_name, username, user_id) VALUES (?, ?, ?, ?)",
-                    [$data["first_name"] ?? '', $data["last_name"] ?? '', $data["username"] ?? '', $data["id"]]);
-            }
+// Function to process the incoming message
+function processMessage($message, $dbconn, $token)
+{
+    $arrayMessage = json_decode($message, true);
+    $chat_id = $arrayMessage['message']['from']['id'];
+    $command = $arrayMessage['message']['text'];
 
-            $message = (count($exist) === 0) ? "اطلاعات شما در دیتابیس ذخیره شد." : "اطلاعات شما در دیتابیس موجود می باشد.";
+    $query = mysqli_query($dbconn, "SELECT * FROM `user` WHERE `userID` = '$chat_id' LIMIT 1");
+    $chekUser = mysqli_num_rows($query);
 
-            sendMessage($data['id'], $message);
-        } else {
-            if ($data["id"] == $admin) {
-                $allUser = $DB->query("SELECT user_id FROM users");
+    if ($chekUser > 0) {
+        $row = mysqli_fetch_array($query);
+        $level = $row['level'];
+    }
 
-                foreach ($allUser as $user) {
-                    sendMessage($user['user_id'], $text);
-                }
-            }
+    if ($command == '/start') {
+        if ($chekUser < 1) {
+            $add = mysqli_query($dbconn, "INSERT INTO `user` VALUES ('', '$chat_id', '', 'A')");
+        }
+        $text = "سلام، به ربات ما خوش آمدید، لطفاً نام خود را وارد کنید";
+        sendMessage($chat_id, $text, $token);
+    }
+
+    if ($level == 'A') {
+        $edit = mysqli_query($dbconn, "UPDATE `user` SET `name` = ?, `level` = 'B' WHERE `userID` = ? LIMIT 1");
+        if ($edit) {
+            $text = $command . ' عزیز، نام شما دریافت شد. لطفاً شماره تماس خود را وارد کنید.';
+            sendMessage($chat_id, $text, $token);
+        }
+    }
+
+    if ($level == 'B') {
+        $edit = mysqli_query($dbconn, "UPDATE `user` SET `mobile` = ?, `level` = 'C' WHERE `userID` = ? LIMIT 1");
+        if ($edit) {
+            $text = 'با تشکر از شما';
+            sendMessage($chat_id, $text, $token);
         }
     }
 }
 
-function sendMessage($chatId, $message)
-{
-    $url = "https://api.telegram.org/bot" . API_KEY . "/sendMessage";
-    $data = [
-        'chat_id' => $chatId,
-        'text' => $message,
-    ];
-
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-
-    $res = curl_exec($ch);
-
-    if (curl_error($ch)) {
-        var_dump(curl_error($ch));
-    } else {
-        return json_decode($res);
-    }
-}
+// Main code
+$message = file_get_contents("php://input");
+$token = "6540963935:AAFwkyBqvFMXs6p4GDuXWZKn96uC30LzFLU"; // Replace with your actual bot token
+$dbconn = connectToDatabase($hostname, $user, $pass, $db);
+processMessage($message, $dbconn, $token);

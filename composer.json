@@ -3,6 +3,7 @@
         "telegram-bot/api": "^2.5",
         "vlucas/phpdotenv": "^5.5",
       "ext-curl": "*",
-      "ext-json": "*"
+      "ext-json": "*",
+      "ext-mysqli": "*"
     }
 }
