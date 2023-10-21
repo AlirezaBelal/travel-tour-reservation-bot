@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Oct 01, 2023 at 01:52 PM
+-- Generation Time: Oct 21, 2023 at 05:46 AM
 -- Server version: 10.3.37-MariaDB-cll-lve
 -- PHP Version: 8.1.16
 
@@ -18,7 +18,7 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `vfvsdvco_test2`
+-- Database: `vfvsdvco_Topic`
 --
 
 -- --------------------------------------------------------
@@ -35,10 +35,7 @@ CREATE TABLE `Data` (
   `birthday` varchar(50) NOT NULL,
   `sex` varchar(20) NOT NULL,
   `profile` varchar(20) NOT NULL,
-  `step` varchar(50) NOT NULL,
-  `topic32095` varchar(255) DEFAULT NULL,
-  `topic967131` varchar(255) DEFAULT NULL,
-  `topic770131` varchar(255) DEFAULT NULL
+  `step` varchar(50) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------
@@ -49,7 +46,9 @@ CREATE TABLE `Data` (
 
 CREATE TABLE `Topics` (
   `Name` varchar(300) NOT NULL,
-  `id` varchar(20) NOT NULL
+  `id` bigint(20) NOT NULL,
+  `Groups` varchar(1000) NOT NULL,
+  `caption` varchar(3000) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
