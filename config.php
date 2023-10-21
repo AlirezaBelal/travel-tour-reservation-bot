@@ -65,6 +65,16 @@ function editMessageText($chatId,$message_id,$textm){
     return bot('editMessageText',['chat_id'=>$chatId,'message_id'=>$message_id,'text'=>$textm]); 
 }
 
+function editMessageKeyboard($chatId,$message_id,$Txt=null,$Keyboard=null,$Caption=null){
+    return bot('editMessageText',[
+        'chat_id'=>$chatId,
+        'message_id'=>$message_id,
+        'text'=>$Txt,
+        'caption'=>$Caption,
+        'reply_markup'=>$Keyboard,
+        ]); 
+}
+
 function editMessageCaption($chatId,$message_id,$textm){
     return bot('editMessageText',['chat_id'=>$chatId,'message_id'=>$message_id,'caption'=>$textm]); 
 }
