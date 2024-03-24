@@ -1,4 +1,4 @@
-# hivagasht_bot
+# travel tour reservation bot
 
 # Telegram Bot with PHP and MySQL
 
