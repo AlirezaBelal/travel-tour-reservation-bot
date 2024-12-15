@@ -4,8 +4,8 @@ use Medoo\Medoo;
 
 require 'medoo/autoload.php';
 
-const TOKEN    = '6467247296:AAFBrGPKP4cnREmYv8nHUHNWBhk_1l_mufI';
-const ADMINS   = [592299058];
+const TOKEN    = '******';
+const ADMINS   = [123456789];
 
 
 $Db_Name = "vfvsdvco_Topic";

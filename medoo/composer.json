@@ -1,5 +1,7 @@
 {
-    "require": {
-        "catfan/medoo": "^2.1"
-    }
+  "require": {
+    "catfan/medoo": "^2.1",
+    "ext-curl": "*",
+    "ext-json": "*"
+  }
 }
