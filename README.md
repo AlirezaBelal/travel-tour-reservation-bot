@@ -2,7 +2,8 @@
 
 ### Telegram Bot with PHP and MySQL
 
-This is a simple Telegram bot written in PHP that uses a MySQL database to manage user registrations and send messages to users. It allows you to send messages to all registered users or to specific users by their user IDs.
+This is a simple Telegram bot written in PHP that uses a MySQL database to manage user registrations and send messages
+to users. It allows you to send messages to all registered users or to specific users by their user IDs.
 
 ---
 
@@ -63,24 +64,18 @@ $admin = 'YOUR_ADMIN_USER_ID'; // Admin's Telegram User ID
 3. **Configure your bot**:
     - Update the `API_KEY` and database credentials in the PHP script.
 
-4. **Run the bot**:
-    - Start the bot script using PHP:
-      ```bash
-      php bot.php
-      ```
-
-5. **Interact with the bot**:
+4. **Interact with the bot**:
     - Open Telegram, search for your bot, and send the `/start` command.
 
 ---
 
 ## **Telegram Bot Commands**
 
-| Command     | Description                              |
-|-------------|------------------------------------------|
-| `/start`    | Register with the bot and start using it.|
-| `/help`     | Get help and see available commands.     |
-| `/message`  | (Admin only) Send messages to all users. |
+| Command    | Description                               |
+|------------|-------------------------------------------|
+| `/start`   | Register with the bot and start using it. |
+| `/help`    | Get help and see available commands.      |
+| `/message` | (Admin only) Send messages to all users.  |
 
 ---
 
@@ -109,6 +104,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
+## **Need Help?**
+
+If you have any questions or need further assistance, feel free to contact me:
+
+- **Email**: belal.alireza@gmail.com
+- **Telegram**: [@alireza_belal](https://t.me/alireza_belal)
+
+---
+
 ### Notes
-- For scalability, consider moving to a framework (e.g., Laravel) or integrating with a queue system for sending bulk messages.
-- If you encounter issues, feel free to open an issue in the [GitHub Repository](https://github.com/AlirezaBelal/travel-tour-reservation-bot).
+
+- For scalability, consider moving to a framework (e.g., Laravel) or integrating with a queue system for sending bulk
+  messages.
+- If you encounter issues, feel free to open an issue in
+  the [GitHub Repository](https://github.com/AlirezaBelal/travel-tour-reservation-bot).
