@@ -1,0 +1,8 @@
+{
+  "require": {
+    "catfan/medoo": "^2.1",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "vlucas/phpdotenv": "^5.6"
+  }
+}
