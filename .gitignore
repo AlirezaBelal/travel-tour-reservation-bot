@@ -1,2 +1,27 @@
-.idea
-vendor
+# Laravel-specific folders
+/vendor
+/node_modules
+/public/storage
+/storage/*.key
+/.env
+/.env.*.php
+/.idea
+
+# Laravel log and cache files
+/storage/logs
+/storage/framework/cache
+/storage/framework/sessions
+/storage/framework/testing
+/storage/framework/views
+
+# IDE and editor settings
+.vscode/
+.idea/
+
+# System-specific files
+.DS_Store
+Thumbs.db
+
+# Composer and NPM lock files (if you don't want to track lock files)
+composer.lock
+package-lock.json
