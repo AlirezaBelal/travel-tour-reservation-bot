@@ -1,121 +1,183 @@
 # Travel Tour Reservation Bot
 
-### Telegram Bot with PHP and MySQL
+[![CI](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml)
 
-This is a simple Telegram bot written in PHP that uses a MySQL database to manage user registrations and send messages
-to users. It allows you to send messages to all registered users or to specific users by their user IDs.
+A PHP/MySQL Telegram workflow for traveler onboarding, hierarchical tour-group discovery, participation requests, administrator approval, and targeted member communication.
 
----
+## What this repository implements
 
-## **Features**
+The bot coordinates the operational flow around joining travel groups and tours. A user completes a profile, browses a hierarchical catalogue, requests participation, and waits for an administrator decision. Administrators can maintain the topic tree, approve requests, and send messages to selected groups or all completed profiles.
 
-- **User Registration**: Users can register with the bot using the `/start` command.
-- **Admin Messaging**: The admin can send messages to all registered users or specific ones.
-- **Database Integration**: All user data is securely stored in a MySQL database.
-- **Scalable**: Built to handle a large number of users efficiently.
+This repository should be interpreted as a **reservation/request workflow**, not as a complete travel-commerce platform. It does not implement online payment, automated seat inventory, ticket issuance, or external booking-provider integration.
 
----
+### Implemented capabilities
 
-## **Prerequisites**
+- Telegram webhook entry point
+- Multi-step traveler profile onboarding
+- Iranian mobile ownership check through Telegram contact sharing
+- Iranian national-code validation
+- Birth-date and gender capture
+- Hierarchical tour/group catalogue
+- Participation request state: pending / approved
+- Administrator approval callbacks
+- Administrator topic creation and deletion
+- Broadcast messaging to all completed profiles
+- Targeted messaging to approved members of a selected topic
+- MySQL persistence through Medoo
+- Environment-based credential handling
+- Optional Telegram webhook-secret verification
+- Administrator-only protection for sensitive callbacks
+- PHP CI, syntax checks, validation tests, secret-pattern checks, and dependency audit
 
-Before setting up the bot, ensure you have the following:
+## Architecture
 
-1. **MySQL Database**:
-    - Set up a MySQL database on your server.
-    - Update the database credentials in the configuration section of the PHP code.
-
-2. **Telegram Bot API Key**:
-    - Create a new Telegram bot using the [BotFather](https://core.telegram.org/bots#botfather).
-    - Obtain the unique API key for your bot.
-
----
-
-## **Configuration**
-
-You need to configure the database and bot settings in the PHP code. Update the following variables:
-
-```php
-// Database Configuration
-$dbConfig = [
-    'host' => 'localhost',         // Database host
-    'name' => 'your_database_name', // Name of your database
-    'user' => 'your_database_user', // Database username
-    'pass' => 'your_database_password', // Database password
-];
-
-// Telegram Bot Configuration
-const API_KEY = 'YOUR_TELEGRAM_API_KEY'; // Bot API Key from BotFather
-$admin = 'YOUR_ADMIN_USER_ID'; // Admin's Telegram User ID
+```text
+Telegram user
+      ↓
+Telegram Bot API / webhook
+      ↓
+index.php
+      ↓
+config.php
+      ├── environment / secrets
+      ├── webhook verification
+      ├── Telegram API client
+      └── database bootstrap
+      ↓
+Conversation state in Data
+      ↓
+Hierarchical Topics catalogue
+      ↓
+Participation request
+      ↓
+Administrator review
+      ↓
+Pending / approved membership state
+      ↓
+Targeted operational messaging
 ```
 
----
+## User flow
 
-## **Installation**
+1. The user starts the bot with `/start`.
+2. `/setprofile` begins the profile flow.
+3. The user provides name, Telegram-shared mobile number, national code, gender, and birth date.
+4. `/list` displays available root tour/group topics.
+5. The user navigates nested topics and submits a participation request.
+6. The request is marked pending and sent to the configured administrators.
+7. An administrator approves the request through an inline callback.
+8. The user receives an approval message and the topic is marked approved for that user.
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/AlirezaBelal/travel-tour-reservation-bot.git
-   ```
+The user-facing conversation is Persian because the original product targeted Persian-speaking travelers.
 
-2. **Set up the database**:
-    - Import the provided SQL file (`database.sql`) into your MySQL database.
-    - This will create the necessary tables for user data.
+## Administrator flow
 
-3. **Configure your bot**:
-    - Update the `API_KEY` and database credentials in the PHP script.
+Configured administrators can:
 
-4. **Interact with the bot**:
-    - Open Telegram, search for your bot, and send the `/start` command.
+- maintain root and nested topics
+- review participation requests
+- approve requests
+- send a Telegram message to all completed profiles
+- target a message to approved members of a selected topic
+- inspect basic runtime diagnostics
 
----
+Sensitive administrative callback actions are rejected for non-admin Telegram users.
 
-## **Telegram Bot Commands**
+## Requirements
 
-| Command    | Description                               |
-|------------|-------------------------------------------|
-| `/start`   | Register with the bot and start using it. |
-| `/help`    | Get help and see available commands.      |
-| `/message` | (Admin only) Send messages to all users.  |
+- PHP 8.0+
+- Composer
+- PHP cURL, JSON, and PDO extensions
+- MySQL or MariaDB
+- Telegram Bot API token
+- HTTPS webhook endpoint
 
----
+## Local setup
 
-## **Usage**
+Install dependencies:
 
-1. **For Users**:
-    - Send `/start` to the bot to register.
-    - Use the bot to receive updates and messages from the admin.
+```bash
+composer install
+```
 
-2. **For Admin**:
-    - Identify yourself using the configured `Admin User ID`.
-    - Send messages to all users by simply typing your message in the bot.
+Create local configuration:
 
----
+```bash
+cp .env.example .env
+```
 
-## **License**
+Configure `.env` with the Telegram token, administrator Telegram IDs, and database credentials. Never commit the populated `.env` file.
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+Initialize a fresh database:
 
----
+```bash
+mysql -u <user> -p < topic.sql
+```
 
-## **Acknowledgments**
+Expose `index.php` through HTTPS and register that endpoint as the Telegram webhook.
 
-- Thanks to the Telegram team for providing the powerful [Telegram Bot API](https://core.telegram.org/bots/api).
-- Inspired by the simplicity of integrating PHP with Telegram.
+For stronger webhook authentication, configure `TELEGRAM_WEBHOOK_SECRET` and register the same secret with Telegram.
 
----
+## Configuration
 
-## **Need Help?**
+```dotenv
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_ADMIN_IDS=123456789,987654321
+TELEGRAM_WEBHOOK_SECRET=replace_with_a_random_secret
 
-If you have any questions or need further assistance, feel free to contact me:
+DB_SERVER=localhost
+DB_PORT=3306
+DB_DATABASE=travel_tour_bot
+DB_USERNAME=travel_tour_bot
+DB_PASSWORD=replace_with_a_strong_password
+```
 
-- **Email**: belal.alireza@gmail.com
-- **Telegram**: [@alireza_belal](https://t.me/alireza_belal)
+## Testing
 
----
+Run the network-independent validation tests:
 
-### Notes
+```bash
+php tests/validators_test.php
+```
 
-- For scalability, consider moving to a framework (e.g., Laravel) or integrating with a queue system for sending bulk
-  messages.
-- If you encounter issues, feel free to open an issue in
-  the [GitHub Repository](https://github.com/AlirezaBelal/travel-tour-reservation-bot).
+Lint the PHP application:
+
+```bash
+find . -type f -name '*.php' -not -path './vendor/*' -not -path './medoo/vendor/*' -print0 | xargs -0 -n1 php -l
+```
+
+GitHub Actions validates the project across supported PHP versions, installs dependencies, runs syntax checks and validation tests, rejects common tracked-secret patterns, and audits Composer dependencies.
+
+## Data model
+
+### `Data`
+
+Stores the Telegram user ID, profile fields, profile-completion marker, and current conversation step.
+
+### `Topics`
+
+Stores the hierarchical tour/group catalogue. A root topic has parent/group value `0`; nested topics reference a parent topic ID.
+
+### Legacy per-topic state
+
+The original runtime represents per-user topic status with dynamically created `topic<id>` columns on `Data`. This behavior is preserved for compatibility with the existing code path. It works for the original operational model but is not the preferred schema for a large multi-tenant system; a normalized `user_topic_status` relation is the natural future migration.
+
+## Security and privacy
+
+The bot can process personal information, including phone numbers and national identifiers. Production deployments should use least-privilege database access, an explicit retention policy, restricted administrator access, and an appropriate user privacy notice.
+
+Credentials are loaded from environment variables. `.env.example` contains placeholders only. Optional Telegram webhook-secret verification is supported, and sensitive callback actions are restricted to configured administrators.
+
+If any real token or database credential has previously appeared in this public repository or another public channel, rotate it. Removing a secret from the latest branch does not invalidate copies retained in Git history or external caches.
+
+See [SECURITY.md](SECURITY.md) for deployment guidance.
+
+## Scope and portfolio interpretation
+
+This project demonstrates conversational workflow design, stateful onboarding, hierarchical catalogue navigation, approval operations, targeted communication, Telegram integration, and PHP/MySQL backend delivery.
+
+It should **not** be presented as an automated payment system, real-time booking engine, or travel inventory platform. Payment and final operational fulfillment are outside the implementation in this repository.
+
+## License
+
+See [LICENSE](LICENSE) for the repository's license terms.
