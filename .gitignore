@@ -5,6 +5,7 @@
 
 # Composer dependencies
 /vendor/
+/medoo/
 
 # Runtime output
 /logs/

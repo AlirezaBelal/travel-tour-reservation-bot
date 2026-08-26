@@ -92,6 +92,8 @@ Sensitive administrative callback actions are rejected for non-admin Telegram us
 - Telegram Bot API token
 - HTTPS webhook endpoint
 
+Dependencies are managed only through the root Composer project. Vendored dependency copies are intentionally not tracked.
+
 ## Local setup
 
 Install dependencies:
@@ -143,10 +145,10 @@ php tests/validators_test.php
 Lint the PHP application:
 
 ```bash
-find . -type f -name '*.php' -not -path './vendor/*' -not -path './medoo/vendor/*' -print0 | xargs -0 -n1 php -l
+find . -type f -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
 ```
 
-GitHub Actions validates the project across supported PHP versions, installs dependencies, runs syntax checks and validation tests, rejects common tracked-secret patterns, and audits Composer dependencies.
+GitHub Actions validates the project across PHP 8.0 through 8.4, installs dependencies, runs syntax checks and validation tests, rejects common tracked-secret patterns, and audits Composer dependencies.
 
 ## Data model
 
@@ -180,4 +182,4 @@ It should **not** be presented as an automated payment system, real-time booking
 
 ## License
 
-See [LICENSE](LICENSE) for the repository's license terms.
+This repository is licensed under the GNU General Public License v3.0 only (`GPL-3.0-only`). See [LICENSE](LICENSE).
