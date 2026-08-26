@@ -2,7 +2,7 @@
   "name": "alirezabelal/travel-tour-reservation-bot",
   "description": "A Telegram workflow for traveler onboarding, hierarchical tour-group requests, admin approval, and targeted member messaging.",
   "type": "project",
-  "license": "GPL-3.0-only",
+  "license": "MIT",
   "require": {
     "php": "^8.0",
     "ext-curl": "*",
