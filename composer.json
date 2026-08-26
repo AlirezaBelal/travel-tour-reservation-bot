@@ -1,8 +1,13 @@
 {
+  "name": "alirezabelal/travel-tour-reservation-bot",
+  "description": "A Telegram workflow for traveler onboarding, hierarchical tour-group requests, admin approval, and targeted member messaging.",
+  "type": "project",
   "require": {
-    "catfan/medoo": "^2.1",
+    "php": "^8.0",
     "ext-curl": "*",
     "ext-json": "*",
+    "ext-pdo": "*",
+    "catfan/medoo": "^2.1",
     "vlucas/phpdotenv": "^5.6"
   }
 }
