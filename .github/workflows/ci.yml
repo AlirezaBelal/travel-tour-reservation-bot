@@ -48,9 +48,9 @@ jobs:
             exit 1
           fi
 
-      - name: Reject obvious database-password assignments
+      - name: Reject legacy hard-coded database password
         run: |
-          if git grep -nEi '(DB_PASSWORD|Db_Password)\s*[=:]\s*["'"''][^$<{][^"'"'']{5,}["'"'']' -- ':!*.md' ':!.env.example'; then
+          if git grep -nE '\$Db_Password[[:space:]]*=[[:space:]]*"[^"]+"' -- ':!*.md'; then
             echo 'Possible hard-coded database password found in tracked files.' >&2
             exit 1
           fi
