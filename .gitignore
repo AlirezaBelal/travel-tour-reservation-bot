@@ -1,27 +1,19 @@
-# Laravel-specific folders
-/vendor
-/node_modules
-/public/storage
-/storage/*.key
-/.env
-/.env.*.php
-/.idea
+# Local environment / secrets
+.env
+.env.*
+!.env.example
 
-# Laravel log and cache files
-/storage/logs
-/storage/framework/cache
-/storage/framework/sessions
-/storage/framework/testing
-/storage/framework/views
+# Composer dependencies
+/vendor/
 
-# IDE and editor settings
+# Runtime output
+/logs/
+*.log
+
+# IDE / editor files
 .vscode/
 .idea/
 
-# System-specific files
+# OS metadata
 .DS_Store
 Thumbs.db
-
-# Composer and NPM lock files (if you don't want to track lock files)
-composer.lock
-package-lock.json
