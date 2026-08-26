@@ -5,9 +5,9 @@ require 'txt.php';
 
 date_default_timezone_set('Asia/Tehran');
 
-if ($chatId && in_array($chatId, ADMINS)) {
+if (isAdmin($fromId)) {
 
-    if (preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text)) {
+    if (is_string($text) && preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text)) {
         preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text, $text);
         $query = $text[2];
 
@@ -24,7 +24,6 @@ if ($chatId && in_array($chatId, ADMINS)) {
             $T = "False";
         }
 
-
         return sendMessage($chatId, "$T");
 
     } elseif ($text === 'Topics') {
@@ -39,7 +38,7 @@ if ($chatId && in_array($chatId, ADMINS)) {
             $Name = $button['Name'];
             $Gp = $button['Groups'];
             $callback = $Gp;
-            if ((is_array($perline) && $perline[$m] == $n) || $n == $perline) {
+            if ((is_array($perline) && ($perline[$m] ?? null) == $n) || $n == $perline) {
                 $m++;
                 $n = 0;
             }
@@ -47,77 +46,62 @@ if ($chatId && in_array($chatId, ADMINS)) {
             if ($callback == '0') {
                 $keyboard[$m][] = ['text' => $Name, 'callback_data' => "sub-$id"];
                 $keyboard[$m][] = ['text' => "🗑", 'callback_data' => "delete-$id"];
-                $n++;
-                $n++;
+                $n += 2;
             }
-
         }
 
-        if ($n <= 1) {
-            $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-0"];
-            $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
-        } else {
+        if ($n > 1) {
             $m++;
-            $n = 0;
-            $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-0"];
-            $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
-
         }
+        $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-0"];
+        $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
 
+        $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
+        return sendkeyboard($chatId, '$textm', $keyboard);
 
-        $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
-        return $CV = sendkeyboard($chatId, '$textm', $keyboard);
     } elseif ($text === '/send') {
         $Topics = $db->select('Topics', '*');
-
 
         $keyboard = array();
         $n = $m = 0;
         $perline = 1;
         foreach ($Topics as $Topic) {
             $callback = $Topic['id'];
-            $text = $Topic['Name'];
-            if ((is_array($perline) && $perline[$m] == $n) || $n == $perline) {
+            $topicText = $Topic['Name'];
+            if ((is_array($perline) && ($perline[$m] ?? null) == $n) || $n == $perline) {
                 $m++;
                 $n = 0;
             }
-            $keyboard[$m][] = ['text' => $text, 'callback_data' => "send$callback"];
-
+            $keyboard[$m][] = ['text' => $topicText, 'callback_data' => "send$callback"];
             $n++;
         }
 
         $keyboard[$m + 1][] = ['text' => "ارسال به همه ", 'callback_data' => "sendAll"];
-
-
-        $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
-
-
-        // $keyboard = advancedBuild($Topics,2,true,"🗑");
-
+        $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
         sendkeyboard($chatId, $selectSend, $keyboard);
 
     } elseif ($text === 'ping') {
-        $start = microtime(true);
-        $end = microtime(true);
-        $ping = round(($end - $start) * 1000, 3);
-        $X = file_get_contents("https://mrmd80.site/python/xx");
-        sendMessage($chatId, "`Robot ping : $ping ms`\n$X");
-    } elseif ($text == 'usage') {
-        $memory = memory_get_usage(true) / 1024 / 1024;
-        sendMessage($chatId, "`Memory usage is " . $memory . " Mb`");
+        sendMessage($chatId, "Bot is reachable.");
 
-    } elseif (strpos($data, 'send') !== false) {
+    } elseif ($text === 'usage') {
+        $memory = memory_get_usage(true) / 1024 / 1024;
+        sendMessage($chatId, "Memory usage is " . round($memory, 2) . " MB");
+
+    } elseif (is_string($data) && str_starts_with($data, 'send')) {
         $db->update('Data', ['step' => $data], ["UserId" => $chatId]);
         return sendMessage($chatId, "$reqForward");
-        // editMessageText($chatId,$messageId,$reqForward);
-    } elseif (strpos($data, 'sub') !== false) {
 
+    } elseif (is_string($data) && str_starts_with($data, 'sub-')) {
         $keyboard = array();
         $n = $m = 0;
         $perline = 2;
 
-        $data = explode("-", $data);
-        $id = $data[1];
+        $parts = explode("-", $data, 2);
+        $id = $parts[1] ?? '';
+        if (!ctype_digit((string)$id)) {
+            return null;
+        }
+
         $topics = $db->select('Topics', ['Name', 'id', 'caption'], [
             'Groups' => $id
         ]);
@@ -126,9 +110,7 @@ if ($chatId && in_array($chatId, ADMINS)) {
         if (count($topics) < 1) {
             $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-$id"];
             $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
-
             $caption = "...";
-
         } else {
             foreach ($topics as $Topic) {
                 $id2 = $Topic['id'];
@@ -136,43 +118,39 @@ if ($chatId && in_array($chatId, ADMINS)) {
                 $cap = $Topic['caption'] ?? "";
                 $caption .= "$Name : $cap\n\n";
 
-                if ((is_array($perline) && $perline[$m] == $n) || $n == $perline) {
+                if ((is_array($perline) && ($perline[$m] ?? null) == $n) || $n == $perline) {
                     $m++;
                     $n = 0;
                 }
                 $keyboard[$m][] = ['text' => $Name, 'callback_data' => "sub-$id2"];
                 $keyboard[$m][] = ['text' => "🗑", 'callback_data' => "delete-$id2"];
-
-                $n++;
-                $n++;
-
+                $n += 2;
             }
             $keyboard[$m + 1][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-$id"];
             $keyboard[$m + 2][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
-
         }
 
-        $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
+        $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
         return editMessageKeyboard($chatId, $messageId, $caption, $keyboard, null);
 
-    } elseif (strpos($data, 'AddTopic-') !== false) {
-        $db->update('Data', ['step' => "$data"], ["UserId" => $chatId]);
+    } elseif (is_string($data) && str_starts_with($data, 'AddTopic-')) {
+        $parentId = substr($data, strlen('AddTopic-'));
+        if (!ctype_digit((string)$parentId)) {
+            return null;
+        }
+        $db->update('Data', ['step' => $data], ["UserId" => $chatId]);
         return sendMessage($chatId, "$getTopic");
     }
-
-
 }
 
+if ($text || isset($photo) || isset($document) || isset($video) || isset($message['contact'])) {
 
-if ($text or isset($photo) or isset($document) or isset($video) or isset($message['contact'])) {
-
-    if (strpos($text, '/start') !== false) {
-
+    if (is_string($text) && str_contains($text, '/start')) {
         hasdb($chatId);
         return sendMessage($chatId, "$start");
-    } elseif ($text == '/list') {
-        if ($db->has('Data', ['UserId' => "$chatId"])) {
 
+    } elseif ($text === '/list') {
+        if ($db->has('Data', ['UserId' => "$chatId"])) {
             $checker = $db->get('Data', 'profile', ['UserId' => $chatId]);
             if ($checker == "true") {
                 $perline = 2;
@@ -188,89 +166,91 @@ if ($text or isset($photo) or isset($document) or isset($video) or isset($messag
                 ]);
 
                 foreach ($Topics as $button) {
-
                     $id = $button['id'];
                     $Name = $button['Name'];
-                    $callback = $button['Groups'];
-
                     $check = $db->get('Data', "topic$id", ['UserId' => $chatId]);
 
                     if ($check == "verify") {
                         $check = "✅";
                     } elseif ($check == "check") {
                         $check = "🔄";
-
                     } else {
                         $check = "❌";
                     }
-                    if ((is_array($perline) && $perline[$m] == $n) || $n == $perline) {
+
+                    if ((is_array($perline) && ($perline[$m] ?? null) == $n) || $n == $perline) {
                         $m++;
                         $n = 0;
                     }
 
                     $keyboard[$m][] = ['text' => $Name, 'callback_data' => "join-$id"];
                     $keyboard[$m][] = ['text' => "$check", 'callback_data' => "join-$id"];
-
-                    $n++;
-                    $n++;
-
+                    $n += 2;
                 }
 
-                $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
+                $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
                 sendkeyboard($chatId, '$textm', $keyboard);
             } else {
                 sendMessage($chatId, "$profileFalse");
             }
         } else {
-            $db->insert('Data', ['UserId' => "$chatId"]);
+            $db->insert('Data', ['UserId' => "$chatId", 'step' => 'defult']);
             sendMessage($chatId, "$start");
         }
-    } elseif ($text == '/setprofile') {
-        $T = "$name";
+
+    } elseif ($text === '/setprofile') {
         $db->update('Data', ['step' => "name"], ["UserId" => $chatId]);
-        return sendMessage($chatId, "$T");
+        return sendMessage($chatId, "$name");
+
     } else {
         if ($db->has('Data', ['UserId' => "$chatId"])) {
-            $step = $db->get('Data', 'step', ['UserId' => $chatId]);
-            if (strpos($step, 'send') !== false) {
+            $step = (string)$db->get('Data', 'step', ['UserId' => $chatId]);
 
-                $step = str_replace("send", "", $step);
+            if (str_starts_with($step, 'send')) {
+                if (!isAdmin($fromId)) {
+                    $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
+                    return null;
+                }
 
+                $target = substr($step, strlen('send'));
                 $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-                if ($step == "All") {
+
+                if ($target === "All") {
                     $profiles = $db->select('Data', ['profile', 'UserId']);
                     foreach ($profiles as $profile) {
-                        $cechk = $profile['profile'];
-                        $UserId = $profile['UserId'];
-                        if ($cechk == "true") {
-                            copymessage($UserId, $chatId, $messageId);
+                        if (($profile['profile'] ?? null) === "true") {
+                            copymessage($profile['UserId'], $chatId, $messageId);
                         }
                     }
-                } else {
-                    $profiles = $db->select('Data', [$step, 'UserId']);
+                } elseif (ctype_digit($target)) {
+                    $topicColumn = "topic$target";
+                    $profiles = $db->select('Data', [$topicColumn, 'UserId']);
                     foreach ($profiles as $profile) {
-                        $cechk = $profile[$step];
-                        $UserId = $profile['UserId'];
-                        if ($cechk == "verify") {
-                            copymessage($UserId, $chatId, $messageId);
+                        if (($profile[$topicColumn] ?? null) === "verify") {
+                            copymessage($profile['UserId'], $chatId, $messageId);
                         }
                     }
                 }
-                return sendMessage($chatId, "$forwardTrue");
 
+                return sendMessage($chatId, "$forwardTrue");
             }
 
-            if (strpos($step, "AddTopic-") !== false) {
-                $Groupsid = str_replace("AddTopic-", "", $step);
-                $db->select('Topics', 'Groups');
-                $columnCount = $db->max('Topics', 'id');
+            if (str_starts_with($step, "AddTopic-")) {
+                if (!isAdmin($fromId) || !is_string($text) || trim($text) === '') {
+                    return null;
+                }
 
-                $columnCount = $columnCount + 1;
+                $Groupsid = substr($step, strlen("AddTopic-"));
+                if (!ctype_digit((string)$Groupsid)) {
+                    $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
+                    return null;
+                }
 
+                $columnCount = ((int)$db->max('Topics', 'id')) + 1;
                 if (!$db->has('Topics', ['id' => $columnCount])) {
                     $db->query("ALTER TABLE Data ADD topic$columnCount VARCHAR(255)");
                     $T = "Sucess";
-                    $db->insert('Topics', ['id' => $columnCount, 'Name' => $text, 'Groups' => $Groupsid]);
+                    $db->insert('Topics', ['id' => $columnCount, 'Name' => trim($text), 'Groups' => $Groupsid]);
                     $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
                 } else {
                     $T = "False";
@@ -280,14 +260,16 @@ if ($text or isset($photo) or isset($document) or isset($video) or isset($messag
                 return sendMessage($chatId, "$captionTopic");
             }
 
-            if (strpos($step, "caption-") !== false) {
-                $captionid = str_replace("caption-", "", $step);
+            if (str_starts_with($step, "caption-")) {
+                if (!isAdmin($fromId) || !is_string($text)) {
+                    return null;
+                }
 
-                if ($db->has('Topics', ['id' => $captionid])) {
+                $captionid = substr($step, strlen("caption-"));
+                if (ctype_digit((string)$captionid) && $db->has('Topics', ['id' => $captionid])) {
                     $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-                    $db->update('Topics', ['caption' => "$text"], ['id' => $captionid]);
+                    $db->update('Topics', ['caption' => $text], ['id' => $captionid]);
                     $T = "Sucess";
-
                 } else {
                     $T = "False";
                 }
@@ -297,27 +279,31 @@ if ($text or isset($photo) or isset($document) or isset($video) or isset($messag
 
             switch ($step) {
                 case "name":
-                    $db->update('Data', ['Name' => "$text"], ["UserId" => $chatId]);
+                    if (!is_string($text) || trim($text) === '') {
+                        sendMessage($chatId, "$name");
+                        break;
+                    }
+
+                    $db->update('Data', ['Name' => trim($text)], ["UserId" => $chatId]);
                     $keyboard = json_encode([
                         'keyboard' => [
                             [['text' => "ارسال شماره", 'request_contact' => true]],
                         ],
                         'resize_keyboard' => true,
-                    ]);
+                    ], JSON_UNESCAPED_UNICODE);
                     sendkeyboard($chatId, $contact, $keyboard);
                     $db->update('Data', ['step' => "contact"], ["UserId" => $chatId]);
                     break;
 
                 case "contact":
                     if (isset($message['contact'])) {
+                        $contactPayload = $message['contact'];
+                        $phoneNumber = (string)($contactPayload['phone_number'] ?? '');
+                        $contactUserId = $contactPayload['user_id'] ?? null;
 
-                        $contact = $message['contact'];
-                        $phone_number = $message['contact']['phone_number'];
-                        $user_id = $contact['user_id'];
-                        $check = preg_match('/(98).*/', $phone_number, $output_array);
-                        if ($check && $user_id == $chatId) {
+                        if (isIranianMobileNumber($phoneNumber) && (int)$contactUserId === (int)$chatId) {
                             $db->update('Data', ['step' => "NationalCode"], ["UserId" => $chatId]);
-                            $db->update('Data', ['Mobile' => "$phone_number"], ["UserId" => $chatId]);
+                            $db->update('Data', ['Mobile' => $phoneNumber], ["UserId" => $chatId]);
                             $T = $contact_true;
                         } else {
                             $T = $contact_false;
@@ -329,30 +315,27 @@ if ($text or isset($photo) or isset($document) or isset($video) or isset($messag
                                 [['text' => "ارسال شماره", 'request_contact' => true]],
                             ],
                             'resize_keyboard' => true,
-                        ]);
+                        ], JSON_UNESCAPED_UNICODE);
                         return sendkeyboard($chatId, $T, $keyboard);
                     }
+
                     bot('sendMessage', [
                         'chat_id' => $chatId,
                         'text' => "$T",
-                        'reply_markup' => json_encode(
-                            ['KeyboardRemove' => [
-                            ], 'remove_keyboard' => true
-                            ])
+                        'reply_markup' => json_encode(['remove_keyboard' => true]),
                     ]);
                     break;
 
                 case "NationalCode":
-                    $check = isValidIranianNationalCode($text);
-                    if ($check == 1) {
+                    if (is_string($text) && isValidIranianNationalCode($text)) {
                         $db->update('Data', ['step' => "sex"], ["UserId" => $chatId]);
-                        $db->update('Data', ['N_Code' => "$text"], ["UserId" => $chatId]);
+                        $db->update('Data', ['N_Code' => $text], ["UserId" => $chatId]);
                         $keyboard = json_encode([
                             'keyboard' => [
                                 [['text' => "دختر"], ['text' => "پسر"]],
                             ],
                             'resize_keyboard' => true,
-                        ]);
+                        ], JSON_UNESCAPED_UNICODE);
                         sendkeyboard($chatId, $NationalCodeTrue, $keyboard);
                     } else {
                         sendMessage($chatId, "$NationalCodeFalse");
@@ -360,16 +343,13 @@ if ($text or isset($photo) or isset($document) or isset($video) or isset($messag
                     break;
 
                 case "sex":
-                    if ($text == "پسر" or $text == "دختر") {
+                    if ($text === "پسر" || $text === "دختر") {
                         $db->update('Data', ['step' => "birthday"], ["UserId" => $chatId]);
-                        $db->update('Data', ['sex' => "$text"], ["UserId" => $chatId]);
+                        $db->update('Data', ['sex' => $text], ["UserId" => $chatId]);
                         bot('sendMessage', [
                             'chat_id' => $chatId,
                             'text' => "$sexTrue",
-                            'reply_markup' => json_encode(
-                                ['KeyboardRemove' => [
-                                ], 'remove_keyboard' => true
-                                ])
+                            'reply_markup' => json_encode(['remove_keyboard' => true]),
                         ]);
                     } else {
                         sendMessage($chatId, "$sexFalse");
@@ -377,313 +357,260 @@ if ($text or isset($photo) or isset($document) or isset($video) or isset($messag
                     break;
 
                 case "birthday":
-                    if (preg_match('/\d{4}\/(0[1-9]|1[0-2])\/(0[1-9]|1\d|2[0-9]|3[01])/', $text)) {
+                    if (is_string($text) && preg_match('/^\d{4}\/(0[1-9]|1[0-2])\/(0[1-9]|1\d|2[0-9]|3[01])$/', $text)) {
                         $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-                        $db->update('Data', ['birthday' => "$text"], ["UserId" => $chatId]);
-                        $T = $birthdayTrue;
+                        $db->update('Data', ['birthday' => $text], ["UserId" => $chatId]);
                         $db->update('Data', ['profile' => "true"], ["UserId" => $chatId]);
-
-
+                        $T = $birthdayTrue;
                     } else {
                         $T = $birthdayFalse;
                     }
                     sendMessage($chatId, "$T");
                     break;
-
-                default:
-                    echo "No information available for that day.";
             }
         }
     }
 }
 
-# قضیه اینه وقتی مزنه رو دکمه 1 باید دکمه یک وزیر مجموعه ها بررسی بشن و به کاربر اطلاع داده بشن
-
-if (strpos($data, 'join-') !== false) {
+if (is_string($data) && str_starts_with($data, 'join-')) {
     $keyboard = array();
     $n = $m = 0;
     $perline = 2;
     $caption = "";
-    $data = str_replace("join-", "", $data);
+    $topicId = substr($data, strlen('join-'));
+
+    if (!ctype_digit((string)$topicId)) {
+        return null;
+    }
+
     if ($db->has('Data', ['UserId' => "$chatId"])) {
-        $Topics = $db->select('Topics', ['Name', 'id', 'caption'], ['Groups' => $data]); //Get All Topics if 'Groups' => $data
+        $Topics = $db->select('Topics', ['Name', 'id', 'caption'], ['Groups' => $topicId]);
         if (count($Topics) < 1) {
-            $checker = $db->get('Data', "topic$data", ['UserId' => $chatId]);
-            if ($checker != "verify" and $checker != "check") {
+            $topicColumn = "topic$topicId";
+            $checker = $db->get('Data', $topicColumn, ['UserId' => $chatId]);
+            if ($checker != "verify" && $checker != "check") {
                 $Name = $db->get('Data', 'Name', ['UserId' => $chatId]);
                 $Mobile = $db->get('Data', 'Mobile', ['UserId' => $chatId]);
                 $N_Code = $db->get('Data', 'N_Code', ['UserId' => $chatId]);
                 $birthday = $db->get('Data', 'birthday', ['UserId' => $chatId]);
                 $sex = $db->get('Data', 'sex', ['UserId' => $chatId]);
-                $Topic_Name = $db->get('Topics', 'Name', ['id' => $data]) ?? "?";
-                $id = "$data";
+
+                $id = (string)$topicId;
                 $TName = "";
-                $ids = "$data|";
-                while (True) {
-                    $Topic_Group = $db->get('Topics', 'Groups', ['id' => $id]) ?? "?";
-                    $Topic_Name = $db->get('Topics', 'Name', ['id' => $id]) ?? "?";
+                $ids = "$topicId|";
+                $guard = 0;
 
-                    if ($Topic_Group == '0') {
-                        $TName .= $Topic_Name;
-                        $ids .= "$Topic_Group";
+                while ($guard++ < 100) {
+                    $Topic_Group = $db->get('Topics', 'Groups', ['id' => $id]);
+                    $Topic_Name = $db->get('Topics', 'Name', ['id' => $id]);
+                    if ($Topic_Group === null || $Topic_Name === null) {
                         break;
-                    } else {
-                        $id = $Topic_Group;
-                        $ids = $ids . "$Topic_Group|";
-                        $TName .= $Topic_Name . " 👉 ";
                     }
+
+                    if ((string)$Topic_Group === '0') {
+                        $TName .= $Topic_Name;
+                        $ids .= "0";
+                        break;
+                    }
+
+                    $id = (string)$Topic_Group;
+                    $ids .= "$Topic_Group|";
+                    $TName .= $Topic_Name . " 👉 ";
                 }
+
                 $TXT = "new request!\n\nTopic : $TName \nname : $Name\nmobile : $Mobile\nN_Code : $N_Code\nbirthday : $birthday\nsex : $sex\nid : $chatId\nusername : @$userName";
-                $keyboard = [[['text' => 'تایید ✅', 'callback_data' => "taeed;;$chatId;;topic$data;;$ids"]]];
-                $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
+                $keyboard = [[['text' => 'تایید ✅', 'callback_data' => "taeed;;$chatId;;$topicColumn;;$ids"]]];
+                $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
 
-                sendkeyboard(ADMINS[0], "$TXT", $keyboard);
-
+                sendkeyboard(ADMINS[0], $TXT, $keyboard);
                 foreach (ADMINS as $admin) {
                     if ((int)$admin !== (int)ADMINS[0]) {
                         sendMessage($admin, $TXT);
-                        sendMessage(ADMINS[0], $TXT);
                     }
                 }
 
-                $db->update('Data', ["topic$data" => "check"], ["UserId" => $chatId]);
+                $db->update('Data', [$topicColumn => "check"], ["UserId" => $chatId]);
                 sendMessage($chatId, "$reqJoin");
-
             }
         } else {
-            $caption = "";
             foreach ($Topics as $Topic) {
-                if ((is_array($perline) && $perline[$m] == $n) || $n == $perline) {
+                if ((is_array($perline) && ($perline[$m] ?? null) == $n) || $n == $perline) {
                     $m++;
                     $n = 0;
                 }
 
                 $TopicId = $Topic['id'];
-                $subsettopics = $db->select('Topics', ['Name', 'id', 'caption'], ['Groups' => $TopicId]); //search subsettopics
+                $subsettopics = $db->select('Topics', ['Name', 'id', 'caption'], ['Groups' => $TopicId]);
                 $Name = $Topic['Name'];
-                $caption = "$caption \n$Name : " . $Topic['caption'];
+                $caption .= "\n$Name : " . ($Topic['caption'] ?? '');
+
                 if (count($subsettopics) < 1) {
                     $check = $db->get('Data', "topic$TopicId", ['UserId' => $chatId]);
-                    // sendMessage($chatId, "ridi '$Name'=> '$TopicId' --> $check");
-
                     if ($check == "verify") {
                         $check = "✅";
                     } elseif ($check == "check") {
                         $check = "🔄";
-
                     } else {
                         $check = "❌";
                     }
-
-                    $keyboard[$m][] = ['text' => $Name, 'callback_data' => "join-$TopicId"];
-                    $keyboard[$m][] = ['text' => $check, 'callback_data' => "join-$TopicId"];
-                    $n++;
-                    $n++;
-
                 } else {
-
                     $check = "↗️";
-
-                    $keyboard[$m][] = ['text' => $Name, 'callback_data' => "join-$TopicId"];
-                    $keyboard[$m][] = ['text' => $check, 'callback_data' => "join-$TopicId"];
-                    $n++;
-                    $n++;
                 }
+
+                $keyboard[$m][] = ['text' => $Name, 'callback_data' => "join-$TopicId"];
+                $keyboard[$m][] = ['text' => $check, 'callback_data' => "join-$TopicId"];
+                $n += 2;
             }
 
-            if ($n <= 1) {
-                $keyboard[$m][] = ['text' => "BackToHome", 'callback_data' => "BackToHome"];
-            } else {
-                $keyboard[$m + 1][] = ['text' => "BackToHome", 'callback_data' => "BackToHome"];
+            if ($n > 1) {
+                $m++;
             }
-            $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
-
+            $keyboard[$m][] = ['text' => "BackToHome", 'callback_data' => "BackToHome"];
+            $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
             sendkeyboard($chatId, "$caption", $keyboard);
-
         }
     }
 }
 
+if ($data === "BackHome") {
+    if (!isAdmin($fromId)) {
+        return null;
+    }
 
-if ($data == "BackHome") {
+    $Topics = $db->select('Topics', ['id', 'Name', 'Groups'], ['Groups' => 0]);
+    $keyboard = [];
+    $n = $m = 0;
+    foreach ($Topics as $button) {
+        if ($n == 2) {
+            $m++;
+            $n = 0;
+        }
+        $id = $button['id'];
+        $Name = $button['Name'];
+        $keyboard[$m][] = ['text' => $Name, 'callback_data' => "sub-$id"];
+        $keyboard[$m][] = ['text' => "🗑", 'callback_data' => "delete-$id"];
+        $n += 2;
+    }
+    if ($n > 1) {
+        $m++;
+    }
+    $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-0"];
+    $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
+    $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
+    return editMessageKeyboard($chatId, $messageId, 'Topics', $keyboard, null);
+}
+
+if ($data === "BackToHome") {
     if ($db->has('Data', ['UserId' => "$chatId"])) {
-
         $checker = $db->get('Data', 'profile', ['UserId' => $chatId]);
         if ($checker == "true") {
-            // $Topics = $db->select('Topics', '*');
             $perline = 2;
             $keyboard = array();
             $n = $m = 0;
-
-            $Topics = $db->select('Topics', [
-                'id',
-                'Name',
-                'Groups'
-            ], [
-                'Groups' => 0
-            ]);
+            $Topics = $db->select('Topics', ['id', 'Name', 'Groups'], ['Groups' => 0]);
 
             foreach ($Topics as $button) {
-
                 $id = $button['id'];
                 $Name = $button['Name'];
-                $callback = $button['Groups'];
-
                 $check = $db->get('Data', "topic$id", ['UserId' => $chatId]);
 
                 if ($check == "verify") {
                     $check = "✅";
                 } elseif ($check == "check") {
                     $check = "🔄";
-
                 } else {
                     $check = "❌";
                 }
-                if ((is_array($perline) && $perline[$m] == $n) || $n == $perline) {
+
+                if ((is_array($perline) && ($perline[$m] ?? null) == $n) || $n == $perline) {
                     $m++;
                     $n = 0;
                 }
 
                 $keyboard[$m][] = ['text' => $Name, 'callback_data' => "join-$id"];
                 $keyboard[$m][] = ['text' => "$check", 'callback_data' => "join-$id"];
-
-                $n++;
-                $n++;
-
+                $n += 2;
             }
 
-            $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
-            // sendkeyboard($chatId,'$textm',$keyboard);
-            return editMessageKeyboard($chatId, $messageId, '$textm', $keyboard, null);
-
-        } else {
-            sendMessage($chatId, "$profileFalse");
+            $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
+            return editMessageKeyboard($chatId, $messageId, 'Tour groups', $keyboard, null);
         }
+
+        sendMessage($chatId, "$profileFalse");
     } else {
-        $db->insert('Data', ['UserId' => "$chatId"]);
+        $db->insert('Data', ['UserId' => "$chatId", 'step' => 'defult']);
         sendMessage($chatId, "$start");
     }
-}
 
-if ($data == "BackToHome") {
-    if ($db->has('Data', ['UserId' => "$chatId"])) {
-
-        $checker = $db->get('Data', 'profile', ['UserId' => $chatId]);
-        if ($checker == "true") {
-            $perline = 2;
-            $keyboard = array();
-            $n = $m = 0;
-
-            $Topics = $db->select('Topics', [
-                'id',
-                'Name',
-                'Groups'
-            ], [
-                'Groups' => 0
-            ]);
-
-            foreach ($Topics as $button) {
-
-                $id = $button['id'];
-                $Name = $button['Name'];
-                $callback = $button['Groups'];
-
-                $check = $db->get('Data', "topic$id", ['UserId' => $chatId]);
-
-                if ($check == "verify") {
-                    $check = "✅";
-                } elseif ($check == "check") {
-                    $check = "🔄";
-
-                } else {
-                    $check = "❌";
-                }
-                if ((is_array($perline) && $perline[$m] == $n) || $n == $perline) {
-                    $m++;
-                    $n = 0;
-                }
-
-                $keyboard[$m][] = ['text' => $Name, 'callback_data' => "join-$id"];
-                $keyboard[$m][] = ['text' => "$check", 'callback_data' => "join-$id"];
-
-                $n++;
-                $n++;
-
-            }
-
-            $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true]);
-            // sendkeyboard($chatId,'$textm',$keyboard);
-            return editMessageKeyboard($chatId, $messageId, '$textm', $keyboard, null);
-
-        } else {
-            sendMessage($chatId, "$profileFalse");
-        }
-    } else {
-        $db->insert('Data', ['UserId' => "$chatId"]);
-        sendMessage($chatId, "$start");
+} elseif (is_string($data) && str_starts_with($data, 'taeed')) {
+    if (!isAdmin($fromId)) {
+        return null;
     }
-} elseif (strpos($data, 'taeed') !== false) {
-    $data = str_replace("taeed", "", $data);
-    $ex = explode(';;', $data);
+
+    $payload = str_replace("taeed", "", $data);
+    $ex = explode(';;', $payload);
+    if (count($ex) < 4) {
+        return null;
+    }
+
     $chatid = $ex[1];
-    $data = $ex[2];
-    $topicIds = $ex[3];
-    $topicIds = str_replace("|0", "", $topicIds);
-    $TopicIds = explode("|", $topicIds);
+    $topicColumn = $ex[2];
+    $topicIds = str_replace("|0", "", $ex[3]);
+
+    if (!ctype_digit((string)$chatid) || !preg_match('/^topic\d+$/', $topicColumn)) {
+        return null;
+    }
+
+    $TopicIds = array_values(array_filter(explode("|", $topicIds), static fn($id) => ctype_digit((string)$id)));
     $Names = "";
     $num = count($TopicIds);
     foreach ($TopicIds as $Ids) {
         $num--;
-        if ($num == 0) {
-            $Names .= $db->get('Topics', 'Name', ['id' => $Ids]);
-
-        } else {
-            $Names .= $db->get('Topics', 'Name', ['id' => $Ids]) . " 👈 ";
-        }
+        $topicName = (string)$db->get('Topics', 'Name', ['id' => $Ids]);
+        $Names .= $num === 0 ? $topicName : $topicName . " 👈 ";
     }
-    sendMessage($chatid, "$topicIds");
-    // sendMessage($chatid, "$Ids");
 
-    $db->update('Data', [$data => "verify"], ["UserId" => $chatid]);
-    bot('answercallbackquery', [
-        'callback_query_id' => $callbackId,
-        'text' => "با موفقیت تایید شد :))",
-        'show_alert' => true,
-    ]);
+    $db->update('Data', [$topicColumn => "verify"], ["UserId" => $chatid]);
+    if (is_string($callbackId) && $callbackId !== '') {
+        bot('answerCallbackQuery', [
+            'callback_query_id' => $callbackId,
+            'text' => "با موفقیت تایید شد :))",
+            'show_alert' => true,
+        ]);
+    }
+
     editMessageText($chatId, $messageId, "تایید شده ✅\n\n$text2");
     $acceptTopic = "مدیریت ربات با عضویت شما در گروه $Names موافقت کرد✅";
-
     sendMessage($chatid, "$acceptTopic");
 
-} elseif (strpos($data, 'delete-') !== false) {
-    $data = str_replace("delete-", "", $data);
-    if ($db->has('Topics', ["id" => $data])) {
-        $topics = $db->select('Topics', ['id'], [
-            'Groups' => $data
-        ]);
+} elseif (is_string($data) && str_starts_with($data, 'delete-')) {
+    if (!isAdmin($fromId)) {
+        return null;
+    }
+
+    $topicId = substr($data, strlen('delete-'));
+    if (!ctype_digit((string)$topicId)) {
+        return null;
+    }
+
+    if ($db->has('Topics', ["id" => $topicId])) {
+        $topics = $db->select('Topics', ['id'], ['Groups' => $topicId]);
 
         if (count($topics) < 1) {
-            $db->query("ALTER TABLE Data DROP COLUMN topic$data");
-            $db->delete('Topics', ['id' => $data]);
-            $T = "Delted";
+            $db->query("ALTER TABLE Data DROP COLUMN topic$topicId");
+            $db->delete('Topics', ['id' => $topicId]);
         } else {
             foreach ($topics as $topic) {
                 $topicid = $topic['id'];
-                $db->query("ALTER TABLE Data DROP COLUMN topic$topicid");
-                $db->delete('Topics', ['id' => $topicid]);
+                if (ctype_digit((string)$topicid)) {
+                    $db->query("ALTER TABLE Data DROP COLUMN topic$topicid");
+                    $db->delete('Topics', ['id' => $topicid]);
+                }
             }
-            $db->query("ALTER TABLE Data DROP COLUMN topic$data");
-            $db->delete('Topics', ['id' => $data]);
-            $T = "Delted";
-
+            $db->query("ALTER TABLE Data DROP COLUMN topic$topicId");
+            $db->delete('Topics', ['id' => $topicId]);
         }
 
-
-        sendMessage($chatId, "`Hi $T`");
-
+        sendMessage($chatId, "Topic deleted.");
     }
 }
-
-
-
-
