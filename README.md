@@ -123,7 +123,7 @@ mysql -u <user> -p < topic.sql
 php bin/migrate.php
 ```
 
-Expose `index.php` through HTTPS and register that endpoint as the Telegram webhook.
+Set the web document root to `public/`, expose its `index.php` through HTTPS, and register that endpoint as the Telegram webhook. Never expose the repository root, `.env`, source files or backups.
 
 Set `TELEGRAM_WEBHOOK_SECRET` to a random 32–256 character value using only letters, digits, underscores or hyphens (for example, `openssl rand -hex 32`). Register the same secret with Telegram. Missing or invalid secrets are rejected. The bot only accepts POST requests and private conversations where the chat belongs to the sender. Edited messages, group messages and inline callbacks are ignored.
 

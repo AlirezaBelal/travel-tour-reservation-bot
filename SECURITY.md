@@ -10,9 +10,9 @@ If a real credential has ever appeared in a public commit, deployment log, scree
 
 ## Telegram webhook
 
-The application supports Telegram's webhook secret header through `TELEGRAM_WEBHOOK_SECRET`.
+The application requires `TELEGRAM_WEBHOOK_SECRET` containing 32–256 letters, digits, underscores or hyphens. Missing, weak or mismatched secrets fail closed. Only POST requests are accepted.
 
-When enabled:
+For every installation:
 
 1. Register the Telegram webhook with the same secret token.
 2. Serve the webhook over HTTPS only.
@@ -31,7 +31,9 @@ Do not use production personal data in tests, screenshots, issues, or public rep
 
 Use a dedicated database account with only the permissions required by this application. Do not reuse a root or hosting-control-panel database credential.
 
-The current runtime preserves a legacy dynamic-column model for per-topic approval state. Treat schema-management commands as administrator-only operations and apply explicit migrations to existing deployments.
+The runtime uses relational topic memberships and does not execute ALTER TABLE. Run the additive legacy migration with a separate maintenance account while writers are stopped. Retained legacy columns become stale after new writes, so a code-only rollback is unsafe. See [migration guidance](docs/MIGRATION.md).
+
+The bot only processes private conversations belonging to the update sender. Group/inline/edited updates are ignored; callback data is limited to 64 bytes. This development version still lacks complete account deletion/retention, rate limiting and a durable notification outbox. It must not be presented as production ready.
 
 ## Logging
 

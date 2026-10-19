@@ -18,3 +18,7 @@
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Personal-data backups stay outside source control
+/backups/
+backup*.sql*
