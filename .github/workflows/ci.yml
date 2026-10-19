@@ -42,7 +42,9 @@ jobs:
         run: php tests/validators_test.php
 
       - name: Run webhook security tests
-        run: php tests/webhook_test.php
+        run: |
+          php tests/webhook_test.php
+          php tests/booking_unit_test.php
 
       - name: Reject Telegram tokens in tracked files
         run: |
@@ -90,6 +92,7 @@ jobs:
         run: |
           php tests/mysql_test.php
           php tests/workflow_test.php
+          php tests/product_test.php
         env:
           TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=travel_tour_test;charset=utf8mb4
           TEST_MYSQL_USER: root

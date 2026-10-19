@@ -23,6 +23,8 @@ try {
     $pdo->exec($schema);
     require __DIR__ . '/../database/migrate.php';
     migrateTopicMemberships($pdo);
+    require_once __DIR__ . '/../database/product.php';
+    migrateProduct($pdo);
     fwrite(STDOUT, "Schema initialized and migrations applied.\n");
 } catch (Throwable $error) {
     fwrite(STDERR, "Installation failed (" . get_class($error) . "/" . $error->getCode() . "). Inspect configuration and database privately.\n");

@@ -21,7 +21,9 @@ try {
     }
     $pdo = new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4", migrationEnv('DB_USERNAME'), migrationEnv('DB_PASSWORD'), [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     migrateTopicMemberships($pdo);
-    fwrite(STDOUT, "Migration 001_topic_memberships applied or already current.\n");
+    require_once __DIR__ . '/../database/product.php';
+    migrateProduct($pdo);
+    fwrite(STDOUT, "Migrations 001 and 002 applied or already current.\n");
 } catch (Throwable $error) {
     // Driver messages can include data. Do not print them to shared CI logs.
     fwrite(STDERR, "Migration failed. Legacy columns are retained; inspect configuration and data privately.\n");
