@@ -8,6 +8,8 @@ use Medoo\Medoo;
 require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/validators.php';
 require_once __DIR__ . '/src/webhook.php';
+require_once __DIR__ . '/src/TopicMemberships.php';
+require_once __DIR__ . '/src/TopicCatalogue.php';
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
@@ -222,6 +224,9 @@ $db = new Medoo([
     'username' => requiredEnv('DB_USERNAME'),
     'password' => requiredEnv('DB_PASSWORD'),
 ]);
+
+$memberships = new TopicMemberships($db->pdo);
+$catalogue = new TopicCatalogue($db->pdo);
 
 $text = $chatType = $chatTitle = $userName = $firstName = $callbackId = $data = $query = $fromId = false;
 $text2 = $messageId2 = false;

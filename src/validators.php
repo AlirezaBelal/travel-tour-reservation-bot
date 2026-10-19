@@ -27,7 +27,7 @@ function isSensitiveAdminCallback(mixed $data): bool
         return false;
     }
 
-    foreach (['send', 'sub-', 'AddTopic-', 'delete-', 'taeed'] as $prefix) {
+    foreach (['send', 'sub-', 'AddTopic-', 'delete-', 'confirmDelete-', 'approve:', 'taeed'] as $prefix) {
         if (str_starts_with($data, $prefix)) {
             return true;
         }

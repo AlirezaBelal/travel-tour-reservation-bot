@@ -4,6 +4,10 @@
 
 A PHP/MySQL Telegram workflow for traveler onboarding, hierarchical tour-group discovery, participation requests, administrator approval, and targeted member communication.
 
+[وضعیت توسعه به فارسی](docs/STATUS.fa.md) · [Migration and upgrade guide](docs/MIGRATION.md)
+
+**Development branch:** not production ready. Run migration 001 before using this version.
+
 ## What this repository implements
 
 The bot coordinates the operational flow around joining travel groups and tours. A user completes a profile, browses a hierarchical catalogue, requests participation, and waits for an administrator decision. Administrators can maintain the topic tree, approve requests, and send messages to selected groups or all completed profiles.
@@ -114,6 +118,7 @@ Initialize a fresh database:
 
 ```bash
 mysql -u <user> -p < topic.sql
+php bin/migrate.php
 ```
 
 Expose `index.php` through HTTPS and register that endpoint as the Telegram webhook.
@@ -163,7 +168,7 @@ Stores the hierarchical tour/group catalogue. A root topic has parent/group valu
 
 ### Legacy per-topic state
 
-The original runtime represents per-user topic status with dynamically created `topic<id>` columns on `Data`. This behavior is preserved for compatibility with the existing code path. It works for the original operational model but is not the preferred schema for a large multi-tenant system; a normalized `user_topic_status` relation is the natural future migration.
+Memberships now use `TopicMemberships(user_id, topic_id, status)`, with a unique key, foreign keys and a topic/status index. Migration 001 transfers the old `topic<id>` values without dropping legacy columns. The runtime never creates or drops profile columns. Read the [migration guide](docs/MIGRATION.md) before upgrading; legacy columns become stale after new writes. Topic deletion requires administrator confirmation and removes all descendants transactionally.
 
 ## Security and privacy
 

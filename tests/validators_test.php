@@ -20,4 +20,7 @@ assertSameValue(false, isIranianMobileNumber('02112345678'), 'landline rejected'
 assertSameValue(false, isValidIranianNationalCode('0000000000'), 'repeated national code rejected');
 assertSameValue(false, isValidIranianNationalCode('123'), 'short national code rejected');
 
+assertSameValue(true, isSensitiveAdminCallback('approve:101:4'), 'short approval is admin-only');
+assertSameValue(true, isSensitiveAdminCallback('confirmDelete-4'), 'deletion confirmation is admin-only');
+
 fwrite(STDOUT, "Validator tests passed.\n");
