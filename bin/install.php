@@ -24,7 +24,7 @@ try {
     require __DIR__ . '/../database/migrate.php';
     migrateTopicMemberships($pdo);
     fwrite(STDOUT, "Schema initialized and migrations applied.\n");
-} catch (Throwable) {
-    fwrite(STDERR, "Installation failed; inspect configuration and database privately.\n");
+} catch (Throwable $error) {
+    fwrite(STDERR, "Installation failed (" . get_class($error) . "/" . $error->getCode() . "). Inspect configuration and database privately.\n");
     exit(1);
 }

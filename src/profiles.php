@@ -24,4 +24,3 @@ function hasdb(int|string $userid): bool
 
     return true;
 }
-
