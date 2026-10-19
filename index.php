@@ -10,4 +10,3 @@ try {
     error_log('Webhook processing failed.');
     http_response_code(500);
 }
-

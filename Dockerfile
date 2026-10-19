@@ -1,7 +1,7 @@
 FROM composer:2 AS composer
 FROM php:8.4-apache
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libcurl4-openssl-dev \
+    && apt-get install -y --no-install-recommends libcurl4-openssl-dev unzip \
     && docker-php-ext-install curl pdo_mysql \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=composer /usr/bin/composer /usr/local/bin/composer
