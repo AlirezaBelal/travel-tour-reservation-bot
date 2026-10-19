@@ -5,7 +5,7 @@ require __DIR__ . '/../src/TopicCatalogue.php';
 require __DIR__ . '/../database/migrate.php';
 
 $dsn = getenv('TEST_MYSQL_DSN');
-if (!$dsn || !str_contains($dsn, 'dbname=travel_tour_test')) {
+if (!$dsn || preg_match('/(?:^|;)dbname=travel_tour_test(?:;|$)/D', $dsn) !== 1) {
     fwrite(STDERR, "Use an isolated travel_tour_test database; this test deletes its fixtures.\n");
     exit(1);
 }
@@ -35,7 +35,7 @@ $legacy = file_get_contents(__DIR__ . '/../topic.sql');
 $legacy = preg_replace('/CREATE DATABASE.*?;\s*USE travel_tour_bot;/s', '', $legacy);
 $pdo->exec($legacy);
 $pdo->exec("INSERT INTO Data (UserId, Name, profile) VALUES (101, 'Synthetic traveler', 'true'), (102, 'Synthetic traveler two', 'true')");
-$pdo->exec("INSERT INTO Topics (id, Name, Groups) VALUES (1, 'Root', 0), (2, 'Child', 1), (3, 'Grandchild', 2), (4, 'Leaf', 3), (5, 'Other root', 0)");
+$pdo->exec("INSERT INTO Topics (id, Name, `Groups`) VALUES (1, 'Root', 0), (2, 'Child', 1), (3, 'Grandchild', 2), (4, 'Leaf', 3), (5, 'Other root', 0)");
 $pdo->exec('ALTER TABLE Data ADD topic1 VARCHAR(255), ADD topic4 VARCHAR(255)');
 $pdo->exec("UPDATE Data SET topic1 = 'check', topic4 = 'unknown' WHERE UserId = 101");
 try {

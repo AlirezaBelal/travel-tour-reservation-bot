@@ -10,6 +10,7 @@ require_once __DIR__ . '/src/validators.php';
 require_once __DIR__ . '/src/webhook.php';
 require_once __DIR__ . '/src/TopicMemberships.php';
 require_once __DIR__ . '/src/TopicCatalogue.php';
+require_once __DIR__ . '/src/profiles.php';
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
@@ -51,14 +52,6 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 }
 
 
-function isAdmin(int|string|null $chatId): bool
-{
-    if ($chatId === null || $chatId === false || $chatId === '') {
-        return false;
-    }
-
-    return in_array((int)$chatId, ADMINS, true);
-}
 
 function bot(string $method, array $data = []): array|false
 {
@@ -175,20 +168,6 @@ function advancedBuild(array $buttons, int|array $perline, bool $json = true, st
         : $keyboard;
 }
 
-function hasdb(int|string $userid): bool
-{
-    global $db;
-
-    if (!$db->has('Data', ['UserId' => (string)$userid])) {
-        $db->insert('Data', [
-            'UserId' => (string)$userid,
-            'step' => 'defult',
-        ]);
-        return false;
-    }
-
-    return true;
-}
 
 $rawUpdate = file_get_contents('php://input', false, null, 0, 1048577);
 if (!is_string($rawUpdate) || trim($rawUpdate) === '') {

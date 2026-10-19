@@ -20,7 +20,7 @@ final class TopicCatalogue
                     throw new InvalidArgumentException('Parent topic does not exist.');
                 }
             }
-            $insert = $this->pdo->prepare('INSERT INTO Topics (Name, Groups) VALUES (?, ?)');
+            $insert = $this->pdo->prepare('INSERT INTO Topics (Name, `Groups`) VALUES (?, ?)');
             $insert->execute([trim($name), $parentId]);
             $id = (int)$this->pdo->lastInsertId();
             $this->pdo->commit();
@@ -38,7 +38,7 @@ final class TopicCatalogue
     {
         $this->pdo->beginTransaction();
         try {
-            $topics = $this->pdo->query('SELECT id, Groups FROM Topics ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC);
+            $topics = $this->pdo->query('SELECT id, `Groups` FROM Topics ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC);
             $children = [];
             $exists = false;
             foreach ($topics as $topic) {

@@ -82,10 +82,14 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
-          extensions: pdo_mysql
+          extensions: curl, json, pdo_mysql
           coverage: none
+      - name: Install workflow dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
       - name: Test legacy migration, relational workflows and concurrent requests
-        run: php tests/mysql_test.php
+        run: |
+          php tests/mysql_test.php
+          php tests/workflow_test.php
         env:
           TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=travel_tour_test;charset=utf8mb4
           TEST_MYSQL_USER: root
