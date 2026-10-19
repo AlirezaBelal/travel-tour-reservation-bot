@@ -7,13 +7,20 @@ use Medoo\Medoo;
 
 require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/validators.php';
+require_once __DIR__ . '/src/webhook.php';
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
 
+function environmentValue(string $name, string $default = ''): string
+{
+    $value = $_ENV[$name] ?? getenv($name);
+    return $value === false ? $default : (string)$value;
+}
+
 function requiredEnv(string $name): string
 {
-    $value = trim((string)($_ENV[$name] ?? ''));
+    $value = trim(environmentValue($name));
     if ($value === '') {
         throw new RuntimeException("Missing required environment variable: {$name}");
     }
@@ -30,25 +37,17 @@ if ($adminIds === []) {
 define('TOKEN', $telegramToken);
 define('ADMINS', $adminIds);
 
-$webhookSecret = trim((string)($_ENV['TELEGRAM_WEBHOOK_SECRET'] ?? ''));
-if ($webhookSecret !== '') {
-    $providedSecret = (string)($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '');
-    if ($providedSecret === '' || !hash_equals($webhookSecret, $providedSecret)) {
-        http_response_code(403);
-        exit;
-    }
+$webhookSecret = requiredEnv('TELEGRAM_WEBHOOK_SECRET');
+if (!webhookSecretIsValid($webhookSecret, $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? null)) {
+    http_response_code(403);
+    exit;
+}
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    exit;
 }
 
-$db = new Medoo([
-    'database_type' => 'mysql',
-    'server' => requiredEnv('DB_SERVER'),
-    'port' => (int)($_ENV['DB_PORT'] ?? 3306),
-    'charset' => 'utf8mb4',
-    'collation' => 'utf8mb4_unicode_ci',
-    'database_name' => requiredEnv('DB_DATABASE'),
-    'username' => requiredEnv('DB_USERNAME'),
-    'password' => requiredEnv('DB_PASSWORD'),
-]);
 
 function isAdmin(int|string|null $chatId): bool
 {
@@ -189,9 +188,14 @@ function hasdb(int|string $userid): bool
     return true;
 }
 
-$rawUpdate = file_get_contents('php://input');
+$rawUpdate = file_get_contents('php://input', false, null, 0, 1048577);
 if (!is_string($rawUpdate) || trim($rawUpdate) === '') {
     http_response_code(200);
+    exit;
+}
+
+if (strlen($rawUpdate) > 1048576) {
+    http_response_code(413);
     exit;
 }
 
@@ -201,6 +205,23 @@ try {
     http_response_code(400);
     exit;
 }
+
+if (!isSupportedPrivateUpdate($update)) {
+    // Acknowledge unsupported updates without side effects or Telegram retries.
+    http_response_code(200);
+    exit;
+}
+
+$db = new Medoo([
+    'database_type' => 'mysql',
+    'server' => requiredEnv('DB_SERVER'),
+    'port' => (int)environmentValue('DB_PORT', '3306'),
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+    'database_name' => requiredEnv('DB_DATABASE'),
+    'username' => requiredEnv('DB_USERNAME'),
+    'password' => requiredEnv('DB_PASSWORD'),
+]);
 
 $text = $chatType = $chatTitle = $userName = $firstName = $callbackId = $data = $query = $fromId = false;
 $text2 = $messageId2 = false;

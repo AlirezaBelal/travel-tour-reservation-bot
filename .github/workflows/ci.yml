@@ -41,6 +41,9 @@ jobs:
       - name: Run validator tests
         run: php tests/validators_test.php
 
+      - name: Run webhook security tests
+        run: php tests/webhook_test.php
+
       - name: Reject Telegram tokens in tracked files
         run: |
           if git grep -nE '[0-9]{8,10}:[A-Za-z0-9_-]{30,}' -- ':!*.md'; then

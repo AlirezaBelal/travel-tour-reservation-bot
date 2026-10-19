@@ -25,7 +25,7 @@ This repository should be interpreted as a **reservation/request workflow**, not
 - Targeted messaging to approved members of a selected topic
 - MySQL persistence through Medoo
 - Environment-based credential handling
-- Optional Telegram webhook-secret verification
+- Required Telegram webhook-secret verification
 - Administrator-only protection for sensitive callbacks
 - PHP CI, syntax checks, validation tests, secret-pattern checks, and dependency audit
 
@@ -118,7 +118,7 @@ mysql -u <user> -p < topic.sql
 
 Expose `index.php` through HTTPS and register that endpoint as the Telegram webhook.
 
-For stronger webhook authentication, configure `TELEGRAM_WEBHOOK_SECRET` and register the same secret with Telegram.
+Set `TELEGRAM_WEBHOOK_SECRET` to a random 32–256 character value using only letters, digits, underscores or hyphens (for example, `openssl rand -hex 32`). Register the same secret with Telegram. Missing or invalid secrets are rejected. The bot only accepts POST requests and private conversations where the chat belongs to the sender. Edited messages, group messages and inline callbacks are ignored.
 
 ## Configuration
 
@@ -140,6 +140,7 @@ Run the network-independent validation tests:
 
 ```bash
 php tests/validators_test.php
+php tests/webhook_test.php
 ```
 
 Lint the PHP application:
@@ -168,7 +169,7 @@ The original runtime represents per-user topic status with dynamically created `
 
 The bot can process personal information, including phone numbers and national identifiers. Production deployments should use least-privilege database access, an explicit retention policy, restricted administrator access, and an appropriate user privacy notice.
 
-Credentials are loaded from environment variables. `.env.example` contains placeholders only. Optional Telegram webhook-secret verification is supported, and sensitive callback actions are restricted to configured administrators.
+Credentials are loaded from environment variables. `.env.example` contains placeholders only. Required Telegram webhook-secret verification is supported, and sensitive callback actions are restricted to configured administrators.
 
 If any real token or database credential has previously appeared in this public repository or another public channel, rotate it. Removing a secret from the latest branch does not invalidate copies retained in Git history or external caches.
 
