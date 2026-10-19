@@ -1,0 +1,35 @@
+services:
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-travel_tour_bot}
+      MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+    volumes:
+      - database:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'mysqladmin ping -h localhost -p"$$MYSQL_ROOT_PASSWORD" --silent']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_SERVER: db
+      DB_PORT: 3306
+    ports:
+      - 127.0.0.1:8080:80
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, php, -r, 'exit(@file_get_contents("http://127.0.0.1/health.php") === false ? 1 : 0);']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+volumes:
+  database:

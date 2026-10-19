@@ -120,7 +120,7 @@ dispatchFlow(202, null, $approval);
 expectFlow($memberships->status(201, $leaf) === 'check', 'unauthorized approval rejected');
 $calls = dispatchFlow(999, null, $approval);
 expectFlow($memberships->status(201, $leaf) === 'verify', 'administrator approves');
-expectFlow(count(array_filter($calls, fn($call) => ($call['payload']['chat_id'] ?? null) === 201)) === 1, 'traveler receives approval notification');
+expectFlow(count(array_filter($calls, fn($call) => (string)($call['payload']['chat_id'] ?? '') === '201')) === 1, 'traveler receives approval notification');
 expectFlow(dispatchFlow(999, null, $approval) === [], 'duplicate approval sends no duplicate notification');
 dispatchFlow(999, null, "delete-$root");
 expectFlow($db->has('Topics', ['id' => $leaf]), 'first delete click does not delete');

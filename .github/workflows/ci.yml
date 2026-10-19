@@ -94,3 +94,45 @@ jobs:
           TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=travel_tour_test;charset=utf8mb4
           TEST_MYSQL_USER: root
           TEST_MYSQL_PASSWORD: synthetic_test_password
+
+  install:
+    name: Clean container install and restore
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create synthetic configuration
+        run: |
+          cat > .env <<'ENV'
+          TELEGRAM_BOT_TOKEN=synthetic_bot_token
+          TELEGRAM_ADMIN_IDS=999
+          TELEGRAM_WEBHOOK_SECRET=synthetic_secret_for_ci_only_1234567890
+          DB_SERVER=db
+          DB_PORT=3306
+          DB_DATABASE=travel_tour_test
+          DB_USERNAME=synthetic_bot
+          DB_PASSWORD=synthetic_database_password
+          DB_ROOT_PASSWORD=synthetic_root_password
+          ENV
+      - name: Build and initialize a clean database
+        run: |
+          docker compose build app
+          docker compose run --rm app php bin/install.php
+          docker compose run --rm app php bin/migrate.php
+          docker compose up -d app
+      - name: Check HTTP readiness and webhook boundary
+        run: |
+          curl --retry 10 --retry-delay 2 --retry-all-errors -fsS http://127.0.0.1:8080/health.php
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/index.php -d '{}')" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/index.php -H 'X-Telegram-Bot-Api-Secret-Token: synthetic_secret_for_ci_only_1234567890' -d '{}')" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/config.php)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/.env)" = 404
+      - name: Back up and restore synthetic data
+        run: |
+          docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT INTO Data (UserId, Name) VALUES (303, '\''Synthetic backup fixture'\'')"'
+          docker compose exec -T db sh -c 'mysqldump -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --no-tablespaces --single-transaction "$MYSQL_DATABASE"' > backup.sql
+          docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "DELETE FROM Data WHERE UserId = 303"'
+          docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' < backup.sql
+          test "$(docker compose exec -T db sh -c 'mysql -N -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM Data WHERE UserId = 303"')" = 1
+      - name: Clean up synthetic environment
+        if: always()
+        run: docker compose down -v

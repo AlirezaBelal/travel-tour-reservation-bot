@@ -37,8 +37,8 @@ After new writes, legacy columns are stale: **do not switch back to the old code
 without reconciling those writes. Stop traffic, preserve a new backup, and restore
 both the prior application and the matching pre-upgrade database only after
 reviewing the data-loss implications and obtaining operator authorization.
-There is no automatic destructive down migration. Restore and post-upgrade write
-reconciliation have not yet been end-to-end verified.
+There is no automatic destructive down migration. Post-upgrade write reconciliation has not been end-to-end verified.
+CI also exercises a synthetic dump/restore through the container installation job.
 
 ## Automated validation
 
@@ -48,5 +48,7 @@ checks real legacy-column migration, rollback on unknown status, repeat executio
 foreign keys, duplicate requests, duplicate approvals, eight concurrent PHP
 request processes, automatic topic IDs and four-level deletion with cascading
 membership removal. This verifies membership uniqueness, **not seat capacity**.
-MariaDB, full Telegram workflows, backup/restore and clean VPS installation remain
-separate acceptance gates.
+The workflow regression suite uses the production handler with a fake Telegram
+boundary and real MySQL. The container job checks clean initialization, HTTP
+readiness and synthetic backup/restore. MariaDB, live Telegram and clean VPS
+installation remain separate acceptance gates.

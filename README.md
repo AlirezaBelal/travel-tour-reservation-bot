@@ -98,6 +98,8 @@ Sensitive administrative callback actions are rejected for non-admin Telegram us
 
 Dependencies are managed only through the root Composer project. Vendored dependency copies are intentionally not tracked.
 
+See [container installation and operations](docs/DEPLOYMENT.md) for Docker Compose, HTTP readiness, HTTPS and backup guidance.
+
 ## Local setup
 
 Install dependencies:
