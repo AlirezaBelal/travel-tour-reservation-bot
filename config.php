@@ -195,6 +195,7 @@ if (!isSupportedPrivateUpdate($update)) {
 
 $db = new Medoo([
     'database_type' => 'mysql',
+    'error' => PDO::ERRMODE_EXCEPTION,
     'server' => requiredEnv('DB_SERVER'),
     'port' => (int)environmentValue('DB_PORT', '3306'),
     'charset' => 'utf8mb4',
