@@ -114,6 +114,9 @@ final class BookingService
             if (!is_string($name) || trim($name) === '') {
                 throw new RuleViolation('ابتدا نام خود را از بخش پروفایل ثبت کنید.');
             }
+            if (getenv('REQUIRE_VERIFIED_PROFILE') === 'true' && !(new TravelerIdentity($this->pdo))->complete($actor)) {
+                throw new RuleViolation('برای رزرو ابتدا شماره خود را با دکمه تلگرام به اشتراک بگذارید و کد ملی معتبر ثبت کنید.');
+            }
             if ($tour['publication'] !== 'published' || $tour['starts_at'] <= gmdate('Y-m-d H:i:s')) {
                 throw new RuleViolation('ثبت درخواست برای این تور فعال نیست.');
             }
