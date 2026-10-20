@@ -133,6 +133,8 @@ jobs:
           DB_PASSWORD=synthetic_database_password
           DB_ROOT_PASSWORD=synthetic_root_password
           APP_ENV=test
+          PROFILE_ENCRYPTION_KEY=a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
+          REQUIRE_VERIFIED_PROFILE=true
           PAYMENT_SANDBOX_ENABLED=true
           PAYMENT_SANDBOX_SECRET=synthetic_signing_key_only_for_disposable_ci
           ENV
