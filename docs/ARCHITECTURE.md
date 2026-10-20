@@ -83,3 +83,7 @@ anonymizes booking ownership/history and purges queued personal profile messages
 Amounts, counts and hashed transaction uniqueness remain without account linkage.
 Existing Telegram messages and offline backups need the operator's own retention
 and access policy. See SECURITY.md.
+
+Automatic profile retention is opt-in by default. Explicit erasure keeps only the
+minimal ingress counter for at most one day so deletion cannot reset abuse limits.
+Receipt replay protection lasts 30 days; terminal queue payloads last seven days.

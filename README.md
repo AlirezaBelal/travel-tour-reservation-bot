@@ -132,7 +132,8 @@ Automatic profile anonymization is **disabled by default** to protect existing
 installations during upgrade. After approving and publishing a retention policy,
 set `RETENTION_ENABLED=true` and `RETENTION_DAYS` (default 180). Explicit user-requested
 erasure remains available. Sent/failed queue payloads expire after seven days;
-update receipts retain a 30-day replay window. Already-delivered/in-flight Telegram
+update receipts retain a 30-day replay window. A minimal ingress counter remains
+for up to one day after account deletion to prevent resetting spam limits. Already-delivered/in-flight Telegram
 messages and offline backups cannot be recalled by a database deletion.
 
 ## Development and verification

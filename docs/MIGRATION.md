@@ -49,8 +49,8 @@ request processes, automatic topic IDs and four-level deletion with cascading
 membership removal. This verifies membership uniqueness, **not seat capacity**.
 The workflow regression suite uses the production handler with a fake Telegram
 boundary and real MySQL. The container job checks clean initialization, HTTP
-readiness and synthetic backup/restore. MariaDB, live Telegram and clean VPS
-installation remain separate acceptance gates.
+readiness and synthetic backup/restore. The expanded suite runs on MySQL 8.0 and MariaDB 10.11. Live Telegram and clean VPS
+installation remain separate external acceptance gates.
 
 ## Migration 002: independent tours and bookings
 

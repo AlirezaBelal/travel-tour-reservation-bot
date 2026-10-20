@@ -17,7 +17,7 @@ final class PrivacyService
             Database::run($this->pdo,"UPDATE AuditLog SET target_id=NULL WHERE target_type='user' AND target_id=?",[$actor]);
             Database::run($this->pdo,'DELETE FROM AdminRoles WHERE user_id=?',[$actor]);
             Database::run($this->pdo,"DELETE FROM NotificationOutbox WHERE chat_id=? OR JSON_UNQUOTE(JSON_EXTRACT(payload,'$._subject_user'))=?",[$actor,(string)$actor]);
-            Database::run($this->pdo,'DELETE FROM RateLimits WHERE user_id=?',[$actor]);
+            // Keep the short-lived ingress counter so account erasure cannot reset spam limits.
             Database::run($this->pdo,'DELETE FROM Data WHERE UserId=?',[$actor]);
         });
     }

@@ -18,7 +18,7 @@ and operator reviews are satisfied. No final release or deployment is authorized
 | Persian forms, booking/review/cancel/manual pay, RBAC, CSV and rate limits | `tests/product_workflow_test.php` |
 | Real webhook entry point and payment endpoint | `tests/http_e2e.php` copied only into disposable CI container |
 | Fresh install, migrations, readiness, auth and source isolation | CI `install` job |
-| Dump/restore and preserved synthetic fixture | CI `install` job, disposable volume |
+| Dump/restore and preserved synthetic fixture | CI `install` job, disposable volume, then seven booking/payment/history/queue relationship assertions |
 | Syntax, Composer metadata/platform compatibility, dependency audit | CI PHP matrix |
 | Live Telegram token/webhook, real delivery/429 behavior | **BLOCKED EXTERNAL** — token and operator-run test bot |
 | Linux VPS/TLS/domain/reverse proxy/firewall/restart rehearsal | **BLOCKED EXTERNAL** — infrastructure and operator authorization |

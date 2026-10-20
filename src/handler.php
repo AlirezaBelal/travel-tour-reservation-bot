@@ -554,6 +554,13 @@ if ($data === "BackToHome") {
         return sendMessage($chatId, 'ابتدا حذف دسته را از منو انتخاب و تأیید کنید.');
     }
     $db->update('Data', ['step' => 'defult'], ['UserId' => $chatId]);
-    $deleted = $catalogue->deleteTree($topicId);
+    try {
+        $deleted = $catalogue->deleteTree($topicId);
+    } catch (PDOException $error) {
+        if (($error->errorInfo[1] ?? null) === 1451 && class_exists('RuleViolation')) {
+            throw new RuleViolation('این دسته یا زیرمجموعه آن به تور مرتبط است؛ ابتدا دسته تور را تغییر دهید.');
+        }
+        throw $error;
+    }
     return sendMessage($chatId, "تعداد دسته‌های حذف‌شده: $deleted");
 }

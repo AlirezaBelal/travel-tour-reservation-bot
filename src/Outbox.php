@@ -11,8 +11,8 @@ final class Outbox
         }
         if ($method === 'sendMessage' && is_string($payload['text'] ?? null)) {
             $characters = preg_split('//u', $payload['text'], -1, PREG_SPLIT_NO_EMPTY);
-            if (is_array($characters) && count($characters) > 3500) {
-                $chunks = array_chunk($characters, 3500);
+            if (is_array($characters) && count($characters) > 2000) {
+                $chunks = array_chunk($characters, 2000);
                 foreach ($chunks as $index => $chunk) {
                     $part = $payload;
                     $part['text'] = implode('', $chunk);
