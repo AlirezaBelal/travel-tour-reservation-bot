@@ -19,13 +19,14 @@ The established handler remains available for legacy commands.
 
 001 retains old Data/Topics and copies `topic<id>` statuses into TopicMemberships.
 002 adds product tables and does not invent dates, prices, tours or bookings from
-memberships. An operator can associate a new tour with an existing category.
+memberships. Migration 003 adds encrypted traveler identity columns in a separate table, without copying plaintext legacy identifiers. An operator can associate a new tour with an existing category.
 Both migrations serialize their own runs and retain version markers. DDL is
 additive/resumable and is not claimed to roll back atomically in MySQL.
 
 | Table | Purpose / constraints |
 |---|---|
 | Data | Existing profile ID/name; nullable legacy PII fields remain for compatibility |
+| TravelerIdentity | Encrypted Telegram-shared phone and checksum-validated national code; cascade deletion with account |
 | Topics / TopicMemberships | Existing category hierarchy / unique legacy membership |
 | Tours | Category FK (restrict deletion), UTC dates, integer IRR price, capacity, publication, version |
 | Bookings | Unique user/tour and request key, quantity, price snapshot, status/version; account FK becomes null on deletion |
