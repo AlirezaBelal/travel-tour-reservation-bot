@@ -33,7 +33,7 @@ Use a dedicated database account with only the permissions required by this appl
 
 The runtime uses relational topic memberships and does not execute ALTER TABLE. Run the additive legacy migration with a separate maintenance account while writers are stopped. Retained legacy columns become stale after new writes, so a code-only rollback is unsafe. See [migration guidance](docs/MIGRATION.md).
 
-The bot only processes private conversations belonging to the update sender. Group/inline/edited updates are ignored; callback data is limited to 64 bytes. This development version still lacks complete account deletion/retention, rate limiting and a durable notification outbox. It must not be presented as production ready.
+The bot only processes private conversations belonging to the update sender. Group/inline/edited updates are ignored; callback data is limited to 64 bytes. New product operations use ownership/RBAC checks, receipted updates, per-minute ingress limits, persistent forms, transactional outbox events and account anonymization/retention. These controls do not establish live production acceptance; see docs/ACCEPTANCE.md.
 
 ## Logging
 
@@ -42,3 +42,27 @@ Keep error messages generic. Never log the Telegram bot token, database password
 ## Reporting
 
 For a privately discovered vulnerability, contact the repository owner directly rather than publishing credentials, personal data, or exploit details in a public issue.
+
+## Product-specific controls and limits
+
+New bookings require only a leader name. Existing legacy profile fields remain
+nullable and are removed when the account is erased. Active bookings must be
+cancelled before erasure. Closed financial/count records remain without account
+linkage; transaction references are hashed. Personal profile view is limited to
+manager/owner, audited, and queued personal messages are purged with the subject.
+Previously delivered Telegram messages and offline backups require operator policy.
+
+CSV exports exclude traveler profile/Telegram-ID columns, neutralize spreadsheet
+formulas, are permission-gated/audited, and recheck export permission before delivery.
+Temporary CSV files have restrictive permissions and are deleted after sending.
+Never expose the outbox or its payloads through a public endpoint.
+
+The payment sandbox endpoint is disabled by default and verifies HMAC, freshness,
+order, amount, expiration and transaction uniqueness. It is a local simulator only.
+No real gateway or automatic refund is enabled. Keep simulator keys distinct from
+webhook/token/database secrets and disable the endpoint outside disposable tests.
+
+Historical token-pattern matches were discovered without copying their values into
+reports. The operator must revoke/rotate any real exposed token in BotFather, then
+update the secret store and webhook. A Git deletion/history rewrite cannot revoke
+a credential. Do not rewrite repository history as a substitute for rotation.

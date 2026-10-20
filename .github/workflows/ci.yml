@@ -60,6 +60,12 @@ jobs:
             exit 1
           fi
 
+      - name: Retain resolved dependency lockfile
+        if: matrix.php-version == '8.4'
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-lock
+          path: composer.lock
       - name: Audit dependencies
         run: composer audit --no-interaction
 

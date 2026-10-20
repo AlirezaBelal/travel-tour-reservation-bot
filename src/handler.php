@@ -543,12 +543,17 @@ if ($data === "BackToHome") {
     }
     $topicId = (int)$match[2];
     if ($match[1] === 'delete') {
+        $db->update('Data', ['step' => "deleteConfirm-$topicId"], ['UserId' => $chatId]);
         $keyboard = json_encode(['inline_keyboard' => [
             [['text' => 'تأیید حذف دسته و تمام زیرمجموعه‌ها', 'callback_data' => "confirmDelete-$topicId"]],
             [['text' => 'انصراف', 'callback_data' => 'BackHome']],
         ]], JSON_UNESCAPED_UNICODE);
         return sendkeyboard($chatId, 'این کار دسته، تمام زیرمجموعه‌ها و درخواست‌های مرتبط را حذف می‌کند. تأیید می‌کنید؟', $keyboard);
     }
+    if ($db->get('Data', 'step', ['UserId' => $chatId]) !== "deleteConfirm-$topicId") {
+        return sendMessage($chatId, 'ابتدا حذف دسته را از منو انتخاب و تأیید کنید.');
+    }
+    $db->update('Data', ['step' => 'defult'], ['UserId' => $chatId]);
     $deleted = $catalogue->deleteTree($topicId);
     return sendMessage($chatId, "تعداد دسته‌های حذف‌شده: $deleted");
 }

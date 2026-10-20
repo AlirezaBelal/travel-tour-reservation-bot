@@ -1,7 +1,7 @@
 # Container installation and operations
 
-This development branch is not a production-ready booking engine. It still has
-synchronous notifications and no seat inventory/payment/cancellation lifecycle.
+This development branch is not a production-ready booking engine. It includes transactional group bookings and a durable queue; live Telegram,
+VPS and merchant-provider acceptance remain external gates.
 
 ## Fresh isolated installation
 
@@ -19,7 +19,7 @@ curl -f http://127.0.0.1:8080/health.php
 The database has no host port. HTTP binds only to the host's loopback interface.
 Only `public/` is exposed by Apache; application source, dependencies, migrations,
 credentials and backups must remain outside the document root. The health endpoint
-returns a generic status and checks configuration, connectivity and migration 001.
+returns a generic status and checks configuration, connectivity and migration 002.
 It does not verify the Telegram token with Telegram.
 
 Create a bot using Telegram's BotFather and keep the token private. On a Linux VPS,
@@ -64,6 +64,30 @@ retention policy or production recovery objectives.
 - Review `docker compose ps` and `docker compose logs --tail=100 app db` in a
   restricted terminal. Do not post logs containing credentials or personal data.
 
-Docker images and Composer constraints currently resolve at build time. A reviewed
-lockfile and image pinning policy are still needed for reproducible releases.
+Use the committed Composer lockfile when available; pin reviewed container image
+digests for your production rollout. Floating development image tags are not a
+production image-pinning policy.
 VPS/TLS/live-Telegram operation has not been verified by the automated tests.
+
+## Worker and retention
+
+`docker compose up -d` starts the app, database and worker. Check all three using
+`docker compose ps`. `docker compose logs --tail=100 worker` reports generic class/code
+errors. Do not run multiple bots with the same token or database unintentionally.
+The worker has a MySQL dispatch lock, a five-minute lease timeout, conservative
+send pacing, and schedules reminders, payment-hold expiration and retention.
+Set `RETENTION_DAYS` (30–3650, default 180) deliberately and document the policy
+for your travelers. Remove personal data from backups according to your own
+secure rotation policy; deleting an account does not rewrite old offline backups.
+
+Create a dedicated maintenance DB account for schema changes; the web/worker
+account needs normal DML, not ALTER/DROP privilege. Limit access to AuditLog and
+outbox payloads, apply database/storage encryption and restrict logs/backups.
+The app health endpoint checks schema/connectivity, not worker liveness; monitor
+worker process health and pending/failed queue counts separately.
+
+For local payment simulation in disposable data only, set PAYMENT_SANDBOX_ENABLED=true
+and a distinct random PAYMENT_SANDBOX_SECRET. Run
+`docker compose run --rm app php bin/sandbox-payment.php ORDER_REF TRANSACTION paid`
+using a synthetic pending order. Restore the enable flag to false afterwards.
+This does not test any actual gateway or merchant settlement.

@@ -1,6 +1,5 @@
-# Migration 001: relational topic memberships
+# Database upgrades: migrations 001 and 002
 
-This branch still implements participation requests, not seat inventory or payments.
 Migration 001 replaces `Data.topic<id>` reads and writes with `TopicMemberships`.
 It preserves pending (`check`) and approved (`verify`) values. Null/empty values
 remain absent. Unknown statuses and populated columns referring to missing topics
@@ -52,3 +51,21 @@ The workflow regression suite uses the production handler with a fake Telegram
 boundary and real MySQL. The container job checks clean initialization, HTTP
 readiness and synthetic backup/restore. MariaDB, live Telegram and clean VPS
 installation remain separate acceptance gates.
+
+## Migration 002: independent tours and bookings
+
+`php bin/migrate.php` now applies both versions. `php bin/install.php` initializes
+a fresh baseline and applies both. Version 002 creates Tours, Bookings, participant
+ordinals, status history, separate Payments, roles/audit, outbox, receipts, sessions
+and rate limits. No legacy data/columns are deleted, and no capacity/date/price
+is guessed from a TopicMembership. Create real tours through `/admin`.
+
+Stop app and worker writers while migrating. Rehearse on a restored copy before
+production. Version 002 uses resumable CREATE TABLE IF NOT EXISTS DDL and records
+its marker after every table has been created. MySQL DDL commits implicitly.
+Migration 001's data-copy transaction and its rollback tests remain unchanged.
+A failed partial 002 can be retried; do not manually mark it applied or drop tables
+containing new writes. Code-only rollback cannot represent new bookings/payments.
+
+`tests/product_test.php` separately verifies actual seat-capacity races across
+eight processes; this supplements the legacy membership uniqueness test.

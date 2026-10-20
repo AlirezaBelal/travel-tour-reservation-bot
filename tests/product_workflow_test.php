@@ -27,6 +27,12 @@ foreach([504,505]as$user){sendUpdate($user,null,'p:name:0');sendUpdate($user,'Sy
 $reject=(int)Database::run($pdo,'SELECT id FROM Bookings WHERE user_id=504 AND tour_id=?',[$tour])->fetchColumn();
 sendUpdate(502,null,"p:reject:$reject");sendUpdate(502,'Synthetic rejection reason');wfCheck($service->booking(504,$reject)['status']==='rejected','reasoned rejection workflow');
 $before=$service->used($tour);sendUpdate(505,null,"p:reserve_yes:$tour:1:0");wfCheck($service->used($tour)===$before,'stale callback does not change capacity');
+// Manual payment is a separately confirmed, permission-checked Telegram flow.
+$paidValues=['category_id'=>null,'title'=>'Synthetic manual payment','destination'=>'Synthetic','description'=>'Synthetic payment workflow','starts_at'=>gmdate('Y-m-d H:i:s',time()+86400),'ends_at'=>gmdate('Y-m-d H:i:s',time()+90000),'price'=>500,'capacity'=>3,'publication'=>'published'];
+$paidTour=$service->saveTour(999,$paidValues);sendUpdate(508,null,'p:name:0');sendUpdate(508,'Synthetic Payer');sendUpdate(508,null,"p:reserve_yes:$paidTour:1:1");
+$paidBooking=(int)Database::run($pdo,'SELECT id FROM Bookings WHERE user_id=508 AND tour_id=?',[$paidTour])->fetchColumn();
+sendUpdate(502,null,"p:pay:$paidBooking");sendUpdate(502,'SYNTHETIC-UI-RECEIPT');wfCheck($service->booking(508,$paidBooking)['payment_status']==='pending','payment approval needs confirmation');
+sendUpdate(502,null,"p:pay_yes:$paidBooking");sendUpdate(502,null,"p:confirm:$paidBooking");wfCheck($service->booking(508,$paidBooking)['status']==='confirmed','manual payment then booking approval');
 // Account deletion is explicit, idempotent and does not disclose other accounts.
 sendUpdate(500,null,'p:erase:0');wfCheck((bool)Database::run($pdo,'SELECT UserId FROM Data WHERE UserId=500')->fetchColumn(),'deletion confirmation required');sendUpdate(500,null,'p:erase_yes:0');wfCheck(!Database::run($pdo,'SELECT UserId FROM Data WHERE UserId=500')->fetchColumn(),'account deletion workflow');
 // Input errors do not advance the persisted wizard; /cancel exits it.

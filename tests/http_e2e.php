@@ -20,7 +20,7 @@ $delivery=updateTest(700,null,"p:reserve_yes:$tour:2:1");$booking=(int)Database:
 updateTest(700,null,"p:reserve_yes:$tour:2:1",$delivery);httpCheck((int)Database::run($pdo,'SELECT COUNT(*) FROM Bookings WHERE user_id=700 AND tour_id=?',[$tour])->fetchColumn()===1,'HTTP replay safe');
 updateTest(701,null,"p:confirm:$booking");httpCheck($bookings->booking(700,$booking)['status']==='pending','HTTP forged admin callback denied');
 updateTest($owners[0],null,"p:confirm:$booking");httpCheck($bookings->booking(700,$booking)['status']==='confirmed','HTTP admin approval');
-updateTest(700,null,"p:cancel_yes:$booking");httpCheck($bookings->used($tour)===0,'HTTP cancellation frees seats');
+updateTest(700,null,"p:cancel_booking:$booking");updateTest(700,null,"p:cancel_yes:$booking");httpCheck($bookings->used($tour)===0,'HTTP cancellation frees seats');
 // The application container never calls Telegram in CI; deliver through fake transport.
 $sent=0;(new NotificationWorker($pdo,$access))->tick(function()use(&$sent){$sent++;return['ok'=>true,'code'=>200];},100,false);httpCheck($sent>0,'HTTP-created notifications dispatched via simulated transport');
 $paidTour=$bookings->saveTour($owners[0],array_replace($values,['price'=>250]));$paid=$bookings->reserve(700,$paidTour,1,'http-payment');$order=$bookings->booking(700,$paid)['order_ref'];
