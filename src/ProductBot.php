@@ -14,6 +14,7 @@ final class ProductBot
         if($text!==null&&preg_match('/^\/(start|help|tours|bookings|profile|admin|cancel|privacy|search)(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u',$text,$match)) {
             $command=$match[1];
             $this->clear();
+            Database::run($this->pdo,"UPDATE Data SET step='defult' WHERE UserId=?",[$actor]);
             if($command==='start'||$command==='help'||$command==='cancel') {
                 $this->reply($command==='cancel'?'عملیات جاری متوقف شد.':'خوش آمدید. برای رزرو فقط نام سرپرست گروه لازم است. قیمت‌ها ریال و تاریخ‌ها میلادی با ساعت تهران هستند.\nاز دکمه‌ها استفاده کنید؛ /cancel در هر مرحله عملیات را متوقف می‌کند.',$this->menu());
             } elseif($command==='tours') $this->listing(0);
@@ -91,6 +92,7 @@ final class ProductBot
             }
             return true;
         }
+        if($text!==null && preg_match('/^\/(?:setprofile|list|send)(?:\s|$)/',$text)){$this->clear();return false;}
         if($session!==null&&$session['state']!=='filter'&&$text!==null&&!str_starts_with($text,'/')) {
             $this->input($session['state'],json_decode($session['payload'],true,512,JSON_THROW_ON_ERROR),trim($text));return true;
         }

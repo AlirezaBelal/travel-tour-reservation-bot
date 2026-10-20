@@ -20,14 +20,14 @@ final class NotificationWorker
             $this->pdo->exec("UPDATE NotificationOutbox SET status='pending',locked_at=NULL WHERE status='processing' AND locked_at < UTC_TIMESTAMP()-INTERVAL 5 MINUTE");
             for($i=0;$i<$limit;$i++) {
                 $row=Database::atomic($this->pdo,function()use($throttle){
-                    $condition=$throttle ? " AND NOT EXISTS (SELECT 1 FROM NotificationOutbox recent WHERE recent.chat_id=o.chat_id AND recent.sent_at >= UTC_TIMESTAMP()-INTERVAL 1 SECOND)" : '';
-                    $row=Database::run($this->pdo,"SELECT o.* FROM NotificationOutbox o WHERE o.status='pending' AND o.available_at<=UTC_TIMESTAMP() $condition ORDER BY o.id LIMIT 1 FOR UPDATE")->fetch(PDO::FETCH_ASSOC);
+                    $condition=$throttle ? " AND (o.method='answerCallbackQuery' OR NOT EXISTS (SELECT 1 FROM NotificationOutbox recent WHERE recent.chat_id=o.chat_id AND recent.method<>'answerCallbackQuery' AND recent.sent_at >= UTC_TIMESTAMP()-INTERVAL 1 SECOND))" : '';
+                    $row=Database::run($this->pdo,"SELECT o.* FROM NotificationOutbox o WHERE o.status='pending' AND o.available_at<=UTC_TIMESTAMP() $condition ORDER BY (o.method='answerCallbackQuery') DESC,o.id LIMIT 1 FOR UPDATE")->fetch(PDO::FETCH_ASSOC);
                     if($row) Database::run($this->pdo,"UPDATE NotificationOutbox SET status='processing',attempts=attempts+1,locked_at=UTC_TIMESTAMP() WHERE id=?",[$row['id']]);
                     return $row;
                 });
                 if(!$row) break;
                 $payload=json_decode($row['payload'],true,512,JSON_THROW_ON_ERROR);
-                $obsolete=false;
+                $obsolete=isset($payload['_expires_at']) && $payload['_expires_at']<=gmdate('Y-m-d H:i:s');
                 $authorized=true;
                 foreach((array)($payload['_required_permissions']??[])as$permission) {
                     if(!is_string($permission)||!$this->access->allows((int)$row['chat_id'],$permission))$authorized=false;

@@ -59,7 +59,8 @@ function bot(string $method, array $data = []): array|false
     global $outbox, $update, $fromId;
     static $sequence = 0;
     $chat = (int)($data['chat_id'] ?? $fromId);
-    $outbox->enqueue($chat, $method, $data, 'legacy:' . $update['update_id'] . ':' . $sequence++);
+    $key = $method === 'answerCallbackQuery' && isset($data['callback_query_id']) ? 'callback:' . $data['callback_query_id'] : 'legacy:' . $update['update_id'] . ':' . $sequence++;
+    $outbox->enqueue($chat, $method, $data, $key);
     return ['ok' => true, 'queued' => true];
 }
 

@@ -3,7 +3,7 @@
 final class WebhookProcessor
 {
     public function __construct(private PDO $pdo,private BookingService $bookings,private ProductBot $bot,private Outbox $outbox) {}
-    public function handle(int $update,int $actor,?string $text,?string $callback,?callable $legacy=null):void {
+    public function handle(int $update,int $actor,?string $text,?string $callback,?callable $legacy=null,?string $callbackId=null):void {
         if(Database::run($this->pdo,'SELECT update_id FROM UpdateReceipts WHERE update_id=?',[$update])->fetchColumn()!==false)return;
         $slot=intdiv(time(),60);
         Database::run($this->pdo,'INSERT INTO RateLimits(user_id,minute_slot,hits) VALUES (?,?,1) ON DUPLICATE KEY UPDATE hits=hits+1',[$actor,$slot]);
@@ -13,17 +13,22 @@ final class WebhookProcessor
             $this->outbox->message($actor,'پیام‌های زیادی ارسال شده است؛ یک دقیقه صبر کنید.',"rate:$actor:$slot");return;
         }
         try {
-            Database::atomic($this->pdo,function()use($update,$actor,$text,$callback,$legacy){
+            Database::atomic($this->pdo,function()use($update,$actor,$text,$callback,$legacy,$callbackId){
                 if(!$this->receipt($update))return;
                 $this->bookings->ensureUser($actor);
                 if(!$this->bot->dispatch($actor,$text,$callback,$update)&&$legacy!==null)$legacy();
+                $this->acknowledge($actor,$callbackId);
             });
         }catch(DomainException|InvalidArgumentException $error){
-            Database::atomic($this->pdo,function()use($update,$actor,$error){
+            Database::atomic($this->pdo,function()use($update,$actor,$error,$callbackId){
                 if(!$this->receipt($update))return;
+                $this->acknowledge($actor,$callbackId);
                 $this->outbox->message($actor,$error instanceof RuleViolation?$error->getMessage():'اطلاعات واردشده معتبر نیست؛ دوباره تلاش کنید یا /cancel بفرستید.',"update:$update:error");
             });
         }
+    }
+    private function acknowledge(int $actor,?string $id):void {
+        if($id!==null&&$id!=='')$this->outbox->enqueue($actor,'answerCallbackQuery',['callback_query_id'=>$id,'_expires_at'=>gmdate('Y-m-d H:i:s',time()+12)],'callback:'.$id);
     }
     private function receipt(int $id):bool {
         try{Database::run($this->pdo,'INSERT INTO UpdateReceipts(update_id) VALUES (?)',[$id]);return true;}
