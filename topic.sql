@@ -35,7 +35,6 @@ CREATE TABLE IF NOT EXISTS `Topics` (
     INDEX `idx_topics_name` (`Name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- The legacy application stores per-topic approval state as dynamically added
--- topic<id> columns on Data. That model is preserved for compatibility with the
--- current runtime. A future migration should normalize those values into a
--- user_topic_status table before removing the dynamic columns.
+-- After importing this fresh baseline, run: php bin/migrate.php
+-- Existing installations retain legacy topic<id> columns during migration 001.
+-- The current runtime uses TopicMemberships rather than dynamic columns.

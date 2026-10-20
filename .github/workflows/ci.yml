@@ -41,19 +41,156 @@ jobs:
       - name: Run validator tests
         run: php tests/validators_test.php
 
+      - name: Run webhook security tests
+        run: |
+          php tests/webhook_test.php
+          php tests/booking_unit_test.php
+
       - name: Reject Telegram tokens in tracked files
         run: |
-          if git grep -nE '[0-9]{8,10}:[A-Za-z0-9_-]{30,}' -- ':!*.md'; then
+          if git grep -lE '[0-9]{8,10}:[A-Za-z0-9_-]{30,}'; then
             echo 'Possible Telegram bot token found in tracked files.' >&2
             exit 1
           fi
 
       - name: Reject legacy hard-coded database password
         run: |
-          if git grep -nE '\$Db_Password[[:space:]]*=[[:space:]]*"[^"]+"' -- ':!*.md'; then
+          if git grep -lE '\$Db_Password[[:space:]]*=[[:space:]]*"[^"]+"'; then
             echo 'Possible hard-coded database password found in tracked files.' >&2
             exit 1
           fi
 
+      - name: Retain resolved dependency lockfile
+        if: matrix.php-version == '8.4'
+        uses: actions/upload-artifact@v4
+        with:
+          name: composer-lock
+          path: composer.lock
       - name: Audit dependencies
         run: composer audit --no-interaction
+
+  mysql:
+    name: ${{ matrix.engine }} migration and concurrency
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: MySQL 8.0
+            image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+            health: mysqladmin ping -h 127.0.0.1 -psynthetic_test_password
+          - engine: MariaDB 10.11
+            image: mariadb:10.11
+            health: mariadb-admin ping -h 127.0.0.1 -psynthetic_test_password
+    services:
+      mysql:
+        image: ${{ matrix.image }}
+        env:
+          MYSQL_ROOT_PASSWORD: synthetic_test_password
+          MYSQL_DATABASE: travel_tour_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="${{ matrix.health }}"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, json, pdo_mysql
+          coverage: none
+      - name: Install workflow dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+      - name: Test legacy migration, relational workflows and concurrent requests
+        run: |
+          composer test:integration
+          composer test:integration
+        env:
+          TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=travel_tour_test;charset=utf8mb4
+          TEST_MYSQL_USER: root
+          TEST_MYSQL_PASSWORD: synthetic_test_password
+
+  install:
+    name: Clean container install and restore
+    runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: acceptance-${{ github.run_id }}-${{ github.run_attempt }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create synthetic configuration
+        run: |
+          cat > .env <<'ENV'
+          TELEGRAM_BOT_TOKEN=synthetic_bot_token
+          TELEGRAM_ADMIN_IDS=999
+          TELEGRAM_WEBHOOK_SECRET=synthetic_secret_for_ci_only_1234567890
+          DB_SERVER=db
+          DB_PORT=3306
+          DB_DATABASE=travel_tour_test
+          DB_USERNAME=synthetic_bot
+          DB_PASSWORD=synthetic_database_password
+          DB_ROOT_PASSWORD=synthetic_root_password
+          APP_ENV=test
+          PROFILE_ENCRYPTION_KEY=a2tra2tra2tra2tra2tra2tra2tra2tra2tra2tra2s=
+          REQUIRE_VERIFIED_PROFILE=true
+          PAYMENT_SANDBOX_ENABLED=true
+          PAYMENT_SANDBOX_SECRET=synthetic_signing_key_only_for_disposable_ci
+          ENV
+      - name: Build and initialize a clean database
+        run: |
+          docker compose build app
+          docker compose run --rm migrate php bin/install.php
+          docker compose run --rm migrate php bin/migrate.php
+          docker compose run --rm app php bin/seed-demo.php --confirm
+          docker compose run --rm app php bin/seed-demo.php --confirm
+          docker compose run --rm app php bin/worker.php --health
+          docker compose run --rm migrate php bin/restrict-runtime.php --confirm
+          docker compose up -d app
+      - name: Check HTTP readiness and webhook boundary
+        run: |
+          curl --retry 10 --retry-delay 2 --retry-all-errors -fsS http://127.0.0.1:8080/health.php
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/index.php -d '{}')" = 403
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/index.php -H 'X-Telegram-Bot-Api-Secret-Token: synthetic_secret_for_ci_only_1234567890' -d '{}')" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/config.php)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/.env)" = 404
+      - name: Verify runtime least privilege
+        run: |
+          docker compose cp tests/runtime_permissions.php app:/tmp/runtime_permissions.php
+          docker compose exec -T app php /tmp/runtime_permissions.php
+      - name: Reject sandbox execution in production mode
+        run: |
+          if docker compose run --rm -e APP_ENV=production -e PAYMENT_SANDBOX_ENABLED=true app php bin/sandbox-payment.php; then
+            echo 'Sandbox unexpectedly enabled in production mode.' >&2
+            exit 1
+          fi
+      - name: Rehearse database outage and supervised worker recovery
+        run: bash tests/container_restart.sh
+      - name: Run real HTTP booking and sandbox workflows
+        run: |
+          docker compose cp tests/http_e2e.php app:/tmp/http_e2e.php
+          docker compose exec -T app php /tmp/http_e2e.php
+      - name: Back up and restore into a separate synthetic volume
+        run: |
+          docker compose stop app worker
+          docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT INTO Data (UserId, Name) VALUES (303, '\''Synthetic backup fixture'\'')"'
+          docker compose exec -T db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --no-tablespaces --single-transaction "$MYSQL_DATABASE"' > backup.sql
+          export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}-restore"
+          docker compose up -d --wait db
+          test "$(docker compose exec -T db sh -c 'mysql -N -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()"')" = 0
+          docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' < backup.sql
+          test "$(docker compose exec -T db sh -c 'mysql -N -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM Data WHERE UserId = 303"')" = 1
+          docker compose run --rm migrate php bin/restrict-runtime.php --confirm
+          docker compose up -d app
+          curl --retry 15 --retry-delay 2 --retry-all-errors -fsS http://127.0.0.1:8080/health.php
+      - name: Verify restored booking/payment/queue relationships
+        run: |
+          export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}-restore"
+          docker compose cp tests/restore_check.php app:/tmp/restore_check.php
+          docker compose exec -T app php /tmp/restore_check.php
+      - name: Clean up synthetic environment
+        if: always()
+        run: |
+          COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}-restore" docker compose down -v
+          docker compose down -v

@@ -10,9 +10,9 @@ If a real credential has ever appeared in a public commit, deployment log, scree
 
 ## Telegram webhook
 
-The application supports Telegram's webhook secret header through `TELEGRAM_WEBHOOK_SECRET`.
+The application requires `TELEGRAM_WEBHOOK_SECRET` containing 32–256 letters, digits, underscores or hyphens. Missing, weak or mismatched secrets fail closed. Only POST requests are accepted.
 
-When enabled:
+For every installation:
 
 1. Register the Telegram webhook with the same secret token.
 2. Serve the webhook over HTTPS only.
@@ -31,7 +31,9 @@ Do not use production personal data in tests, screenshots, issues, or public rep
 
 Use a dedicated database account with only the permissions required by this application. Do not reuse a root or hosting-control-panel database credential.
 
-The current runtime preserves a legacy dynamic-column model for per-topic approval state. Treat schema-management commands as administrator-only operations and apply explicit migrations to existing deployments.
+The runtime uses relational topic memberships and does not execute ALTER TABLE. Run the additive legacy migration with a separate maintenance account while writers are stopped. Retained legacy columns become stale after new writes, so a code-only rollback is unsafe. See [migration guidance](docs/MIGRATION.md).
+
+The bot only processes private conversations belonging to the update sender. Group/inline/edited updates are ignored; callback data is limited to 64 bytes. New product operations use ownership/RBAC checks, receipted updates, per-minute ingress limits, persistent forms, transactional outbox events and account anonymization/retention. These controls do not establish live production acceptance; see docs/ACCEPTANCE.md.
 
 ## Logging
 
@@ -40,3 +42,49 @@ Keep error messages generic. Never log the Telegram bot token, database password
 ## Reporting
 
 For a privately discovered vulnerability, contact the repository owner directly rather than publishing credentials, personal data, or exploit details in a public issue.
+
+## Product-specific controls and limits
+
+New onboarding supports the group leader name, verified own-account Telegram contact, and checksum-valid national code. `TravelerIdentity` encrypts identifiers with libsodium secretbox using `PROFILE_ENCRYPTION_KEY` (32 random bytes, base64); it is not stored in Git, database, logs, or outbox. The validation checksum is not government identity verification. Existing plaintext legacy profile fields are retained but never populated by this new path. `REQUIRE_VERIFIED_PROFILE=true` enforces completion for bookings (false by default for safe upgrades). Backup and rotate encryption keys with a deliberate data migration plan; never rotate blindly. When user deletion occurs the encrypted row is cascaded away. Messages entered in Telegram, backups and old legacy rows remain subject to separate operator retention policy. Existing legacy profile fields remain
+nullable and are removed when the account is erased. Active bookings must be
+cancelled before erasure. Closed financial/count records remain without account
+linkage; transaction references are hashed. Personal profile view is limited to
+manager/owner, audited, and queued personal messages are purged with the subject.
+Previously delivered Telegram messages and offline backups require operator policy.
+
+CSV exports exclude traveler profile/Telegram-ID columns, neutralize spreadsheet
+formulas, are permission-gated/audited, and recheck export permission before delivery.
+Temporary CSV files have restrictive permissions and are deleted after sending.
+Never expose the outbox or its payloads through a public endpoint.
+
+The payment sandbox endpoint is disabled by default and verifies HMAC, freshness,
+order, amount, expiration and transaction uniqueness. It is a local simulator only.
+No real gateway or automatic refund is enabled. Keep simulator keys distinct from
+webhook/token/database secrets and disable the endpoint outside disposable tests.
+
+Historical token-pattern matches were discovered without copying their values into
+reports. The operator must revoke/rotate any real exposed token in BotFather, then
+update the secret store and webhook. A Git deletion/history rewrite cannot revoke
+a credential. Do not rewrite repository history as a substitute for rotation.
+
+Automatic profile anonymization is opt-in (`RETENTION_ENABLED=false` by default),
+so an upgrade does not silently delete inactive legacy profiles. Enable it only
+after policy review/notice. Explicit confirmed account deletion remains available.
+Terminal queue payloads have a seven-day retention, ingress counters one day, and
+update receipts 30 days. In-flight/already-delivered Telegram messages are outside
+a database purge. Environment-configured owner IDs must be removed by the operator
+when an owner relationship ends; account deletion cannot rewrite deployment secrets.
+
+CI secret-pattern guards scan tracked documentation as well as source and report
+filenames only, never matching credential values. They are pattern checks, not
+proof that every possible secret format has been detected.
+
+Compose forwards only an explicit environment allowlist to app/worker. Root DB
+credentials belong only to the isolated, explicitly invoked maintenance service
+and the private database container. Run `bin/restrict-runtime.php --confirm` from
+maintenance after initialization to reduce runtime grants to schema DML. CI proves
+that the web process lacks the root secret, can operate, and cannot CREATE a table.
+
+The local payment simulator additionally refuses APP_ENV=production even if its
+enable flag is true. Both the CLI and callback endpoint require development/test
+mode; CI verifies production-mode refusal without contacting any payment provider.

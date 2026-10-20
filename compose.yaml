@@ -1,0 +1,73 @@
+x-app-environment: &app-environment
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN}
+  TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:?Set TELEGRAM_ADMIN_IDS}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?Set TELEGRAM_WEBHOOK_SECRET}
+  PROFILE_ENCRYPTION_KEY: ${PROFILE_ENCRYPTION_KEY:-}
+  REQUIRE_VERIFIED_PROFILE: ${REQUIRE_VERIFIED_PROFILE:-false}
+  DB_SERVER: db
+  DB_PORT: 3306
+  DB_DATABASE: ${DB_DATABASE:-travel_tour_bot}
+  DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+  APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Tehran}
+  APP_ENV: ${APP_ENV:-production}
+  RETENTION_ENABLED: ${RETENTION_ENABLED:-false}
+  RETENTION_DAYS: ${RETENTION_DAYS:-180}
+  PAYMENT_SANDBOX_ENABLED: ${PAYMENT_SANDBOX_ENABLED:-false}
+  PAYMENT_SANDBOX_SECRET: ${PAYMENT_SANDBOX_SECRET:-}
+services:
+  db:
+    image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-travel_tour_bot}
+      MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - database:/var/lib/mysql
+    healthcheck:
+      test: [CMD-SHELL, 'mysql --protocol=TCP -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  app:
+    build: .
+    restart: unless-stopped
+    environment: *app-environment
+    ports:
+      - 127.0.0.1:8080:80
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, php, -r, 'exit(@file_get_contents("http://127.0.0.1/health.php") === false ? 1 : 0);']
+      interval: 10s
+      timeout: 5s
+      retries: 6
+  worker:
+    build: .
+    restart: unless-stopped
+    environment: *app-environment
+    command: [php, bin/worker.php]
+    depends_on:
+      app:
+        condition: service_healthy
+  migrate:
+    build: .
+    profiles: [maintenance]
+    environment:
+      DB_SERVER: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-travel_tour_bot}
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+      RUNTIME_DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME}
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:?Set TELEGRAM_ADMIN_IDS}
+    command: [php, bin/migrate.php]
+    depends_on:
+      db:
+        condition: service_healthy
+volumes:
+  database:

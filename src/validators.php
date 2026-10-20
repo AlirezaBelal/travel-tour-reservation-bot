@@ -15,7 +15,8 @@ function parseAdminIds(string $value): array
             continue;
         }
 
-        $ids[] = (int)$candidate;
+        $id = (int)$candidate;
+        if ($id > 0 && $id <= 4503599627370495) $ids[] = $id;
     }
 
     return array_values(array_unique($ids));
@@ -27,7 +28,7 @@ function isSensitiveAdminCallback(mixed $data): bool
         return false;
     }
 
-    foreach (['send', 'sub-', 'AddTopic-', 'delete-', 'taeed'] as $prefix) {
+    foreach (['send', 'sub-', 'AddTopic-', 'delete-', 'confirmDelete-', 'approve:', 'taeed'] as $prefix) {
         if (str_starts_with($data, $prefix)) {
             return true;
         }
@@ -67,4 +68,24 @@ function isIranianMobileNumber(string $phoneNumber): bool
     }
 
     return preg_match('/^(?:\+98|0098|98|0)?9\d{9}$/', $normalized) === 1;
+}
+
+/** Accept only an owner's Telegram request_contact submission, never a forwarded third-party card. */
+function isVerifiedSharedContact(mixed $contact, int $actor): bool
+{
+    return is_array($contact)
+        && is_int($contact['user_id'] ?? null)
+        && $contact['user_id'] === $actor
+        && is_string($contact['phone_number'] ?? null)
+        && strlen($contact['phone_number']) <= 24
+        && isIranianMobileNumber($contact['phone_number']);
+}
+
+function normalizeIranianMobile(string $phone): string
+{
+    $digits = preg_replace('/[^0-9]/', '', $phone);
+    if (!is_string($digits) || !isIranianMobileNumber($phone)) {
+        throw new InvalidArgumentException('Invalid Iranian mobile number.');
+    }
+    return '+98' . substr($digits, -10);
 }

@@ -7,13 +7,24 @@ use Medoo\Medoo;
 
 require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/validators.php';
+require_once __DIR__ . '/src/webhook.php';
+require_once __DIR__ . '/src/TopicMemberships.php';
+require_once __DIR__ . '/src/TopicCatalogue.php';
+require_once __DIR__ . '/src/profiles.php';
+require_once __DIR__ . '/src/product_bootstrap.php';
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
 
+function environmentValue(string $name, string $default = ''): string
+{
+    $value = $_ENV[$name] ?? getenv($name);
+    return $value === false ? $default : (string)$value;
+}
+
 function requiredEnv(string $name): string
 {
-    $value = trim((string)($_ENV[$name] ?? ''));
+    $value = trim(environmentValue($name));
     if ($value === '') {
         throw new RuntimeException("Missing required environment variable: {$name}");
     }
@@ -30,64 +41,27 @@ if ($adminIds === []) {
 define('TOKEN', $telegramToken);
 define('ADMINS', $adminIds);
 
-$webhookSecret = trim((string)($_ENV['TELEGRAM_WEBHOOK_SECRET'] ?? ''));
-if ($webhookSecret !== '') {
-    $providedSecret = (string)($_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? '');
-    if ($providedSecret === '' || !hash_equals($webhookSecret, $providedSecret)) {
-        http_response_code(403);
-        exit;
-    }
+$webhookSecret = requiredEnv('TELEGRAM_WEBHOOK_SECRET');
+if (!webhookSecretIsValid($webhookSecret, $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? null)) {
+    http_response_code(403);
+    exit;
+}
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+    http_response_code(405);
+    header('Allow: POST');
+    exit;
 }
 
-$db = new Medoo([
-    'database_type' => 'mysql',
-    'server' => requiredEnv('DB_SERVER'),
-    'port' => (int)($_ENV['DB_PORT'] ?? 3306),
-    'charset' => 'utf8mb4',
-    'collation' => 'utf8mb4_unicode_ci',
-    'database_name' => requiredEnv('DB_DATABASE'),
-    'username' => requiredEnv('DB_USERNAME'),
-    'password' => requiredEnv('DB_PASSWORD'),
-]);
 
-function isAdmin(int|string|null $chatId): bool
-{
-    if ($chatId === null || $chatId === false || $chatId === '') {
-        return false;
-    }
-
-    return in_array((int)$chatId, ADMINS, true);
-}
 
 function bot(string $method, array $data = []): array|false
 {
-    $curl = curl_init();
-    curl_setopt_array($curl, [
-        CURLOPT_URL => 'https://api.telegram.org/bot' . TOKEN . '/' . $method,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $data,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_TIMEOUT => 15,
-    ]);
-
-    $result = curl_exec($curl);
-    $statusCode = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    $failed = $result === false;
-    curl_close($curl);
-
-    if ($failed || $statusCode < 200 || $statusCode >= 300) {
-        error_log('Telegram API request failed for method ' . $method . '.');
-        return false;
-    }
-
-    $decoded = json_decode((string)$result, true);
-    if (!is_array($decoded) || ($decoded['ok'] ?? false) !== true) {
-        error_log('Telegram API returned an unsuccessful response for method ' . $method . '.');
-        return false;
-    }
-
-    return $decoded;
+    global $outbox, $update, $fromId;
+    static $sequence = 0;
+    $chat = (int)($data['chat_id'] ?? $fromId);
+    $key = $method === 'answerCallbackQuery' && isset($data['callback_query_id']) ? 'callback:' . $data['callback_query_id'] : 'legacy:' . $update['update_id'] . ':' . $sequence++;
+    $outbox->enqueue($chat, $method, $data, $key);
+    return ['ok' => true, 'queued' => true];
 }
 
 function sendMessage(int|string $chatId, string $text): array|false
@@ -174,24 +148,15 @@ function advancedBuild(array $buttons, int|array $perline, bool $json = true, st
         : $keyboard;
 }
 
-function hasdb(int|string $userid): bool
-{
-    global $db;
 
-    if (!$db->has('Data', ['UserId' => (string)$userid])) {
-        $db->insert('Data', [
-            'UserId' => (string)$userid,
-            'step' => 'defult',
-        ]);
-        return false;
-    }
-
-    return true;
-}
-
-$rawUpdate = file_get_contents('php://input');
+$rawUpdate = file_get_contents('php://input', false, null, 0, 1048577);
 if (!is_string($rawUpdate) || trim($rawUpdate) === '') {
     http_response_code(200);
+    exit;
+}
+
+if (strlen($rawUpdate) > 1048576) {
+    http_response_code(413);
     exit;
 }
 
@@ -201,6 +166,34 @@ try {
     http_response_code(400);
     exit;
 }
+
+if (!isSupportedPrivateUpdate($update)) {
+    // Acknowledge unsupported updates without side effects or Telegram retries.
+    http_response_code(200);
+    exit;
+}
+
+$db = new Medoo([
+    'database_type' => 'mysql',
+    'error' => PDO::ERRMODE_EXCEPTION,
+    'server' => requiredEnv('DB_SERVER'),
+    'port' => (int)environmentValue('DB_PORT', '3306'),
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+    'database_name' => requiredEnv('DB_DATABASE'),
+    'username' => requiredEnv('DB_USERNAME'),
+    'password' => requiredEnv('DB_PASSWORD'),
+]);
+
+Database::configure($db->pdo);
+$outbox = new Outbox($db->pdo);
+$access = new AccessControl($db->pdo, ADMINS);
+$bookings = new BookingService($db->pdo, $access, $outbox);
+$productBot = new ProductBot($db->pdo, $bookings, $access, $outbox, environmentValue('APP_TIMEZONE','Asia/Tehran'));
+$processor = new WebhookProcessor($db->pdo, $bookings, $productBot, $outbox);
+
+$memberships = new TopicMemberships($db->pdo);
+$catalogue = new TopicCatalogue($db->pdo);
 
 $text = $chatType = $chatTitle = $userName = $firstName = $callbackId = $data = $query = $fromId = false;
 $text2 = $messageId2 = false;
