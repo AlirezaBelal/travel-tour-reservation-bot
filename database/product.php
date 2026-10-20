@@ -24,3 +24,21 @@ function migrateProduct(PDO $pdo): void
         $pdo->query("SELECT RELEASE_LOCK('travel_tour_product_migrations')");
     }
 }
+
+/** Additive identity storage: legacy profile data is not copied into encrypted records. */
+function migrateTravelerIdentity(PDO $pdo): void
+{
+    if ((int)$pdo->query("SELECT GET_LOCK('travel_tour_identity_migrations',10)")->fetchColumn() !== 1) {
+        throw new RuntimeException('Identity migration lock unavailable.');
+    }
+    try {
+        $version='003_traveler_identity';
+        $check=$pdo->prepare('SELECT version FROM SchemaMigrations WHERE version=?');
+        $check->execute([$version]);
+        if ($check->fetchColumn() !== false) return;
+        $pdo->exec(file_get_contents(__DIR__.'/migrations/003_traveler_identity.sql'));
+        $pdo->prepare('INSERT INTO SchemaMigrations(version) VALUES (?)')->execute([$version]);
+    } finally {
+        $pdo->query("SELECT RELEASE_LOCK('travel_tour_identity_migrations')");
+    }
+}
