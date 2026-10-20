@@ -74,3 +74,7 @@ Terminal queue payloads have a seven-day retention, ingress counters one day, an
 update receipts 30 days. In-flight/already-delivered Telegram messages are outside
 a database purge. Environment-configured owner IDs must be removed by the operator
 when an owner relationship ends; account deletion cannot rewrite deployment secrets.
+
+CI secret-pattern guards scan tracked documentation as well as source and report
+filenames only, never matching credential values. They are pattern checks, not
+proof that every possible secret format has been detected.

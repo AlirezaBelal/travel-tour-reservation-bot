@@ -48,14 +48,14 @@ jobs:
 
       - name: Reject Telegram tokens in tracked files
         run: |
-          if git grep -nE '[0-9]{8,10}:[A-Za-z0-9_-]{30,}' -- ':!*.md'; then
+          if git grep -lE '[0-9]{8,10}:[A-Za-z0-9_-]{30,}'; then
             echo 'Possible Telegram bot token found in tracked files.' >&2
             exit 1
           fi
 
       - name: Reject legacy hard-coded database password
         run: |
-          if git grep -nE '\$Db_Password[[:space:]]*=[[:space:]]*"[^"]+"' -- ':!*.md'; then
+          if git grep -lE '\$Db_Password[[:space:]]*=[[:space:]]*"[^"]+"'; then
             echo 'Possible hard-coded database password found in tracked files.' >&2
             exit 1
           fi
