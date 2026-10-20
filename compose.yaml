@@ -1,3 +1,18 @@
+x-app-environment: &app-environment
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?Set TELEGRAM_BOT_TOKEN}
+  TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:?Set TELEGRAM_ADMIN_IDS}
+  TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:?Set TELEGRAM_WEBHOOK_SECRET}
+  DB_SERVER: db
+  DB_PORT: 3306
+  DB_DATABASE: ${DB_DATABASE:-travel_tour_bot}
+  DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME}
+  DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
+  APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Tehran}
+  APP_ENV: ${APP_ENV:-production}
+  RETENTION_ENABLED: ${RETENTION_ENABLED:-false}
+  RETENTION_DAYS: ${RETENTION_DAYS:-180}
+  PAYMENT_SANDBOX_ENABLED: ${PAYMENT_SANDBOX_ENABLED:-false}
+  PAYMENT_SANDBOX_SECRET: ${PAYMENT_SANDBOX_SECRET:-}
 services:
   db:
     image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
@@ -7,6 +22,7 @@ services:
       MYSQL_USER: ${DB_USERNAME:?Set DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD}
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+      MYSQL_ROOT_HOST: '%'
     volumes:
       - database:/var/lib/mysql
     healthcheck:
@@ -17,10 +33,7 @@ services:
   app:
     build: .
     restart: unless-stopped
-    env_file: .env
-    environment:
-      DB_SERVER: db
-      DB_PORT: 3306
+    environment: *app-environment
     ports:
       - 127.0.0.1:8080:80
     depends_on:
@@ -34,13 +47,25 @@ services:
   worker:
     build: .
     restart: unless-stopped
-    env_file: .env
-    environment:
-      DB_SERVER: db
-      DB_PORT: 3306
+    environment: *app-environment
     command: [php, bin/worker.php]
     depends_on:
       app:
+        condition: service_healthy
+  migrate:
+    build: .
+    profiles: [maintenance]
+    environment:
+      DB_SERVER: db
+      DB_PORT: 3306
+      DB_DATABASE: ${DB_DATABASE:-travel_tour_bot}
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD}
+      RUNTIME_DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME}
+      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:?Set TELEGRAM_ADMIN_IDS}
+    command: [php, bin/migrate.php]
+    depends_on:
+      db:
         condition: service_healthy
 volumes:
   database:

@@ -11,7 +11,8 @@ secret (`openssl rand -hex 32`), and keep `.env` out of Git. Then:
 
 ```bash
 docker compose build app
-docker compose run --rm app php bin/install.php
+docker compose run --rm migrate php bin/install.php
+docker compose run --rm migrate php bin/restrict-runtime.php --confirm
 docker compose up -d
 curl -f http://127.0.0.1:8080/health.php
 ```
@@ -97,3 +98,17 @@ This does not test any actual gateway or merchant settlement.
 `docker compose run --rm app php bin/worker.php --health` checks worker dependencies
 without sending to Telegram. It is a diagnostic, not proof a background process is
 running. Access to profiles/reports/exports is rechecked again at queued delivery.
+
+## Separate maintenance credentials
+
+The app and worker receive an explicit environment allowlist, not the entire .env.
+The root DB secret is passed only to the database and explicitly invoked `migrate`
+maintenance service, which has no HTTP port and does not start with normal `up`.
+For a fresh install, use `migrate ... bin/install.php`, then
+`migrate ... bin/restrict-runtime.php --confirm` before opening traffic. The runtime
+account is reduced to SELECT/INSERT/UPDATE/DELETE on the application schema.
+Use `docker compose run --rm migrate` for later migrations, not the runtime account.
+DCL privilege changes commit separately; a failed revoke/grant can be safely rerun
+by the maintenance account before traffic is reenabled. The dedicated runtime
+username must contain only letters, digits or underscores and must not be root.
+For non-Compose deployments provision equivalently separated users yourself.

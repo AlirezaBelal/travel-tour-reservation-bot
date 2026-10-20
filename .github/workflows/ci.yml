@@ -137,11 +137,12 @@ jobs:
       - name: Build and initialize a clean database
         run: |
           docker compose build app
-          docker compose run --rm app php bin/install.php
-          docker compose run --rm app php bin/migrate.php
+          docker compose run --rm migrate php bin/install.php
+          docker compose run --rm migrate php bin/migrate.php
           docker compose run --rm app php bin/seed-demo.php --confirm
           docker compose run --rm app php bin/seed-demo.php --confirm
           docker compose run --rm app php bin/worker.php --health
+          docker compose run --rm migrate php bin/restrict-runtime.php --confirm
           docker compose up -d app
       - name: Check HTTP readiness and webhook boundary
         run: |
@@ -150,6 +151,10 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/index.php -H 'X-Telegram-Bot-Api-Secret-Token: synthetic_secret_for_ci_only_1234567890' -d '{}')" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/config.php)" = 404
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/.env)" = 404
+      - name: Verify runtime least privilege
+        run: |
+          docker compose cp tests/runtime_permissions.php app:/tmp/runtime_permissions.php
+          docker compose exec -T app php /tmp/runtime_permissions.php
       - name: Run real HTTP booking and sandbox workflows
         run: |
           docker compose cp tests/http_e2e.php app:/tmp/http_e2e.php

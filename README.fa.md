@@ -26,7 +26,8 @@ cp .env.example .env
 
 ```bash
 docker compose build app
-docker compose run --rm app php bin/install.php
+docker compose run --rm migrate php bin/install.php
+docker compose run --rm migrate php bin/restrict-runtime.php --confirm
 docker compose up -d
 curl -f http://127.0.0.1:8080/health.php
 ```

@@ -78,3 +78,9 @@ when an owner relationship ends; account deletion cannot rewrite deployment secr
 CI secret-pattern guards scan tracked documentation as well as source and report
 filenames only, never matching credential values. They are pattern checks, not
 proof that every possible secret format has been detected.
+
+Compose forwards only an explicit environment allowlist to app/worker. Root DB
+credentials belong only to the isolated, explicitly invoked maintenance service
+and the private database container. Run `bin/restrict-runtime.php --confirm` from
+maintenance after initialization to reduce runtime grants to schema DML. CI proves
+that the web process lacks the root secret, can operate, and cannot CREATE a table.
