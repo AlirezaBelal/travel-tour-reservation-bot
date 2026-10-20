@@ -21,7 +21,7 @@ and operator reviews are satisfied. No final release or deployment is authorized
 | Real webhook entry point and payment endpoint | `tests/http_e2e.php` copied only into disposable CI container |
 | Fresh install, migrations, readiness, auth and source isolation | CI `install` job |
 | Runtime has no root secret and no DDL privilege, with working HTTP bookings | `tests/runtime_permissions.php` + HTTP suite after privilege restriction |
-| Dump/restore and preserved synthetic fixture | CI `install` job, disposable volume, then seven booking/payment/history/queue relationship assertions |
+| Dump/restore and preserved synthetic fixture | CI `install` job, second Compose project and empty new volume, then seven booking/payment/history/queue relationship assertions |
 | Syntax, Composer metadata/platform compatibility, dependency audit | CI PHP matrix |
 | Live Telegram token/webhook, real delivery/429 behavior | **BLOCKED EXTERNAL** — token and operator-run test bot |
 | Linux VPS/TLS/domain/reverse proxy/firewall/restart rehearsal | **BLOCKED EXTERNAL** — infrastructure and operator authorization |

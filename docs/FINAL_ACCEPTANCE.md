@@ -33,8 +33,10 @@ and five-minute recovery leases are preserved; there is no schema change.
   Start the actual worker without sending Telegram requests, stop Apache,
   restart MySQL, verify supervisor restart and a new runtime DB connection,
   verify the worker remains alive, then restart Apache and check HTTP readiness.
-- Stop web/worker writers before the CI backup/restore exercise, restart web
-  afterwards and verify readiness plus booking/payment/history/outbox relations.
+- Stop web/worker writers before the CI backup, create a second Compose project
+  with a verified empty new database volume, restore into that volume, restrict
+  its runtime grants, start web and verify readiness plus booking/payment/history/
+  outbox relations. The source volume is not the restore target.
 
 All fixtures are synthetic. No token or secret is accepted through public logs,
 commits, issues or chat. The authoring host has no PHP/Composer/MySQL/Docker;

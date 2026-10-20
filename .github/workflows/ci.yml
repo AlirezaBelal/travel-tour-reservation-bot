@@ -169,20 +169,26 @@ jobs:
         run: |
           docker compose cp tests/http_e2e.php app:/tmp/http_e2e.php
           docker compose exec -T app php /tmp/http_e2e.php
-      - name: Back up and restore synthetic data
+      - name: Back up and restore into a separate synthetic volume
         run: |
           docker compose stop app worker
           docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT INTO Data (UserId, Name) VALUES (303, '\''Synthetic backup fixture'\'')"'
           docker compose exec -T db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --no-tablespaces --single-transaction "$MYSQL_DATABASE"' > backup.sql
-          docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "DELETE FROM Data WHERE UserId = 303"'
+          export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}-restore"
+          docker compose up -d --wait db
+          test "$(docker compose exec -T db sh -c 'mysql -N -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE()"')" = 0
           docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' < backup.sql
           test "$(docker compose exec -T db sh -c 'mysql -N -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM Data WHERE UserId = 303"')" = 1
+          docker compose run --rm migrate php bin/restrict-runtime.php --confirm
           docker compose up -d app
           curl --retry 15 --retry-delay 2 --retry-all-errors -fsS http://127.0.0.1:8080/health.php
       - name: Verify restored booking/payment/queue relationships
         run: |
+          export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}-restore"
           docker compose cp tests/restore_check.php app:/tmp/restore_check.php
           docker compose exec -T app php /tmp/restore_check.php
       - name: Clean up synthetic environment
         if: always()
-        run: docker compose down -v
+        run: |
+          COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME}-restore" docker compose down -v
+          docker compose down -v
