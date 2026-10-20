@@ -2,7 +2,7 @@
 if(PHP_SAPI!=='cli'){http_response_code(404);exit;}
 require __DIR__.'/../vendor/autoload.php';
 require __DIR__.'/../src/product_bootstrap.php';
-require __DIR__.'/../src/validators.php';
+require_once __DIR__.'/../src/validators.php';
 Dotenv\Dotenv::createImmutable(dirname(__DIR__))->safeLoad();
 $env=static function(string$key,string$default=''):string{$value=$_ENV[$key]??getenv($key);return$value===false?$default:(string)$value;};
 $host=$env('DB_SERVER');$database=$env('DB_DATABASE');$port=$env('DB_PORT','3306');
