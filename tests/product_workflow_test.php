@@ -15,6 +15,18 @@ sendUpdate(500,'/start');sendUpdate(500,null,'p:profile:0');sendUpdate(500,null,
 sendUpdate(999,'/admin');sendUpdate(999,null,'p:new:0');
 foreach(['=Synthetic CSV title','Synthetic Destination','Synthetic description','0',gmdate('Y-m-d H:i',time()+172800),gmdate('Y-m-d H:i',time()+180000),'0','5']as$input)sendUpdate(999,$input);
 $tour=(int)Database::run($pdo,'SELECT id FROM Tours WHERE title=?',['=Synthetic CSV title'])->fetchColumn();wfCheck($tour>0&&$service->tour($tour)['publication']==='draft','guided admin tour creation');
+// End time must be later than the start; reject immediately without advancing the persisted form.
+$access->assign(999,998,'manager');sendUpdate(998,null,'p:new:0');
+$testStart=gmdate('Y-m-d H:i',time()+172800);
+foreach(['Synthetic time-order validation','Synthetic destination','Synthetic date-check description','0',$testStart]as$input)sendUpdate(998,$input);
+wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=998')->fetchColumn()==='tour_ends_at','end-date prompt reached');
+sendUpdate(998,$testStart);
+wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=998')->fetchColumn()==='tour_ends_at','invalid same-time end keeps end-date form');
+wfCheck(str_contains(lastReply(998)['text'],'بعد از زمان شروع'),'time-order rejection explains what to correct');
+sendUpdate(998,gmdate('Y-m-d H:i',time()+180000));
+wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=998')->fetchColumn()==='tour_price','corrected end advances to price');
+sendUpdate(998,'0');sendUpdate(998,'3');
+wfCheck((bool)Database::run($pdo,'SELECT id FROM Tours WHERE title=?',['Synthetic time-order validation'])->fetchColumn(),'tour saves after correcting end date');
 sendUpdate(999,null,"p:publish:$tour");wfCheck($service->tour($tour)['publication']==='published','publication workflow');
 sendUpdate(500,'/search');sendUpdate(500,'Synthetic Destination');$reply=lastReply(500);wfCheck(isset($reply['reply_markup']),'search result buttons');sendUpdate(500,null,"p:tour:$tour");wfCheck(str_contains(lastReply(500)['text'],'باقی‌مانده'),'capacity visible');
 sendUpdate(500,null,"p:reserve:$tour");sendUpdate(500,'۲');$reply=lastReply(500);$keyboard=json_decode($reply['reply_markup'],true);$confirmation=$keyboard['inline_keyboard'][0][0]['callback_data'];wfCheck(strlen($confirmation)<=64,'bounded booking confirmation');
