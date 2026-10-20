@@ -8,7 +8,7 @@ function postTest(string$path,array$payload,bool$secret=true):array{
  $context=stream_context_create(['http'=>['method'=>'POST','header'=>implode("\r\n",$headers),'content'=>json_encode($payload,JSON_THROW_ON_ERROR),'ignore_errors'=>true,'timeout'=>10]]);
  $body=file_get_contents('http://127.0.0.1/'.$path,false,$context);preg_match('/\s(\d{3})\s/',$http_response_header[0],$match);return[(int)$match[1],$body];
 }
-function updateTest(int$actor,?string$text=null,?string$callback=null,?int$fixed=null):int{
+function updateTest(int$actor,?string$text=null,?string$callback=null,?int$fixed=null,?array$contact=null):int{
  global$update;$id=$fixed??++$update;$chat=['id'=>$actor,'type'=>'private'];$from=['id'=>$actor,'is_bot'=>false];$message=['message_id'=>1,'from'=>$from,'chat'=>$chat];
  if($callback===null){$message['text']=$text;$payload=['update_id'=>$id,'message'=>$message];}else{$payload=['update_id'=>$id,'callback_query'=>['id'=>'synthetic-query-'.$id,'from'=>$from,'data'=>$callback,'message'=>$message]];}
  [$status]=postTest('index.php',$payload);httpCheck($status===200,'webhook request accepted');return$id;
