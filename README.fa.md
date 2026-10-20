@@ -101,7 +101,8 @@ docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.ph
 `SandboxPaymentAdapter` یک **شبیه‌ساز امضاشده محلی** است، نه Sandbox یک
 درگاه تجاری. امضا، مبلغ، سفارش، زمان و تکراری‌نبودن تراکنش بررسی می‌شوند.
 درگاه واقعی بدون حساب پذیرنده، کلید و مستندات رسمی معتبر **BLOCKED EXTERNAL** است.
-`PAYMENT_SANDBOX_ENABLED` را در استفاده عادی `false` نگه دارید.
+`PAYMENT_SANDBOX_ENABLED` را در استفاده عادی `false` نگه دارید؛ شبیه‌ساز در
+`APP_ENV=production` حتی با این پرچم فعال هم اجرا نمی‌شود.
 
 اعلان همراه تغییر رزرو در همان تراکنش ذخیره می‌شود. Worker، Retry نمایی،
 محدودیت ارسال، خطای 429، یادآوری و ارسال ناموفق را مدیریت می‌کند. جلوگیری از

@@ -155,6 +155,12 @@ jobs:
         run: |
           docker compose cp tests/runtime_permissions.php app:/tmp/runtime_permissions.php
           docker compose exec -T app php /tmp/runtime_permissions.php
+      - name: Reject sandbox execution in production mode
+        run: |
+          if docker compose run --rm -e APP_ENV=production -e PAYMENT_SANDBOX_ENABLED=true app php bin/sandbox-payment.php; then
+            echo 'Sandbox unexpectedly enabled in production mode.' >&2
+            exit 1
+          fi
       - name: Run real HTTP booking and sandbox workflows
         run: |
           docker compose cp tests/http_e2e.php app:/tmp/http_e2e.php

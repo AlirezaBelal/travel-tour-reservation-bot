@@ -89,7 +89,8 @@ outbox payloads, apply database/storage encryption and restrict logs/backups.
 The app health endpoint checks schema/connectivity, not worker liveness; monitor
 worker process health and pending/failed queue counts separately.
 
-For local payment simulation in disposable data only, set PAYMENT_SANDBOX_ENABLED=true
+For local payment simulation in disposable data only, set APP_ENV=test (or development),
+PAYMENT_SANDBOX_ENABLED=true
 and a distinct random PAYMENT_SANDBOX_SECRET. Run
 `docker compose run --rm app php bin/sandbox-payment.php ORDER_REF TRANSACTION paid`
 using a synthetic pending order. Restore the enable flag to false afterwards.

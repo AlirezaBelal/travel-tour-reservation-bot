@@ -5,7 +5,7 @@ require dirname(__DIR__,2).'/src/product_bootstrap.php';
 Dotenv\Dotenv::createImmutable(dirname(__DIR__,2))->safeLoad();
 $env=static function(string$key,string$default=''):string{$value=$_ENV[$key]??getenv($key);return$value===false?$default:(string)$value;};
 header('Content-Type: application/json');header('Cache-Control: no-store');
-if($env('PAYMENT_SANDBOX_ENABLED')!=='true'){http_response_code(404);echo'{"status":"disabled"}';exit;}
+if($env('PAYMENT_SANDBOX_ENABLED')!=='true'||!in_array($env('APP_ENV'),['development','test'],true)){http_response_code(404);echo'{"status":"disabled"}';exit;}
 if(($_SERVER['REQUEST_METHOD']??'')!=='POST'){http_response_code(405);header('Allow: POST');exit;}
 try {
     $raw=file_get_contents('php://input',false,null,0,8193);

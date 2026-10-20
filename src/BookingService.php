@@ -188,7 +188,7 @@ final class BookingService
                     $text .= "\nدلیل: $reason";
                 }
                 if (in_array($status, ['cancelled','rejected'], true) && $payment === 'paid' && (int)$initial['amount'] > 0) {
-                    $text .= '\nاسترداد خودکار فعال نیست؛ تسویه را با مدیر پیگیری کنید.';
+                    $text .= "\nاسترداد خودکار فعال نیست؛ تسویه را با مدیر پیگیری کنید.";
                 }
                 $this->outbox->message((int)$row['user_id'], $text, "booking:$id:status:$status");
             }

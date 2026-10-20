@@ -84,3 +84,7 @@ credentials belong only to the isolated, explicitly invoked maintenance service
 and the private database container. Run `bin/restrict-runtime.php --confirm` from
 maintenance after initialization to reduce runtime grants to schema DML. CI proves
 that the web process lacks the root secret, can operate, and cannot CREATE a table.
+
+The local payment simulator additionally refuses APP_ENV=production even if its
+enable flag is true. Both the CLI and callback endpoint require development/test
+mode; CI verifies production-mode refusal without contacting any payment provider.

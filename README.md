@@ -123,7 +123,7 @@ reference. Cancellation of a paid booking frees seats but does not return funds;
 the operator must arrange and record settlement outside this bot.
 
 `SandboxPaymentAdapter` is a **local signed simulator**, not an integrated provider
-sandbox. With an explicit test key and enable flag, `/payments/sandbox.php` verifies
+sandbox. Only in `APP_ENV=development|test`, with an explicit test key and enable flag, `/payments/sandbox.php` verifies
 an HMAC event, freshness, exact order, amount, expiration and transaction uniqueness.
 `bin/sandbox-payment.php` generates such local test events. A real gateway adapter
 must verify the transaction against its provider's authoritative server API using
