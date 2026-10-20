@@ -87,3 +87,9 @@ and access policy. See SECURITY.md.
 Automatic profile retention is opt-in by default. Explicit erasure keeps only the
 minimal ingress counter for at most one day so deletion cannot reset abuse limits.
 Receipt replay protection lasts 30 days; terminal queue payloads last seven days.
+
+Booking-specific traveler/manager messages are queued with subject ownership and
+permission metadata. Staff replies are authorized against the staff sender, not
+the traveler recipient, and are audited. Account erasure purges queued personal
+correspondence by subject. This enables manual payment coordination inside the bot
+without disclosing traveler Telegram IDs or collecting banking/card data.
