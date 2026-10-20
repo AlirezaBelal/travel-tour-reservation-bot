@@ -54,6 +54,9 @@ final class BookingService
             }
             if ($id !== null) {
                 $previous = $this->tour($id, true);
+                if (isset($values['expected_version']) && (int)$values['expected_version'] !== (int)$previous['version']) {
+                    throw new RuleViolation('تور توسط مدیر دیگری تغییر کرده است؛ ویرایش را از ابتدا باز کنید.');
+                }
                 if ($values['capacity'] < $this->used($id)) {
                     throw new RuleViolation('ظرفیت جدید از تعداد صندلی‌های رزروشده کمتر است.');
                 }

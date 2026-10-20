@@ -65,6 +65,11 @@ For an existing installation, use the [upgrade guide](docs/MIGRATION.md) instead
 of treating the database as disposable. **Never use `docker compose down -v` on
 an installation whose data you need.**
 
+For optional synthetic draft data, set `APP_ENV=development` in a disposable
+configuration, then run `docker compose run --rm app php bin/seed-demo.php --confirm`.
+It is repeatable and creates no real traveler or payment. Restore production mode
+before normal use. The demo remains draft until explicitly published.
+
 ## Traveler and operator guide
 
 Travelers: `/start` → **پروفایل** → enter leader name → **تور‌ها** or **جست‌وجوی تور** →

@@ -1,4 +1,8 @@
 <?php
+set_error_handler(static function(int $severity,string $message,string $file,int $line):bool {
+    if ($severity & (E_WARNING | E_NOTICE | E_USER_WARNING)) throw new ErrorException($message,0,$severity,$file,$line);
+    return false;
+});
 require __DIR__ . '/../src/product_bootstrap.php';
 require __DIR__ . '/../database/product.php';
 $dsn = getenv('TEST_MYSQL_DSN');
@@ -29,6 +33,7 @@ productCheck((int)$pdo->query('SELECT COUNT(*) FROM Tours')->fetchColumn()===0,'
 for($i=300;$i<330;$i++) { $service->ensureUser($i); Database::run($pdo,'UPDATE Data SET Name=? WHERE UserId=?',['Synthetic traveler',$i]); }
 $values=['category_id'=>null,'title'=>'Synthetic Tour','destination'=>'Synthetic destination','description'=>'Synthetic description','starts_at'=>gmdate('Y-m-d H:i:s',time()+172800),'ends_at'=>gmdate('Y-m-d H:i:s',time()+180000),'price'=>0,'capacity'=>3,'publication'=>'published'];
 denied(fn()=>$service->saveTour(300,$values));
+foreach([['price'=>-1],['capacity'=>0],['ends_at'=>$values['starts_at']],['starts_at'=>'2027-02-30 10:00:00']]as$invalid)denied(fn()=>$service->saveTour(999,array_replace($values,$invalid)));
 $tour=$service->saveTour(999,$values);
 $booking=$service->reserve(300,$tour,2,'request-one');
 productCheck($service->reserve(300,$tour,2,'request-one')===$booking,'idempotent booking');
@@ -40,6 +45,7 @@ denied(fn()=>$service->transition(301,$booking,'confirmed',null,true));
 productCheck($service->transition(999,$booking,'confirmed',null,true),'free booking confirmed');
 productCheck(!$service->transition(999,$booking,'confirmed',null,true),'duplicate confirmation safe');
 denied(fn()=>$service->saveTour(999,array_replace($values,['capacity'=>1]),$tour));
+denied(fn()=>$service->transition(301,$booking,'cancelled'));
 productCheck($service->transition(300,$booking,'cancelled'),'owner cancellation');
 productCheck($service->used($tour)===0,'cancellation releases seats');
 productCheck(!$service->transition(300,$booking,'cancelled'),'duplicate cancellation safe');
@@ -55,6 +61,9 @@ denied(fn()=>$service->transition(999,$paid,'confirmed',null,true));
 $service->manualPayment(999,$paid,'SYNTHETIC-REF-ONE');
 productCheck(!$service->manualPayment(999,$paid,'SYNTHETIC-REF-ONE'),'manual payment idempotent');
 productCheck($service->transition(999,$paid,'confirmed',null,true),'paid approval');
+$service->saveTour(999,array_replace($values,['price'=>999]),$paidTour);
+productCheck((int)$service->booking(302,$paid)['amount']===500,'existing price snapshot unaffected by edit');
+denied(fn()=>$service->reserve(308,$paidTour,1,'stale-price',1));
 $other=$service->reserve(303,$paidTour,1,'paid-two');
 denied(fn()=>$service->manualPayment(999,$other,'SYNTHETIC-REF-ONE'));
 productCheck($service->booking(303,$other)['payment_status']==='pending','duplicate transaction rolled back');
@@ -62,6 +71,12 @@ $access->assign(999,304,'reporter');
 productCheck($access->allows(304,'reports')&&!$access->allows(304,'export'),'least privilege reporter');
 denied(fn()=>$service->manualPayment(304,$other,'NO-PERMISSION'));
 denied(fn()=>$access->assign(304,305,'manager'));
+
+$catalogue=new TopicCatalogue($pdo);$category=$catalogue->create('Synthetic tour category',0);
+$categorized=$service->saveTour(999,array_replace($values,['category_id'=>$category]));
+try{$catalogue->deleteTree($category);throw new RuntimeException('Referenced category deleted.');}catch(PDOException$error){productCheck(($error->errorInfo[1]??null)===1451,'tour category protected');}
+productCheck((bool)Database::run($pdo,'SELECT id FROM Topics WHERE id=?',[$category])->fetchColumn(),'failed category deletion rolled back');
+$service->saveTour(999,$values,$categorized);productCheck($catalogue->deleteTree($category)===1,'category deletion after reassignment');
 // Notification failure must roll back the booking and payment, not lose the event.
 $pdo->exec("CREATE TRIGGER synthetic_fail_outbox BEFORE INSERT ON NotificationOutbox FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic failure'");
 try { $service->reserve(305,$tour,1,'rollback'); throw new RuntimeException('Expected outbox failure.'); }

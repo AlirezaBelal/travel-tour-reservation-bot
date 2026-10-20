@@ -14,6 +14,7 @@ function updateTest(int$actor,?string$text=null,?string$callback=null,?int$fixed
  [$status]=postTest('index.php',$payload);httpCheck($status===200,'webhook request accepted');return$id;
 }
 $values=['category_id'=>null,'title'=>'Synthetic HTTP tour','destination'=>'Synthetic','description'=>'Synthetic HTTP end-to-end','starts_at'=>gmdate('Y-m-d H:i:s',time()+86400),'ends_at'=>gmdate('Y-m-d H:i:s',time()+90000),'price'=>0,'capacity'=>3,'publication'=>'published'];
+httpCheck((int)Database::run($pdo,'SELECT COUNT(*) FROM Tours WHERE title=?',['تور نمایشی — داده ساختگی'])->fetchColumn()===1,'demo seeding is repeatable and synthetic');
 $tour=$bookings->saveTour($owners[0],$values);
 updateTest(700,'/start');updateTest(700,null,'p:name:0');updateTest(700,'Synthetic HTTP Traveler');updateTest(700,'/tours');
 $delivery=updateTest(700,null,"p:reserve_yes:$tour:2:1");$booking=(int)Database::run($pdo,'SELECT id FROM Bookings WHERE user_id=700 AND tour_id=?',[$tour])->fetchColumn();httpCheck($booking>0&&$bookings->used($tour)===2,'HTTP group reservation');

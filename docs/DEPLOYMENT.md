@@ -64,9 +64,10 @@ retention policy or production recovery objectives.
 - Review `docker compose ps` and `docker compose logs --tail=100 app db` in a
   restricted terminal. Do not post logs containing credentials or personal data.
 
-Use the committed Composer lockfile when available; pin reviewed container image
-digests for your production rollout. Floating development image tags are not a
-production image-pinning policy.
+Composer dependencies and PHP/Composer container bases are pinned to the versions
+resolved by CI. Update pins deliberately and rerun audit/build/acceptance checks;
+pinning does not replace security maintenance. OS packages still come from the
+base distribution repositories at build time.
 VPS/TLS/live-Telegram operation has not been verified by the automated tests.
 
 ## Worker and retention

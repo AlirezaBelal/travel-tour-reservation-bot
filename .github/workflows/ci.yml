@@ -70,18 +70,28 @@ jobs:
         run: composer audit --no-interaction
 
   mysql:
-    name: MySQL migration and concurrency
+    name: ${{ matrix.engine }} migration and concurrency
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: MySQL 8.0
+            image: mysql:8.0@sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b
+            health: mysqladmin ping -h 127.0.0.1 -psynthetic_test_password
+          - engine: MariaDB 10.11
+            image: mariadb:10.11
+            health: mariadb-admin ping -h 127.0.0.1 -psynthetic_test_password
     services:
       mysql:
-        image: mysql:8.0
+        image: ${{ matrix.image }}
         env:
           MYSQL_ROOT_PASSWORD: synthetic_test_password
           MYSQL_DATABASE: travel_tour_test
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h localhost -psynthetic_test_password"
+          --health-cmd="${{ matrix.health }}"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
@@ -123,6 +133,7 @@ jobs:
           DB_USERNAME=synthetic_bot
           DB_PASSWORD=synthetic_database_password
           DB_ROOT_PASSWORD=synthetic_root_password
+          APP_ENV=test
           PAYMENT_SANDBOX_ENABLED=true
           PAYMENT_SANDBOX_SECRET=synthetic_signing_key_only_for_disposable_ci
           ENV
@@ -131,6 +142,8 @@ jobs:
           docker compose build app
           docker compose run --rm app php bin/install.php
           docker compose run --rm app php bin/migrate.php
+          docker compose run --rm app php bin/seed-demo.php --confirm
+          docker compose run --rm app php bin/seed-demo.php --confirm
           docker compose up -d app
       - name: Check HTTP readiness and webhook boundary
         run: |

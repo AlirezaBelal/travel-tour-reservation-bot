@@ -1,4 +1,8 @@
 <?php
+set_error_handler(static function(int $severity,string $message,string $file,int $line):bool {
+    if ($severity & (E_WARNING | E_NOTICE | E_USER_WARNING)) throw new ErrorException($message,0,$severity,$file,$line);
+    return false;
+});
 require __DIR__.'/../src/product_bootstrap.php';
 $dsn=getenv('TEST_MYSQL_DSN');if(!$dsn||preg_match('/(?:^|;)dbname=travel_tour_test(?:;|$)/D',$dsn)!==1)throw new RuntimeException('Isolated test database required.');
 $pdo=new PDO($dsn,getenv('TEST_MYSQL_USER')?:'root',getenv('TEST_MYSQL_PASSWORD')?:'');Database::configure($pdo);$access=new AccessControl($pdo,[999]);$outbox=new Outbox($pdo);$service=new BookingService($pdo,$access,$outbox);$bot=new ProductBot($pdo,$service,$access,$outbox);$processor=new WebhookProcessor($pdo,$service,$bot,$outbox);

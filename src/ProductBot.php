@@ -52,7 +52,7 @@ final class ProductBot
                 case 'admin': $this->admin();break;
                 case 'manage_tours': $this->listing($id,null,true);break;
                 case 'new': $this->access->require($actor,'tours');$this->state('tour_title',['publication'=>'draft']);$this->reply('عنوان تور جدید را وارد کنید:');break;
-                case 'edit': $this->access->require($actor,'tours');$this->state('tour_title',['id'=>$id,'publication'=>$this->bookings->tour($id)['publication']]);$this->reply('ویرایش کامل تور: عنوان جدید را وارد کنید. قیمت رزروهای قبلی ثابت می‌ماند. /cancel برای انصراف.');break;
+                case 'edit': $this->access->require($actor,'tours');$editTour=$this->bookings->tour($id);$this->state('tour_title',['id'=>$id,'publication'=>$editTour['publication'],'expected_version'=>(int)$editTour['version']]);$this->reply('ویرایش کامل تور: عنوان جدید را وارد کنید. قیمت رزروهای قبلی ثابت می‌ماند. /cancel برای انصراف.');break;
                 case 'publish': case 'inactive':
                     $tour=$this->bookings->tour($id);$tour['price']=(int)$tour['price'];$tour['capacity']=(int)$tour['capacity'];$tour['publication']=$action==='publish'?'published':'inactive';
                     $this->bookings->saveTour($actor,$tour,$id);$this->showTour($id);break;
@@ -233,8 +233,8 @@ final class ProductBot
         $this->access->require($this->actor,'export');$this->bookings->tour($id);
         $rows=Database::run($this->pdo,'SELECT b.id,t.title,b.quantity,b.status,p.amount,p.status AS payment_status FROM Bookings b JOIN Tours t ON t.id=b.tour_id JOIN Payments p ON p.booking_id=b.id WHERE b.tour_id=? ORDER BY b.id LIMIT 5001',[$id])->fetchAll(PDO::FETCH_NUM);
         if(count($rows)>5000)throw new RuleViolation('گزارش بیش از ۵۰۰۰ ردیف دارد؛ با اپراتور برای خروجی محدود هماهنگ کنید.');
-        $stream=fopen('php://temp','w+');fwrite($stream,"\xEF\xBB\xBF");fputcsv($stream,['booking_id','tour','quantity','status','amount_IRR','payment_status']);
-        foreach($rows as$row)fputcsv($stream,array_map(fn($value)=>BookingRules::csv((string)$value),$row));rewind($stream);$csv=stream_get_contents($stream);fclose($stream);
+        $stream=fopen('php://temp','w+');fwrite($stream,"\xEF\xBB\xBF");fputcsv($stream,['booking_id','tour','quantity','status','amount_IRR','payment_status'], ',', '"', '');
+        foreach($rows as$row)fputcsv($stream,array_map(fn($value)=>BookingRules::csv((string)$value),$row), ',', '"', '');rewind($stream);$csv=stream_get_contents($stream);fclose($stream);
         $this->outbox->enqueue($this->actor,'sendDocument',['caption'=>'گزارش رزرو بدون نام، موبایل یا کد ملی','_csv'=>$csv,'_export_actor'=>$this->actor],"export:{$this->update}:$id");$this->access->audit($this->actor,'booking.export','tour',$id);$this->reply('فایل در صف ارسال امن قرار گرفت.');
     }
     private function notifications():void {

@@ -1,4 +1,8 @@
 <?php
+set_error_handler(static function(int $severity,string $message,string $file,int $line):bool {
+    if ($severity & (E_WARNING | E_NOTICE | E_USER_WARNING)) throw new ErrorException($message,0,$severity,$file,$line);
+    return false;
+});
 require __DIR__.'/../src/product_bootstrap.php';
 $dsn=getenv('TEST_MYSQL_DSN');if(!$dsn||preg_match('/(?:^|;)dbname=travel_tour_test(?:;|$)/D',$dsn)!==1)throw new RuntimeException('Isolated test database required.');
 $pdo=new PDO($dsn,getenv('TEST_MYSQL_USER')?:'root',getenv('TEST_MYSQL_PASSWORD')?:'');Database::configure($pdo);
@@ -47,7 +51,7 @@ opCheck($service->booking(402,$expired)['status']==='rejected'&&$service->bookin
 $service->transition(400,$id,'cancelled');$pdo->exec("DELETE FROM NotificationOutbox WHERE payload NOT LIKE '%_reminder_booking%'");$sent=0;$worker->tick(function()use(&$sent){$sent++;return['ok'=>true,'code'=>200];},20,false);opCheck($sent===0,'cancelled booking reminder suppressed');
 // Completion is permitted only after a confirmed tour ends.
 $free=$service->saveTour(999,array_replace($values,['price'=>0]));$done=$service->reserve(404,$free,1,'complete');$service->transition(999,$done,'confirmed',null,true);opDenied(fn()=>$service->transition(999,$done,'completed',null,true));
-Database::run($pdo,'UPDATE Tours SET starts_at=?,ends_at=? WHERE id=?',[gmdate('Y-m-d H:i:s',time()-7200),gmdate('Y-m-d H:i:s',time()-3600),$free]);opCheck($service->transition(999,$done,'completed',null,true),'completed lifecycle');
+Database::run($pdo,'UPDATE Tours SET starts_at=?,ends_at=? WHERE id=?',[gmdate('Y-m-d H:i:s',time()-7200),gmdate('Y-m-d H:i:s',time()-3600),$free]);opDenied(fn()=>$service->transition(404,$done,'cancelled'));opCheck($service->transition(999,$done,'completed',null,true),'completed lifecycle');
 // Deletion removes legacy PII, participants and account linkage; active holds block it.
 $privacy=new PrivacyService($pdo);opDenied(fn()=>$privacy->erase(401));$service->transition(401,$second,'cancelled');Database::run($pdo,"UPDATE Data SET Mobile='09121234567',N_Code='1234567891' WHERE UserId=401");$privacy->erase(401);
 opCheck(Database::run($pdo,'SELECT UserId FROM Data WHERE UserId=401')->fetchColumn()===false,'profile including legacy PII deleted');opCheck(Database::run($pdo,'SELECT user_id FROM Bookings WHERE id=?',[$second])->fetchColumn()===null,'booking anonymized');opCheck((int)Database::run($pdo,'SELECT COUNT(*) FROM BookingParticipants WHERE booking_id=?',[$second])->fetchColumn()===0,'participants erased');
