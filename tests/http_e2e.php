@@ -16,7 +16,15 @@ function updateTest(int$actor,?string$text=null,?string$callback=null,?int$fixed
 $values=['category_id'=>null,'title'=>'Synthetic HTTP tour','destination'=>'Synthetic','description'=>'Synthetic HTTP end-to-end','starts_at'=>gmdate('Y-m-d H:i:s',time()+86400),'ends_at'=>gmdate('Y-m-d H:i:s',time()+90000),'price'=>0,'capacity'=>3,'publication'=>'published'];
 httpCheck((int)Database::run($pdo,'SELECT COUNT(*) FROM Tours WHERE title=?',['تور نمایشی — داده ساختگی'])->fetchColumn()===1,'demo seeding is repeatable and synthetic');
 $tour=$bookings->saveTour($owners[0],$values);
-updateTest(700,'/start');updateTest(700,null,'p:name:0');updateTest(700,'Synthetic HTTP Traveler');updateTest(700,'/tours');
+updateTest(700,'/start');updateTest(700,null,'p:name:0');updateTest(700,'Synthetic HTTP Traveler');
+$syntheticPhone='+98'.'9'.str_repeat('2',9);
+updateTest(700,null,null,null,['phone_number'=>$syntheticPhone,'user_id'=>701]);
+httpCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=?',[700])->fetchColumn()==='phone','foreign contact rejected at HTTP boundary');
+updateTest(700,null,null,null,['phone_number'=>$syntheticPhone,'user_id'=>700]);
+httpCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=?',[700])->fetchColumn()==='national','self-shared Telegram contact accepted via HTTP');
+updateTest(700,'0000000019');
+httpCheck((new TravelerIdentity($pdo))->complete(700),'encrypted profile completed by HTTP flow');
+updateTest(700,'/tours');
 $delivery=updateTest(700,null,"p:reserve_yes:$tour:2:1");$booking=(int)Database::run($pdo,'SELECT id FROM Bookings WHERE user_id=700 AND tour_id=?',[$tour])->fetchColumn();httpCheck($booking>0&&$bookings->used($tour)===2,'HTTP group reservation');
 updateTest(700,null,"p:reserve_yes:$tour:2:1",$delivery);httpCheck((int)Database::run($pdo,'SELECT COUNT(*) FROM Bookings WHERE user_id=700 AND tour_id=?',[$tour])->fetchColumn()===1,'HTTP replay safe');
 updateTest(701,null,"p:confirm:$booking");httpCheck($bookings->booking(700,$booking)['status']==='pending','HTTP forged admin callback denied');
