@@ -59,6 +59,6 @@ final class BookingRules
 
     public static function csv(string $value): string
     {
-        return preg_match('/^[\s]*[=+@\-]|^[\x00-\x1f]/u', $value) ? "'" . $value : $value;
+        return preg_match('/^[\s\p{Cf}]*[=+@\-]|^[\x00-\x1f]/u', $value) ? "'" . $value : $value;
     }
 }

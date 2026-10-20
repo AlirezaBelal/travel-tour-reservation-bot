@@ -23,4 +23,6 @@ assertSameValue(false, isValidIranianNationalCode('123'), 'short national code r
 assertSameValue(true, isSensitiveAdminCallback('approve:101:4'), 'short approval is admin-only');
 assertSameValue(true, isSensitiveAdminCallback('confirmDelete-4'), 'deletion confirmation is admin-only');
 
+assertSameValue([123], parseAdminIds('0,-1,999999999999999999999,123'), 'reject unusable administrator IDs');
+
 fwrite(STDOUT, "Validator tests passed.\n");

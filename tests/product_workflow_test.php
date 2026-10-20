@@ -37,6 +37,8 @@ $paidTour=$service->saveTour(999,$paidValues);sendUpdate(508,null,'p:name:0');se
 $paidBooking=(int)Database::run($pdo,'SELECT id FROM Bookings WHERE user_id=508 AND tour_id=?',[$paidTour])->fetchColumn();
 sendUpdate(502,null,"p:pay:$paidBooking");sendUpdate(502,'SYNTHETIC-UI-RECEIPT');wfCheck($service->booking(508,$paidBooking)['payment_status']==='pending','payment approval needs confirmation');
 sendUpdate(502,null,"p:pay_yes:$paidBooking");sendUpdate(502,null,"p:confirm:$paidBooking");wfCheck($service->booking(508,$paidBooking)['status']==='confirmed','manual payment then booking approval');
+sendUpdate(502,null,'p:all_bookings:0');wfCheck(isset(lastReply(502)['reply_markup']),'confirmed and historical bookings accessible to managers');
+Database::run($pdo,'UPDATE Tours SET starts_at=?,ends_at=? WHERE id=?',[gmdate('Y-m-d H:i:s',time()-7200),gmdate('Y-m-d H:i:s',time()-3600),$paidTour]);sendUpdate(502,null,"p:complete:$paidBooking");wfCheck($service->booking(508,$paidBooking)['status']==='completed','manager completes ended booking through Telegram');
 // Account deletion is explicit, idempotent and does not disclose other accounts.
 sendUpdate(500,null,'p:erase:0');wfCheck((bool)Database::run($pdo,'SELECT UserId FROM Data WHERE UserId=500')->fetchColumn(),'deletion confirmation required');sendUpdate(500,null,'p:erase_yes:0');wfCheck(!Database::run($pdo,'SELECT UserId FROM Data WHERE UserId=500')->fetchColumn(),'account deletion workflow');
 // Input errors do not advance the persisted wizard; /cancel exits it.

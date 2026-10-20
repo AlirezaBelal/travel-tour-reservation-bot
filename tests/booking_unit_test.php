@@ -16,5 +16,6 @@ unitCheck(BookingRules::transition('confirmed','completed'));
 foreach (['rejected','cancelled','completed'] as $old) { unitCheck(!BookingRules::transition($old,'confirmed')); }
 unitCheck(!BookingRules::transition('pending','completed'));
 foreach (['=1+1',' +SUM(A1)','@cmd',"\tformula",'-1'] as $value) { unitCheck(str_starts_with(BookingRules::csv($value),"'")); }
+unitCheck(str_starts_with(BookingRules::csv("\u{FEFF}=1+1"),"'"));
 unitCheck(BookingRules::csv('Synthetic Tour') === 'Synthetic Tour');
 fwrite(STDOUT,"Booking unit tests passed ($checks checks).\n");

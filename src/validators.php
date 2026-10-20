@@ -15,7 +15,8 @@ function parseAdminIds(string $value): array
             continue;
         }
 
-        $ids[] = (int)$candidate;
+        $id = (int)$candidate;
+        if ($id > 0 && $id <= 4503599627370495) $ids[] = $id;
     }
 
     return array_values(array_unique($ids));

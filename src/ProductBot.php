@@ -25,7 +25,7 @@ final class ProductBot
             return true;
         }
         if($callback!==null&&str_starts_with($callback,'p:')) {
-            if(!preg_match('/^p:([a-z_]{1,24}):([0-9]{1,15})(?::([0-9]{1,15}))?(?::([0-9]{1,15}))?$/D',$callback,$parts)) throw new RuleViolation('دکمه معتبر نیست. از منوی جدید استفاده کنید.');
+            if(!preg_match('/^p:([a-z_]{1,24}):([0-9]{1,16})(?::([0-9]{1,16}))?(?::([0-9]{1,16}))?$/D',$callback,$parts)) throw new RuleViolation('دکمه معتبر نیست. از منوی جدید استفاده کنید.');
             $action=$parts[1];$id=(int)$parts[2];$arg=(int)($parts[3]??0);$version=(int)($parts[4]??0);
             switch($action) {
                 case 'home': $this->clear();$this->reply('انتخاب کنید:',$this->menu());break;
@@ -69,6 +69,8 @@ final class ProductBot
                     catch(PDOException $error) { if(($error->errorInfo[1]??null)===1451)throw new RuleViolation('دسته به تور مرتبط است؛ ابتدا دسته تور را تغییر دهید.');throw $error; }
                     $this->access->audit($actor,'category.delete','category',$id);$this->reply("تعداد دسته‌های حذف‌شده: $count");break;
                 case 'pending': $this->pending($id);break;
+                case 'all_bookings': $this->allBookings($id);break;
+                case 'tour_bookings': $this->allBookings($arg,$id);break;
                 case 'review': $this->showBooking($id,true);break;
                 case 'review_history': $this->history($id,true);break;
                 case 'confirm': $this->bookings->transition($actor,$id,'confirmed',null,true);$this->showBooking($id,true);break;
@@ -123,7 +125,7 @@ final class ProductBot
     private function clear():void {Database::run($this->pdo,'DELETE FROM BotSessions WHERE user_id=?',[$this->actor]);}
     private function number(string $text,int $max=100000):int {
         $text=strtr($text,['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
-        if(!preg_match('/^[0-9]{1,15}$/D',$text)||(float)$text>$max)throw new RuleViolation('یک عدد معتبر وارد کنید.');return(int)$text;
+        if(!preg_match('/^[0-9]{1,16}$/D',$text)||(float)$text>$max)throw new RuleViolation('یک عدد معتبر وارد کنید.');return(int)$text;
     }
     private function date(string $text):string {
         $date=DateTimeImmutable::createFromFormat('!Y-m-d H:i',$text,new DateTimeZone($this->timezone));
@@ -162,7 +164,7 @@ final class ProductBot
     }
     private function showTour(int $id):void {
         $tour=$this->bookings->tour($id);
-        if($tour['publication']!=='published'&&!$this->access->allows($this->actor,'tours'))throw new RuleViolation('این تور منتشر نشده است.');
+        if($tour['publication']!=='published'&&!$this->access->allows($this->actor,'tours')&&!Database::run($this->pdo,'SELECT id FROM Bookings WHERE user_id=? AND tour_id=?',[$this->actor,$id])->fetchColumn())throw new RuleViolation('این تور منتشر نشده است.');
         $remaining=(int)$tour['capacity']-$this->bookings->used($id);
         $text="تور #$id: {$tour['title']}\nمقصد: {$tour['destination']}\n{$tour['description']}\nشروع: ".$this->local($tour['starts_at'])."\nپایان: ".$this->local($tour['ends_at'])."\nمنطقه زمانی: {$this->timezone}\nقیمت هر نفر: {$tour['price']} ریال\nظرفیت کل: {$tour['capacity']}؛ باقی‌مانده: $remaining\nوضعیت انتشار: ".(['published'=>'فعال','draft'=>'پیش‌نویس','inactive'=>'غیرفعال','archived'=>'بایگانی'][$tour['publication']]??'نامشخص');
         $buttons=[];
@@ -197,6 +199,7 @@ final class ProductBot
             if($this->access->allows($this->actor,'payments')&&$booking['payment_status']!=='paid')$buttons[]=[['text'=>'بررسی پرداخت دستی','callback_data'=>"p:pay:$id"]];
             if($booking['status']==='confirmed')$buttons[]=[['text'=>'تکمیل پس از پایان تور','callback_data'=>"p:complete:$id"]];
         }elseif(in_array($booking['status'],['pending','confirmed'],true))$buttons[]=[['text'=>'لغو رزرو','callback_data'=>"p:cancel_booking:$id"]];
+        $buttons[]=[['text'=>'جزئیات تور','callback_data'=>'p:tour:'.$booking['tour_id']]];
         $buttons[]=[['text'=>'تاریخچه وضعیت','callback_data'=>($admin?'p:review_history:':'p:history:').$id]];
         $buttons[]=[['text'=>'بازگشت','callback_data'=>$admin?'p:pending:0':'p:mine:0']];$this->reply($text,$buttons,$admin && $booking['user_id'] !== null ? (int)$booking['user_id'] : null);
     }
@@ -209,11 +212,11 @@ final class ProductBot
         if($this->access->role($this->actor)===null)throw new RuleViolation('دسترسی مدیریت ندارید.');
         $buttons=[];
         if($this->access->allows($this->actor,'tours'))$buttons=array_merge($buttons,[[['text'=>'ایجاد تور','callback_data'=>'p:new:0'],['text'=>'مدیریت تورها','callback_data'=>'p:manage_tours:0']],[['text'=>'ایجاد دسته','callback_data'=>'p:category_new:0'],['text'=>'حذف دسته','callback_data'=>'p:category_delete:0']]]);
-        if($this->access->allows($this->actor,'review'))$buttons[]=[['text'=>'درخواست‌های منتظر','callback_data'=>'p:pending:0']];
+        if($this->access->allows($this->actor,'review'))$buttons[]=[['text'=>'درخواست‌های منتظر','callback_data'=>'p:pending:0'],['text'=>'همه رزروها','callback_data'=>'p:all_bookings:0']];
         if($this->access->allows($this->actor,'reports'))$buttons[]=[['text'=>'گزارش تور','callback_data'=>'p:report_select:0']];
         if($this->access->allows($this->actor,'notify'))$buttons[]=[['text'=>'وضعیت اعلان‌ها','callback_data'=>'p:notify:0'],['text'=>'ارسال گروهی','callback_data'=>'p:broadcast:0']];
         if($this->access->allows($this->actor,'roles'))$buttons[]=[['text'=>'مدیریت نقش‌ها','callback_data'=>'p:roles:0']];
-        $buttons[]=[['text'=>'منو','callback_data'=>'p:home:0']];$this->reply('مدیریت؛ نقش شما: '.$this->access->role($this->actor),$buttons);
+        $buttons[]=[['text'=>'منو','callback_data'=>'p:home:0']];$this->reply('مدیریت؛ نقش شما: '.(['owner'=>'مدیر اصلی','manager'=>'مدیر','reviewer'=>'بررسی درخواست‌ها','reporter'=>'گزارش‌گیر'][$this->access->role($this->actor)]??'نامشخص'),$buttons);
     }
     private function pending(int $offset):void {
         $this->access->require($this->actor,'review');if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
@@ -222,12 +225,20 @@ final class ProductBot
         if(count($rows)===10)$buttons[]=[['text'=>'بعدی','callback_data'=>'p:pending:'.($offset+10)]];
         $buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply($rows?'درخواست‌های منتظر بررسی:':'درخواست منتظری وجود ندارد.',$buttons);
     }
+    private function allBookings(int $offset,?int $tour=null):void {
+        $this->access->require($this->actor,'review');if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
+        $where=$tour===null?'1=1':'tour_id=?';$args=$tour===null?[]:[$tour];
+        $rows=Database::run($this->pdo,"SELECT id,status,quantity FROM Bookings WHERE $where ORDER BY id DESC LIMIT 10 OFFSET $offset",$args)->fetchAll(PDO::FETCH_ASSOC);
+        $buttons=[];foreach($rows as$row)$buttons[]=[['text'=>'رزرو #'.$row['id'].' / '.$this->status($row['status']).' / '.$row['quantity'].' نفر','callback_data'=>'p:review:'.$row['id']]];
+        if(count($rows)===10)$buttons[]=[['text'=>'صفحه بعد','callback_data'=>$tour===null?'p:all_bookings:'.($offset+10):"p:tour_bookings:$tour:".($offset+10)]];
+        $buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply('رزروها با وضعیت جاری و قبلی:',$buttons);
+    }
     private function report(int $id):void {
         $this->access->require($this->actor,'reports');$tour=$this->bookings->tour($id);
         $rows=Database::run($this->pdo,'SELECT status,COUNT(*) requests,SUM(quantity) seats FROM Bookings WHERE tour_id=? GROUP BY status',[$id])->fetchAll(PDO::FETCH_ASSOC);
         $text="گزارش تور #$id\nظرفیت: {$tour['capacity']}\nباقی‌مانده: ".($tour['capacity']-$this->bookings->used($id));
         foreach($rows as$row)$text.="\n".$this->status($row['status']).": {$row['requests']} درخواست / {$row['seats']} نفر";
-        $buttons=[];if($this->access->allows($this->actor,'export'))$buttons[]=[['text'=>'خروجی CSV بدون اطلاعات هویتی','callback_data'=>"p:export:$id"]];$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply($text,$buttons);
+        $buttons=[];if($this->access->allows($this->actor,'review'))$buttons[]=[['text'=>'رزروهای این تور','callback_data'=>"p:tour_bookings:$id:0"]];if($this->access->allows($this->actor,'export'))$buttons[]=[['text'=>'خروجی CSV بدون اطلاعات هویتی','callback_data'=>"p:export:$id"]];$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply($text,$buttons);
     }
     private function export(int $id):void {
         $this->access->require($this->actor,'export');$this->bookings->tour($id);
