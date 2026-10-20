@@ -69,3 +69,23 @@ function isIranianMobileNumber(string $phoneNumber): bool
 
     return preg_match('/^(?:\+98|0098|98|0)?9\d{9}$/', $normalized) === 1;
 }
+
+/** Accept only an owner's Telegram request_contact submission, never a forwarded third-party card. */
+function isVerifiedSharedContact(mixed $contact, int $actor): bool
+{
+    return is_array($contact)
+        && is_int($contact['user_id'] ?? null)
+        && $contact['user_id'] === $actor
+        && is_string($contact['phone_number'] ?? null)
+        && strlen($contact['phone_number']) <= 24
+        && isIranianMobileNumber($contact['phone_number']);
+}
+
+function normalizeIranianMobile(string $phone): string
+{
+    $digits = preg_replace('/[^0-9]/', '', $phone);
+    if (!is_string($digits) || !isIranianMobileNumber($phone)) {
+        throw new InvalidArgumentException('Invalid Iranian mobile number.');
+    }
+    return '+98' . substr($digits, -10);
+}
