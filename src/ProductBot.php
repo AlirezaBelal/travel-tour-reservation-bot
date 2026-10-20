@@ -304,7 +304,12 @@ final class ProductBot
             $next=['title'=>'destination','destination'=>'description','description'=>'category_id','category_id'=>'starts_at','starts_at'=>'ends_at','ends_at'=>'price','price'=>'capacity'];
             $prompts=['destination'=>'مقصد را وارد کنید:','description'=>'توضیحات تور را وارد کنید:','category_id'=>'شناسه دسته را وارد کنید؛ صفر یعنی بدون دسته:','starts_at'=>'شروع تور؛ تاریخ میلادی و ساعت تهران، مانند 2027-04-21 08:30:','ends_at'=>'پایان تور؛ تاریخ میلادی و ساعت تهران، مانند 2027-04-22 18:00:','price'=>'قیمت هر نفر به ریال؛ صفر یعنی رایگان:','capacity'=>'ظرفیت کل تور را وارد کنید:'];
             if(!in_array($field,['title','destination','description','category_id','starts_at','ends_at','price','capacity'],true))throw new RuleViolation('فرم معتبر نیست.');
-            if(in_array($field,['starts_at','ends_at'],true))$payload[$field]=$this->date($text);
+            if(in_array($field,['starts_at','ends_at'],true)){
+                $payload[$field]=$this->date($text);
+                if($field==='ends_at' && $payload['ends_at'] <= ($payload['starts_at'] ?? '')){
+                    throw new RuleViolation('زمان پایان تور باید بعد از زمان شروع باشد؛ تاریخ و ساعت پایان را دوباره وارد کنید.');
+                }
+            }
             elseif(in_array($field,['price','capacity','category_id'],true)){$payload[$field]=$this->number($text,$field==='price'?1000000000000:($field==='category_id'?4503599627370495:100000));if($field==='category_id'&&$payload[$field]===0)$payload[$field]=null;}
             else {if($text===''||strlen($text)>($field==='description'?4000:600))throw new RuleViolation('متن خالی یا بیش از حد طولانی است.');$payload[$field]=$text;}
             if($field==='capacity'){$id=$this->bookings->saveTour($this->actor,$payload,isset($payload['id'])?(int)$payload['id']:null);$this->clear();$this->reply('مشخصات ذخیره شد. تور جدید پیش‌نویس است؛ برای نمایش به مسافر «انتشار» را بزنید.');$this->showTour($id);}
