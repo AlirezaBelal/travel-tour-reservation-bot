@@ -144,6 +144,7 @@ jobs:
           docker compose run --rm app php bin/migrate.php
           docker compose run --rm app php bin/seed-demo.php --confirm
           docker compose run --rm app php bin/seed-demo.php --confirm
+          docker compose run --rm app php bin/worker.php --health
           docker compose up -d app
       - name: Check HTTP readiness and webhook boundary
         run: |

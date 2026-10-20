@@ -31,10 +31,11 @@ final class Outbox
         ]);
     }
 
-    public function message(int $chat, string $text, string $key, array $keyboard = [], ?int $subject = null): void
+    public function message(int $chat, string $text, string $key, array $keyboard = [], ?int $subject = null, array $permissions = []): void
     {
         $payload = ['text' => $text];
         if ($subject !== null) $payload['_subject_user'] = $subject;
+        if ($permissions !== []) $payload['_required_permissions'] = $permissions;
         if ($keyboard !== []) {
             $payload['reply_markup'] = json_encode(['inline_keyboard' => $keyboard], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         }

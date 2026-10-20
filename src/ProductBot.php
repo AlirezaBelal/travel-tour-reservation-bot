@@ -101,8 +101,8 @@ final class ProductBot
         $this->reply('پیام را متوجه نشدم. از دکمه‌ها استفاده کنید یا /help بفرستید.',$this->menu());return true;
     }
 
-    private function reply(string $text,array $buttons=[],?int $subject=null):void {
-        $this->outbox->message($this->actor,str_replace('\\n',"\n",$text),"update:{$this->update}:reply:".($this->sequence++),$buttons,$subject);
+    private function reply(string $text,array $buttons=[],?int $subject=null,array $permissions=[]):void {
+        $this->outbox->message($this->actor,str_replace('\\n',"\n",$text),"update:{$this->update}:reply:".($this->sequence++),$buttons,$subject,$permissions);
     }
     private function menu():array {
         $buttons=[[['text'=>'تور‌ها','callback_data'=>'p:tours:0'],['text'=>'دسته‌ها','callback_data'=>'p:cats:0']],[['text'=>'جست‌وجوی تور','callback_data'=>'p:search:0'],['text'=>'رزروهای من','callback_data'=>'p:mine:0']],[['text'=>'پروفایل','callback_data'=>'p:profile:0'],['text'=>'راهنما','callback_data'=>'p:help:0']]];
@@ -123,7 +123,7 @@ final class ProductBot
         return json_decode($session['payload'],true,512,JSON_THROW_ON_ERROR);
     }
     private function clear():void {Database::run($this->pdo,'DELETE FROM BotSessions WHERE user_id=?',[$this->actor]);}
-    private function number(string $text,int $max=100000):int {
+    private function number(string $text,int $max=4503599627370495):int {
         $text=strtr($text,['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
         if(!preg_match('/^[0-9]{1,16}$/D',$text)||(float)$text>$max)throw new RuleViolation('یک عدد معتبر وارد کنید.');return(int)$text;
     }
@@ -138,7 +138,7 @@ final class ProductBot
         $this->reply('نام سرپرست: '.($name?:'ثبت نشده')."\nشناسه حساب: {$this->actor}\nفقط نام برای رزرو لازم است.",[[['text'=>'ثبت یا ویرایش نام','callback_data'=>'p:name:0']],[['text'=>'حریم خصوصی و حذف حساب','callback_data'=>'p:privacy:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
     }
     private function privacy():void {
-        $this->reply('برای مسیر جدید رزرو فقط نام سرپرست و تعداد همراهان جمع‌آوری می‌شود. اطلاعات قدیمی پروفایل تا حذف حساب حفظ می‌شوند. حساب‌های غیرفعال طبق مدت تنظیم‌شده اپراتور (پیش‌فرض ۱۸۰ روز) و بدون رزرو فعال پاک می‌شوند. سوابق عددی رزرو و پرداخت بدون اتصال به حساب برای گزارش باقی می‌مانند. پیام‌های تلگرام و پشتیبان‌های اپراتور جداگانه نگهداری می‌شوند.',[[['text'=>'درخواست حذف حساب','callback_data'=>'p:erase:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
+        $this->reply('برای مسیر جدید رزرو فقط نام سرپرست و تعداد همراهان جمع‌آوری می‌شود. اطلاعات قدیمی پروفایل تا حذف حساب حفظ می‌شوند. پاک‌سازی خودکار حساب غیرفعال فقط پس از فعال‌سازی سیاست توسط اپراتور و بدون رزرو فعال انجام می‌شود؛ مدت پیشنهادی ۱۸۰ روز است. سوابق عددی رزرو و پرداخت بدون اتصال به حساب برای گزارش باقی می‌مانند. پیام‌های تلگرام و پشتیبان‌های اپراتور جداگانه نگهداری می‌شوند.',[[['text'=>'درخواست حذف حساب','callback_data'=>'p:erase:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
     }
     private function listing(int $offset,?int $category=null,bool $admin=false):void {
         if($offset>100000)throw new RuleViolation('شماره صفحه معتبر نیست.');
@@ -201,7 +201,7 @@ final class ProductBot
         }elseif(in_array($booking['status'],['pending','confirmed'],true))$buttons[]=[['text'=>'لغو رزرو','callback_data'=>"p:cancel_booking:$id"]];
         $buttons[]=[['text'=>'جزئیات تور','callback_data'=>'p:tour:'.$booking['tour_id']]];
         $buttons[]=[['text'=>'تاریخچه وضعیت','callback_data'=>($admin?'p:review_history:':'p:history:').$id]];
-        $buttons[]=[['text'=>'بازگشت','callback_data'=>$admin?'p:pending:0':'p:mine:0']];$this->reply($text,$buttons,$admin && $booking['user_id'] !== null ? (int)$booking['user_id'] : null);
+        $buttons[]=[['text'=>'بازگشت','callback_data'=>$admin?'p:pending:0':'p:mine:0']];$this->reply($text,$buttons,$admin && $booking['user_id'] !== null ? (int)$booking['user_id'] : null,$admin?($this->access->allows($this->actor,'profiles')?['review','profiles']:['review']):[]);
     }
     private function history(int $id,bool $admin):void {
         $this->bookings->booking($this->actor,$id,$admin);
@@ -238,7 +238,7 @@ final class ProductBot
         $rows=Database::run($this->pdo,'SELECT status,COUNT(*) requests,SUM(quantity) seats FROM Bookings WHERE tour_id=? GROUP BY status',[$id])->fetchAll(PDO::FETCH_ASSOC);
         $text="گزارش تور #$id\nظرفیت: {$tour['capacity']}\nباقی‌مانده: ".($tour['capacity']-$this->bookings->used($id));
         foreach($rows as$row)$text.="\n".$this->status($row['status']).": {$row['requests']} درخواست / {$row['seats']} نفر";
-        $buttons=[];if($this->access->allows($this->actor,'review'))$buttons[]=[['text'=>'رزروهای این تور','callback_data'=>"p:tour_bookings:$id:0"]];if($this->access->allows($this->actor,'export'))$buttons[]=[['text'=>'خروجی CSV بدون اطلاعات هویتی','callback_data'=>"p:export:$id"]];$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply($text,$buttons);
+        $buttons=[];if($this->access->allows($this->actor,'review'))$buttons[]=[['text'=>'رزروهای این تور','callback_data'=>"p:tour_bookings:$id:0"]];if($this->access->allows($this->actor,'export'))$buttons[]=[['text'=>'خروجی CSV بدون اطلاعات هویتی','callback_data'=>"p:export:$id"]];$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply($text,$buttons,null,['reports']);
     }
     private function export(int $id):void {
         $this->access->require($this->actor,'export');$this->bookings->tour($id);
@@ -279,7 +279,7 @@ final class ProductBot
             $prompts=['destination'=>'مقصد را وارد کنید:','description'=>'توضیحات تور را وارد کنید:','category_id'=>'شناسه دسته را وارد کنید؛ صفر یعنی بدون دسته:','starts_at'=>'شروع تور؛ تاریخ میلادی و ساعت تهران، مانند 2027-04-21 08:30:','ends_at'=>'پایان تور؛ تاریخ میلادی و ساعت تهران، مانند 2027-04-22 18:00:','price'=>'قیمت هر نفر به ریال؛ صفر یعنی رایگان:','capacity'=>'ظرفیت کل تور را وارد کنید:'];
             if(!in_array($field,['title','destination','description','category_id','starts_at','ends_at','price','capacity'],true))throw new RuleViolation('فرم معتبر نیست.');
             if(in_array($field,['starts_at','ends_at'],true))$payload[$field]=$this->date($text);
-            elseif(in_array($field,['price','capacity','category_id'],true)){$payload[$field]=$this->number($text,$field==='price'?1000000000000:100000);if($field==='category_id'&&$payload[$field]===0)$payload[$field]=null;}
+            elseif(in_array($field,['price','capacity','category_id'],true)){$payload[$field]=$this->number($text,$field==='price'?1000000000000:($field==='category_id'?4503599627370495:100000));if($field==='category_id'&&$payload[$field]===0)$payload[$field]=null;}
             else {if($text===''||strlen($text)>($field==='description'?4000:600))throw new RuleViolation('متن خالی یا بیش از حد طولانی است.');$payload[$field]=$text;}
             if($field==='capacity'){$id=$this->bookings->saveTour($this->actor,$payload,isset($payload['id'])?(int)$payload['id']:null);$this->clear();$this->reply('مشخصات ذخیره شد. تور جدید پیش‌نویس است؛ برای نمایش به مسافر «انتشار» را بزنید.');$this->showTour($id);}
             else{$this->state('tour_'.$next[$field],$payload);$this->reply($prompts[$next[$field]]);}return;

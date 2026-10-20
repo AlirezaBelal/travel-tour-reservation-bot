@@ -28,6 +28,12 @@ final class NotificationWorker
                 if(!$row) break;
                 $payload=json_decode($row['payload'],true,512,JSON_THROW_ON_ERROR);
                 $obsolete=false;
+                $authorized=true;
+                foreach((array)($payload['_required_permissions']??[])as$permission) {
+                    if(!is_string($permission)||!$this->access->allows((int)$row['chat_id'],$permission))$authorized=false;
+                }
+                if(!$authorized){Database::run($this->pdo,"UPDATE NotificationOutbox SET status='failed',error_code='permission_revoked',locked_at=NULL WHERE id=?",[$row['id']]);continue;}
+
                 if(isset($payload['_export_actor']) && !$this->access->allows((int)$payload['_export_actor'],'export')) {
                     Database::run($this->pdo,"UPDATE NotificationOutbox SET status='failed',error_code='permission_revoked' WHERE id=?",[$row['id']]);
                     continue;

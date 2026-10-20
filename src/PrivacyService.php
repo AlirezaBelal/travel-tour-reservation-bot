@@ -27,8 +27,13 @@ final class PrivacyService
         $users=Database::run($this->pdo,"SELECT UserId FROM Data WHERE updated_at<? AND NOT EXISTS(SELECT 1 FROM Bookings WHERE user_id=Data.UserId AND status IN ('pending','confirmed')) LIMIT 100",[$cutoff])->fetchAll(PDO::FETCH_COLUMN);
         $removed=0;
         foreach($users as$user) {try{$this->erase((int)$user);$removed++;}catch(RuleViolation){}}
-        $this->pdo->exec("DELETE FROM NotificationOutbox WHERE status IN ('sent','failed') AND created_at<UTC_TIMESTAMP()-INTERVAL 7 DAY");
-        $this->pdo->exec("DELETE FROM RateLimits WHERE minute_slot < FLOOR(UNIX_TIMESTAMP()/60)-1440");
+        $this->cleanup();
         return $removed;
     }
+    public function cleanup():void {
+        $this->pdo->exec("DELETE FROM NotificationOutbox WHERE status IN ('sent','failed') AND created_at<UTC_TIMESTAMP()-INTERVAL 7 DAY");
+        $this->pdo->exec("DELETE FROM RateLimits WHERE minute_slot < FLOOR(UNIX_TIMESTAMP()/60)-1440");
+        $this->pdo->exec("DELETE FROM UpdateReceipts WHERE created_at<UTC_TIMESTAMP()-INTERVAL 30 DAY");
+    }
+
 }

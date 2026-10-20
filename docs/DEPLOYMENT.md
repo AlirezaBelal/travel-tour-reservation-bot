@@ -77,7 +77,8 @@ VPS/TLS/live-Telegram operation has not been verified by the automated tests.
 errors. Do not run multiple bots with the same token or database unintentionally.
 The worker has a MySQL dispatch lock, a five-minute lease timeout, conservative
 send pacing, and schedules reminders, payment-hold expiration and retention.
-Set `RETENTION_DAYS` (30–3650, default 180) deliberately and document the policy
+Automatic profile cleanup defaults off. Enable `RETENTION_ENABLED=true` only after
+approving the policy; set `RETENTION_DAYS` (30–3650, default 180) deliberately and document the policy
 for your travelers. Remove personal data from backups according to your own
 secure rotation policy; deleting an account does not rewrite old offline backups.
 
@@ -92,3 +93,7 @@ and a distinct random PAYMENT_SANDBOX_SECRET. Run
 `docker compose run --rm app php bin/sandbox-payment.php ORDER_REF TRANSACTION paid`
 using a synthetic pending order. Restore the enable flag to false afterwards.
 This does not test any actual gateway or merchant settlement.
+
+`docker compose run --rm app php bin/worker.php --health` checks worker dependencies
+without sending to Telegram. It is a diagnostic, not proof a background process is
+running. Access to profiles/reports/exports is rechecked again at queued delivery.

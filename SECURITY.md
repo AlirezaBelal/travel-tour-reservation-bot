@@ -66,3 +66,11 @@ Historical token-pattern matches were discovered without copying their values in
 reports. The operator must revoke/rotate any real exposed token in BotFather, then
 update the secret store and webhook. A Git deletion/history rewrite cannot revoke
 a credential. Do not rewrite repository history as a substitute for rotation.
+
+Automatic profile anonymization is opt-in (`RETENTION_ENABLED=false` by default),
+so an upgrade does not silently delete inactive legacy profiles. Enable it only
+after policy review/notice. Explicit confirmed account deletion remains available.
+Terminal queue payloads have a seven-day retention, ingress counters one day, and
+update receipts 30 days. In-flight/already-delivered Telegram messages are outside
+a database purge. Environment-configured owner IDs must be removed by the operator
+when an owner relationship ends; account deletion cannot rewrite deployment secrets.

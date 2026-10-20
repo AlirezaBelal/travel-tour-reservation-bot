@@ -47,7 +47,7 @@ curl -f http://127.0.0.1:8080/health.php
 ```
 
 The `worker` service is essential: it sends queued messages, schedules reminders and
-runs retention. Without it, messages remain queued. Do not run the local simulator
+runs configured retention. Without it, messages remain queued. Do not run the local simulator
 against real customer orders. Keep `PAYMENT_SANDBOX_ENABLED=false` in normal use.
 
 Place an HTTPS reverse proxy on your domain in front of `127.0.0.1:8080`. In
@@ -127,6 +127,13 @@ not claim exactly-once delivery. Unknown/permanent failures are visible for revi
 five minutes. Delivery is conservatively limited globally and per chat; 429 pauses
 pending delivery according to retry_after. [Official API](https://core.telegram.org/bots/api#responseparameters)
 · [Telegram rate guidance](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this).
+
+Automatic profile anonymization is **disabled by default** to protect existing
+installations during upgrade. After approving and publishing a retention policy,
+set `RETENTION_ENABLED=true` and `RETENTION_DAYS` (default 180). Explicit user-requested
+erasure remains available. Sent/failed queue payloads expire after seven days;
+update receipts retain a 30-day replay window. Already-delivered/in-flight Telegram
+messages and offline backups cannot be recalled by a database deletion.
 
 ## Development and verification
 
