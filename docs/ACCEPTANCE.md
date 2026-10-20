@@ -18,6 +18,7 @@ and operator reviews are satisfied. No final release or deployment is authorized
 | Database outage, supervisor restart, fresh worker connection and web restart | `tests/container_restart.sh` in disposable Compose project before any queued notifications |
 | Reminder replay/cancellation, hold expiry, erasure/retention | `tests/operations_test.php` |
 | Persian forms, booking/review/cancel/manual pay, RBAC, CSV and rate limits | `tests/product_workflow_test.php` |
+| Telegram own-contact validation, national checksum, encrypted profile storage and booking gating | `tests/validators_test.php`, `tests/product_workflow_test.php`; legacy plaintext remains untouched |
 | Real webhook entry point and payment endpoint | `tests/http_e2e.php` copied only into disposable CI container |
 | Fresh install, migrations, readiness, auth and source isolation | CI `install` job |
 | Runtime has no root secret and no DDL privilege, with working HTTP bookings | `tests/runtime_permissions.php` + HTTP suite after privilege restriction |
