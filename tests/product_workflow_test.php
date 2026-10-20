@@ -4,13 +4,35 @@ set_error_handler(static function(int $severity,string $message,string $file,int
     return false;
 });
 require __DIR__.'/../src/product_bootstrap.php';
+require_once __DIR__.'/../database/product.php';
+putenv('PROFILE_ENCRYPTION_KEY='.base64_encode(str_repeat('k',32)));
 $dsn=getenv('TEST_MYSQL_DSN');if(!$dsn||preg_match('/(?:^|;)dbname=travel_tour_test(?:;|$)/D',$dsn)!==1)throw new RuntimeException('Isolated test database required.');
-$pdo=new PDO($dsn,getenv('TEST_MYSQL_USER')?:'root',getenv('TEST_MYSQL_PASSWORD')?:'');Database::configure($pdo);$access=new AccessControl($pdo,[999]);$outbox=new Outbox($pdo);$service=new BookingService($pdo,$access,$outbox);$bot=new ProductBot($pdo,$service,$access,$outbox);$processor=new WebhookProcessor($pdo,$service,$bot,$outbox);
+$pdo=new PDO($dsn,getenv('TEST_MYSQL_USER')?:'root',getenv('TEST_MYSQL_PASSWORD')?:'');Database::configure($pdo);migrateTravelerIdentity($pdo);migrateTravelerIdentity($pdo);$access=new AccessControl($pdo,[999]);$outbox=new Outbox($pdo);$service=new BookingService($pdo,$access,$outbox);$bot=new ProductBot($pdo,$service,$access,$outbox);$processor=new WebhookProcessor($pdo,$service,$bot,$outbox);
 $checks=0;$next=10000;
 function wfCheck(bool $condition,string $label):void{global$checks;$checks++;if(!$condition)throw new RuntimeException($label);}
-function sendUpdate(int $actor,?string $text=null,?string $data=null,?int $id=null):int{global$processor,$next;$id??=++$next;$processor->handle($id,$actor,$text,$data);return$id;}
+function sendUpdate(int $actor,?string $text=null,?string $data=null,?int $id=null,?array $contact=null):int{global$processor,$next;$id??=++$next;$processor->handle($id,$actor,$text,$data,null,null,$contact);return$id;}
 function lastReply(int $actor):array{global$pdo;return json_decode(Database::run($pdo,'SELECT payload FROM NotificationOutbox WHERE chat_id=? ORDER BY id DESC LIMIT 1',[$actor])->fetchColumn(),true,512,JSON_THROW_ON_ERROR);}
 sendUpdate(500,'/start');sendUpdate(500,null,'p:profile:0');sendUpdate(500,null,'p:name:0');sendUpdate(500,'Synthetic New Traveler');wfCheck(Database::run($pdo,'SELECT Name FROM Data WHERE UserId=500')->fetchColumn()==='Synthetic New Traveler','minimal profile onboarding');wfCheck(Database::run($pdo,'SELECT N_Code FROM Data WHERE UserId=500')->fetchColumn()===null,'national code not collected');
+// Verify own-contact keyboard and encrypted identity storage without using any real personal data.
+sendUpdate(510,'/start');sendUpdate(510,null,'p:name:0');sendUpdate(510,'Synthetic Consent');
+$share=lastReply(510);$keyboard=json_decode($share['reply_markup'],true);
+wfCheck(($keyboard['keyboard'][0][0]['request_contact']??false)===true,'Telegram own-contact request button is shown');
+sendUpdate(510,'09121234567');
+wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=510')->fetchColumn()==='phone','typed phone rejected and form retained');
+sendUpdate(510,null,null,null,['phone_number'=>'09121234567','user_id'=>511]);
+wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=510')->fetchColumn()==='phone','third party contact denied');
+sendUpdate(510,null,null,null,['phone_number'=>'+989121234567','user_id'=>510]);
+wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=510')->fetchColumn()==='national','verified shared phone advances to national code');
+sendUpdate(510,'invalid');
+wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=510')->fetchColumn()==='national','bad national checksum rejected');
+sendUpdate(510,'0000000019');
+$identity=new TravelerIdentity($pdo);
+wfCheck($identity->complete(510),'encrypted profile complete after valid code');
+$encoded=Database::run($pdo,'SELECT mobile_cipher,national_cipher FROM TravelerIdentity WHERE user_id=?',[510])->fetch(PDO::FETCH_ASSOC);
+wfCheck(strpos($encoded['mobile_cipher'],'09121234567')===false && strpos($encoded['national_cipher'],'0000000019')===false,'identifiers are not persisted in plaintext');
+wfCheck(Database::run($pdo,'SELECT Mobile FROM Data WHERE UserId=?',[510])->fetchColumn()===null && Database::run($pdo,'SELECT N_Code FROM Data WHERE UserId=?',[510])->fetchColumn()===null,'new onboarding avoids legacy plaintext columns');
+sendUpdate(510,'/profile');wfCheck(!str_contains(lastReply(510)['text'],'0000000019') && str_contains(lastReply(510)['text'],'ثبت شد'),'profile never echoes identity values');
+
 // Complete guided tour form, including persistence across handler restarts.
 sendUpdate(999,'/admin');sendUpdate(999,null,'p:new:0');
 foreach(['=Synthetic CSV title','Synthetic Destination','Synthetic description','0',gmdate('Y-m-d H:i',time()+172800),gmdate('Y-m-d H:i',time()+180000),'0','5']as$input)sendUpdate(999,$input);
@@ -28,6 +50,9 @@ wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=998')->f
 sendUpdate(998,'0');sendUpdate(998,'3');
 wfCheck((bool)Database::run($pdo,'SELECT id FROM Tours WHERE title=?',['Synthetic time-order validation'])->fetchColumn(),'tour saves after correcting end date');
 sendUpdate(999,null,"p:publish:$tour");wfCheck($service->tour($tour)['publication']==='published','publication workflow');
+putenv('REQUIRE_VERIFIED_PROFILE=true');
+try{$service->reserve(500,$tour,1,'identity-missing');throw new RuntimeException('Unverified profile was accepted');}catch(RuleViolation $error){wfCheck(str_contains($error->getMessage(),'کد ملی'),'strict onboarding gate denies unverified identity');}
+putenv('REQUIRE_VERIFIED_PROFILE=false');
 sendUpdate(500,'/search');sendUpdate(500,'Synthetic Destination');$reply=lastReply(500);wfCheck(isset($reply['reply_markup']),'search result buttons');sendUpdate(500,null,"p:tour:$tour");wfCheck(str_contains(lastReply(500)['text'],'باقی‌مانده'),'capacity visible');
 sendUpdate(500,null,"p:reserve:$tour");sendUpdate(500,'۲');$reply=lastReply(500);$keyboard=json_decode($reply['reply_markup'],true);$confirmation=$keyboard['inline_keyboard'][0][0]['callback_data'];wfCheck(strlen($confirmation)<=64,'bounded booking confirmation');
 $delivery=sendUpdate(500,null,$confirmation);$booking=(int)Database::run($pdo,'SELECT id FROM Bookings WHERE user_id=500 AND tour_id=?',[$tour])->fetchColumn();wfCheck($booking>0&&$service->used($tour)===2,'group booking through Telegram');$count=(int)$pdo->query('SELECT COUNT(*) FROM NotificationOutbox')->fetchColumn();sendUpdate(500,null,$confirmation,$delivery);wfCheck((int)$pdo->query('SELECT COUNT(*) FROM NotificationOutbox')->fetchColumn()===$count,'duplicate webhook has no side effects');
