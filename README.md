@@ -5,7 +5,7 @@
 A self-hosted Persian Telegram bot for tour discovery, group reservations, manual
 payment review and tour operations. PHP, MySQL, GPL-3.0-only.
 
-**Development preview — the PR remains draft.** Automated tests use synthetic
+**Open-source distribution preview — not a production certification.** Automated tests use synthetic
 travelers, a simulated Telegram transport and a local signed payment simulator.
 A live Telegram installation, VPS/TLS deployment and merchant payment gateway are
 separate external acceptance gates. Public source code does not provide a hosted bot.
@@ -35,7 +35,7 @@ Requirements: Git, Docker Engine with Compose, and an independently created Tele
 bot token. The maintained container uses PHP 8.4 and MySQL 8.0.
 
 ```bash
-git clone --branch codex/production-hardening https://github.com/AlirezaBelal/travel-tour-reservation-bot.git
+git clone https://github.com/AlirezaBelal/travel-tour-reservation-bot.git
 cd travel-tour-reservation-bot
 cp .env.example .env
 # Edit .env: token, owner Telegram IDs, webhook secret, database credentials, PROFILE_ENCRYPTION_KEY.
