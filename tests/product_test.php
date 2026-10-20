@@ -77,6 +77,15 @@ $categorized=$service->saveTour(999,array_replace($values,['category_id'=>$categ
 try{$catalogue->deleteTree($category);throw new RuntimeException('Referenced category deleted.');}catch(PDOException$error){productCheck(($error->errorInfo[1]??null)===1451,'tour category protected');}
 productCheck((bool)Database::run($pdo,'SELECT id FROM Topics WHERE id=?',[$category])->fetchColumn(),'failed category deletion rolled back');
 $service->saveTour(999,$values,$categorized);productCheck($catalogue->deleteTree($category)===1,'category deletion after reassignment');
+// A publication toggle must preserve edits committed after an old repeatable-read snapshot.
+$publicationTour=$service->saveTour(999,$values);
+$sidePdo=new PDO($dsn,getenv('TEST_MYSQL_USER')?:'root',getenv('TEST_MYSQL_PASSWORD')?:'');Database::configure($sidePdo);
+$sideService=new BookingService($sidePdo,new AccessControl($sidePdo,[999]),new Outbox($sidePdo));
+$pdo->beginTransaction();$service->tour($publicationTour);
+$sideService->saveTour(999,array_replace($values,['title'=>'Synthetic concurrent edit','price'=>123]),$publicationTour);
+$service->publication(999,$publicationTour,'inactive');$pdo->commit();
+$preserved=$service->tour($publicationTour);productCheck($preserved['title']==='Synthetic concurrent edit'&&(int)$preserved['price']===123,'publication does not overwrite concurrent edits');
+$version=(int)$preserved['version'];$service->publication(999,$publicationTour,'inactive');productCheck((int)$service->tour($publicationTour)['version']===$version,'repeated publication toggle is idempotent');
 // Notification failure must roll back the booking and payment, not lose the event.
 $pdo->exec("CREATE TRIGGER synthetic_fail_outbox BEFORE INSERT ON NotificationOutbox FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic failure'");
 try { $service->reserve(305,$tour,1,'rollback'); throw new RuntimeException('Expected outbox failure.'); }

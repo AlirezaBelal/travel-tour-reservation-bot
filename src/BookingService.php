@@ -74,6 +74,22 @@ final class BookingService
         });
     }
 
+    public function publication(int $actor,int $id,string $publication):int
+    {
+        $this->access->require($actor,'tours');
+        if(!in_array($publication,['draft','published','inactive','archived'],true))throw new RuleViolation('وضعیت انتشار معتبر نیست.');
+        return Database::atomic($this->pdo,function()use($actor,$id,$publication){
+            // Read current locked values; a stale UI snapshot must not undo another edit.
+            $tour=$this->tour($id,true);
+            if($tour['publication']===$publication)return$id;
+            $tour['price']=(int)$tour['price'];$tour['capacity']=(int)$tour['capacity'];
+            $tour['publication']=$publication;$tour['expected_version']=(int)$tour['version'];
+            $this->saveTour($actor,$tour,$id);
+            $this->access->audit($actor,'tour.publication.'.$publication,'tour',$id);
+            return$id;
+        });
+    }
+
     public function reserve(int $actor, int $tourId, int $quantity, string $requestKey, ?int $expectedVersion = null): int
     {
         BookingRules::quantity($quantity);

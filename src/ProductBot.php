@@ -57,12 +57,11 @@ final class ProductBot
                 case 'new': $this->access->require($actor,'tours');$this->state('tour_title',['publication'=>'draft']);$this->reply('عنوان تور جدید را وارد کنید:');break;
                 case 'edit': $this->access->require($actor,'tours');$editTour=$this->bookings->tour($id);$this->state('tour_title',['id'=>$id,'publication'=>$editTour['publication'],'expected_version'=>(int)$editTour['version']]);$this->reply('ویرایش کامل تور: عنوان جدید را وارد کنید. قیمت رزروهای قبلی ثابت می‌ماند. /cancel برای انصراف.');break;
                 case 'publish': case 'inactive':
-                    $tour=$this->bookings->tour($id);$tour['price']=(int)$tour['price'];$tour['capacity']=(int)$tour['capacity'];$tour['publication']=$action==='publish'?'published':'inactive';
-                    $this->bookings->saveTour($actor,$tour,$id);$this->showTour($id);break;
+                    $this->bookings->publication($actor,$id,$action==='publish'?'published':'inactive');$this->showTour($id);break;
                 case 'archive': $this->access->require($actor,'tours');$this->state('archive_confirm',['tour'=>$id]);$this->reply('تور از دسترس ثبت درخواست خارج و سوابق رزرو حفظ می‌شود. رزروهای فعال خودکار لغو نمی‌شوند. تأیید می‌کنید؟',[[['text'=>'تأیید بایگانی','callback_data'=>"p:archive_yes:$id"]],[['text'=>'انصراف','callback_data'=>"p:tour:$id"]]]);break;
                 case 'archive_yes':
                     $confirmation=$this->requireSession('archive_confirm');if((int)$confirmation['tour']!==$id)throw new RuleViolation('تأیید بایگانی معتبر نیست.');$this->clear();
-                    $tour=$this->bookings->tour($id);$tour['price']=(int)$tour['price'];$tour['capacity']=(int)$tour['capacity'];$tour['publication']='archived';$this->bookings->saveTour($actor,$tour,$id);$this->reply('تور بایگانی شد.',$this->menu());break;
+                    $this->bookings->publication($actor,$id,'archived');$this->reply('تور بایگانی شد.',$this->menu());break;
                 case 'category_new': $this->access->require($actor,'tours');$this->state('category_parent',[]);$this->reply('شناسه دسته والد را وارد کنید؛ صفر یعنی دسته اصلی. شناسه‌ها در «دسته‌ها» نمایش داده می‌شوند.');break;
                 case 'category_delete': $this->access->require($actor,'tours');$this->state('category_delete',[]);$this->reply('شناسه دسته‌ای را که باید حذف شود وارد کنید:');break;
                 case 'cat_delete_yes':
