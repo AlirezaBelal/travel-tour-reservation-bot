@@ -12,7 +12,7 @@ separate external acceptance gates. Public source code does not provide a hosted
 
 ## Features
 
-- Minimal profile: group leader name; no mobile or national ID required for new bookings.
+- Traveler profile: leader name, own-phone Telegram `request_contact` button, and checksum-valid Iranian national code. Mobile and national code are encrypted at rest in a separate table, never echoed to staff/CSV. Set `REQUIRE_VERIFIED_PROFILE=true` to enforce this before reservation (default false for upgrades). No category subscription is required.
 - Hierarchical categories independent of dated tours; destination/title search and pagination.
 - Tour dates, IRR integer pricing, publication controls, capacity and group sizes 1–20.
 - Transactional seat inventory: pending and confirmed reservations consume capacity.
@@ -38,7 +38,7 @@ bot token. The maintained container uses PHP 8.4 and MySQL 8.0.
 git clone --branch codex/production-hardening https://github.com/AlirezaBelal/travel-tour-reservation-bot.git
 cd travel-tour-reservation-bot
 cp .env.example .env
-# Edit .env: token, owner Telegram IDs, webhook secret and distinct database passwords.
+# Edit .env: token, owner Telegram IDs, webhook secret, database credentials, PROFILE_ENCRYPTION_KEY.
 # Generate a webhook secret: openssl rand -hex 32
 docker compose build app
 docker compose run --rm migrate php bin/install.php
@@ -83,7 +83,7 @@ before normal use. The demo remains draft until explicitly published.
 
 ## Traveler and operator guide
 
-Travelers: `/start` → **پروفایل** → enter leader name → **تور‌ها** or **جست‌وجوی تور** →
+Travelers: `/start` → **پروفایل** → enter leader name → share OWN phone via Telegram contact button → submit valid Iranian national code → **تور‌ها** or **جست‌وجوی تور** →
 view destination/dates/price/remaining capacity → enter number of people → confirm.
 Use **رزروهای من** for status/history or cancellation. **پیام به مدیریت** sends a
 booking-specific question privately through the bot; authorized managers can reply
@@ -185,3 +185,7 @@ These values must be applied in repository **About** settings by an authorized
 maintainer; a README does not change GitHub metadata.
 
 Licensed under **GPL-3.0-only**. See [LICENSE](LICENSE).
+
+## Encrypted contact and national-code data
+
+Migration 003 adds `TravelerIdentity` for encrypted identifiers. Generate `PROFILE_ENCRYPTION_KEY` with `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` and keep it private and backed up separately from the database. An absent key prevents identity submission; loss of key makes stored identifiers unreadable. Share phone via Telegram's own-contact button only: forwarded/third-party contacts and typed numbers are rejected. A national-code checksum does **not** verify identity with a government registry. Old plaintext legacy fields are not copied into this table. Operators must disclose the collection and retention purpose and choose whether to enforce completion before booking with `REQUIRE_VERIFIED_PROFILE=true`. New registration does not request sex or birthday. No Telegram group/category membership is needed for tour booking. A public source repository must never contain real user data or bot tokens.
