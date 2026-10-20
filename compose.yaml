@@ -26,7 +26,7 @@ services:
     volumes:
       - database:/var/lib/mysql
     healthcheck:
-      test: [CMD-SHELL, 'mysql --protocol=TCP -h 127.0.0.1 -u"$$MYSQL_USER" -p"$$MYSQL_PASSWORD" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1']
+      test: [CMD-SHELL, 'mysql --protocol=TCP -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" "$$MYSQL_DATABASE" -e "SELECT 1" >/dev/null 2>&1']
       interval: 5s
       timeout: 5s
       retries: 30

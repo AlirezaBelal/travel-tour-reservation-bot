@@ -112,3 +112,7 @@ DCL privilege changes commit separately; a failed revoke/grant can be safely rer
 by the maintenance account before traffic is reenabled. The dedicated runtime
 username must contain only letters, digits or underscores and must not be root.
 For non-Compose deployments provision equivalently separated users yourself.
+
+Database readiness uses an authenticated root TCP query inside the private DB
+container, so the maintenance service remains usable even if runtime grants need
+repair. Application readiness independently checks the restricted runtime account.
