@@ -1,7 +1,8 @@
 # Container installation and operations
 
-This development branch is not a production-ready booking engine. It includes transactional group bookings and a durable queue; live Telegram,
-VPS and merchant-provider acceptance remain external gates.
+This source distribution includes transactional group bookings and a durable
+queue. Each operator must validate their own Telegram, hosting and recovery setup;
+source availability is not a production certification. No merchant gateway is included.
 
 ## Fresh isolated installation
 

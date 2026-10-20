@@ -5,6 +5,14 @@
 A self-hosted Persian Telegram bot for tour discovery, group reservations, manual
 payment review and tour operations. PHP, MySQL, GPL-3.0-only.
 
+For independent tour operators who want to run reservations in their own Telegram
+bot. Travelers discover a tour, reserve seats, track approval and cancel; operators
+manage inventory, manual payments and notifications from the Persian bot interface.
+
+**Start here:** [Install](#quick-start) · [Traveler/operator guide](#traveler-and-operator-guide) ·
+[Product scope](docs/PRODUCT.md) · [Upgrade and recovery](docs/DEPLOYMENT.md) · [فارسی](README.fa.md).
+The current source distribution is on `master`; there is no shared hosted service.
+
 **Open-source distribution preview — not a production certification.** Automated tests use synthetic
 travelers, a simulated Telegram transport and a local signed payment simulator.
 A live Telegram installation, VPS/TLS deployment and merchant payment gateway are

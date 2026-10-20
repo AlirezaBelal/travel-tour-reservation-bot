@@ -4,7 +4,7 @@ Use a development branch and a reviewable PR. Keep GPL-3.0-only, migration linea
 existing safe workflows and Persian user-facing messages. Never add real traveler
 records, tokens, bank references or private logs to fixtures/issues/screenshots.
 
-1. Install a maintained PHP version, Composer, cURL/PDO MySQL and a disposable MySQL 8 database.
+1. Install a maintained PHP version, Composer, cURL/PDO MySQL, libsodium for encrypted profiles, and a disposable MySQL 8 database.
 2. Run `composer install` and `composer test:unit`.
 3. Create a database named **travel_tour_test** with a dedicated test user.
 4. Set TEST_MYSQL_DSN, TEST_MYSQL_USER and TEST_MYSQL_PASSWORD privately and run
@@ -27,6 +27,10 @@ Migrations must be additive, versioned, resumable and rehearsed against the old
 schema. Never drop old data as a shortcut. Document maintenance/backup/rollback
 requirements. Destructive production operations require operator review.
 
-Keep the completion PR draft until acceptance gates are resolved or explicitly
-listed as BLOCKED EXTERNAL. No live Telegram, merchant payment, production deploy,
-merge or final release should be inferred from passing synthetic CI.
+Target `master` from a short-lived `fix/`, `docs/` or `feature/` branch. Keep a PR
+draft while its implementation or required checks are incomplete. Remove merged
+branches once their changes and any necessary history are retained. PR #4 is the
+completed source handoff, not a standing development branch or production gate.
+Use [product scope](docs/PRODUCT.md) to distinguish a bug fix from a new feature.
+Passing synthetic CI does not authorize live Telegram changes, merchant payments,
+production deployment or a production certification.
