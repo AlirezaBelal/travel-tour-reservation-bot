@@ -10,7 +10,7 @@ function postTest(string$path,array$payload,bool$secret=true):array{
 }
 function updateTest(int$actor,?string$text=null,?string$callback=null,?int$fixed=null,?array$contact=null):int{
  global$update;$id=$fixed??++$update;$chat=['id'=>$actor,'type'=>'private'];$from=['id'=>$actor,'is_bot'=>false];$message=['message_id'=>1,'from'=>$from,'chat'=>$chat];
- if($callback===null){$message['text']=$text;$payload=['update_id'=>$id,'message'=>$message];}else{$payload=['update_id'=>$id,'callback_query'=>['id'=>'synthetic-query-'.$id,'from'=>$from,'data'=>$callback,'message'=>$message]];}
+ if($callback===null){if($contact!==null)$message['contact']=$contact;else $message['text']=$text;$payload=['update_id'=>$id,'message'=>$message];}else{$payload=['update_id'=>$id,'callback_query'=>['id'=>'synthetic-query-'.$id,'from'=>$from,'data'=>$callback,'message'=>$message]];}
  [$status]=postTest('index.php',$payload);httpCheck($status===200,'webhook request accepted');return$id;
 }
 $values=['category_id'=>null,'title'=>'Synthetic HTTP tour','destination'=>'Synthetic','description'=>'Synthetic HTTP end-to-end','starts_at'=>gmdate('Y-m-d H:i:s',time()+86400),'ends_at'=>gmdate('Y-m-d H:i:s',time()+90000),'price'=>0,'capacity'=>3,'publication'=>'published'];
