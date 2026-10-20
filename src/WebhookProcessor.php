@@ -3,7 +3,7 @@
 final class WebhookProcessor
 {
     public function __construct(private PDO $pdo,private BookingService $bookings,private ProductBot $bot,private Outbox $outbox) {}
-    public function handle(int $update,int $actor,?string $text,?string $callback,?callable $legacy=null,?string $callbackId=null):void {
+    public function handle(int $update,int $actor,?string $text,?string $callback,?callable $legacy=null,?string $callbackId=null,?array $contact=null):void {
         if(Database::run($this->pdo,'SELECT update_id FROM UpdateReceipts WHERE update_id=?',[$update])->fetchColumn()!==false)return;
         $slot=intdiv(time(),60);
         Database::run($this->pdo,'INSERT INTO RateLimits(user_id,minute_slot,hits) VALUES (?,?,1) ON DUPLICATE KEY UPDATE hits=hits+1',[$actor,$slot]);
@@ -13,10 +13,10 @@ final class WebhookProcessor
             $this->outbox->message($actor,'پیام‌های زیادی ارسال شده است؛ یک دقیقه صبر کنید.',"rate:$actor:$slot");return;
         }
         try {
-            Database::atomic($this->pdo,function()use($update,$actor,$text,$callback,$legacy,$callbackId){
+            Database::atomic($this->pdo,function()use($update,$actor,$text,$callback,$legacy,$callbackId,$contact){
                 if(!$this->receipt($update))return;
                 $this->bookings->ensureUser($actor);
-                if(!$this->bot->dispatch($actor,$text,$callback,$update)&&$legacy!==null)$legacy();
+                if(!$this->bot->dispatch($actor,$text,$callback,$update,$contact)&&$legacy!==null)$legacy();
                 $this->acknowledge($actor,$callbackId);
             });
         }catch(DomainException|InvalidArgumentException $error){
