@@ -77,3 +77,15 @@ Migration 003 adds `TravelerIdentity` with two encrypted fields: verified own-ac
 Set `PROFILE_ENCRYPTION_KEY` to a 32-byte random secret encoded as base64, generated using `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'`. Put it only in secure runtime configuration, not in Git, tests using live data, issue descriptions, or log output. Keep a protected, separate backup of the key for recovery. Losing it makes encrypted identifiers permanently unreadable; changing it requires an intentional re-encryption procedure. Missing or invalid keys prevent new identity submissions (fail closed). Require the verified profile before reservation only after informing users and setting `REQUIRE_VERIFIED_PROFILE=true`; the default remains false for upgrades. Existing reservations and historical membership columns are unaffected.
 
 Migrations require a maintenance database account with DDL privileges and should be tested first against a restore. The public bot should not be enabled until migration 003 and the secret are ready if verified profiles are required. Phone sharing via Telegram is evidence that the contact belongs to the sender's account, **not** proof of legal identity. National-code validation checks the control digit only; it is not a registry query.
+
+### Retired plaintext forms
+
+No schema change is needed for the security fix. `/setprofile` aliases `/profile`.
+The next update from an unfinished legacy `name`, `contact`, `NationalCode`, `sex`
+or `birthday` form resets only its routing state and discards that input. No
+historical identity values are transformed or removed. Ask affected users to
+restart via `/profile`. Stop all old application instances before upgrading;
+otherwise an old process can still write plaintext. Keep backups encrypted and
+access limited. Any conversion or deletion of historical personal data requires a
+separate operator-approved retention/migration plan and restore rehearsal with
+synthetic data. Never export those values into issues or support logs.

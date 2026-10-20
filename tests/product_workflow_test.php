@@ -33,6 +33,33 @@ wfCheck(strpos($encoded['mobile_cipher'],'09121234567')===false && strpos($encod
 wfCheck(Database::run($pdo,'SELECT Mobile FROM Data WHERE UserId=?',[510])->fetchColumn()===null && Database::run($pdo,'SELECT N_Code FROM Data WHERE UserId=?',[510])->fetchColumn()===null,'new onboarding avoids legacy plaintext columns');
 sendUpdate(510,'/profile');wfCheck(!str_contains(lastReply(510)['text'],'0000000019') && str_contains(lastReply(510)['text'],'ثبت شد'),'profile never echoes identity values');
 
+// The old command must use the encrypted path; old in-flight input must be discarded.
+sendUpdate(512,'/setprofile@SyntheticBot');
+wfCheck(Database::run($pdo,'SELECT step FROM Data WHERE UserId=512')->fetchColumn()==='defult','setprofile aliases secure profile');
+sendUpdate(512,null,'p:name:0');sendUpdate(512,'Synthetic Alias');
+sendUpdate(512,null,null,null,['phone_number'=>'09121234567','user_id'=>512]);sendUpdate(512,'0000000019');
+wfCheck($identity->complete(512),'legacy command leads to encrypted onboarding');
+foreach(['name','contact','NationalCode','sex','birthday']as$oldStep){
+ Database::run($pdo,'UPDATE Data SET step=?,Mobile=?,N_Code=? WHERE UserId=512',[$oldStep,'synthetic-old-mobile','synthetic-old-code']);
+ sendUpdate(512,'Synthetic discarded input');
+ $old=Database::run($pdo,'SELECT step,Mobile,N_Code,Name FROM Data WHERE UserId=512')->fetch(PDO::FETCH_ASSOC);
+ wfCheck($old['step']==='defult'&&$old['Mobile']==='synthetic-old-mobile'&&$old['N_Code']==='synthetic-old-code'&&$old['Name']==='Synthetic Alias','stale state discarded without rewriting old data: '.$oldStep);
+ wfCheck(!str_contains(lastReply(512)['text'],'Synthetic discarded input'),'stale input absent from outbox');
+}
+// Check actual authenticated encryption and randomized nonces with synthetic values only.
+foreach(['mobile_cipher'=>'+989121234567','national_cipher'=>'0000000019']as$field=>$expected){
+ $cipher=$encoded[$field];$nonce=substr($cipher,0,SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+ wfCheck(sodium_crypto_secretbox_open(substr($cipher,SODIUM_CRYPTO_SECRETBOX_NONCEBYTES),$nonce,str_repeat('k',32))===$expected,'authenticated ciphertext roundtrip: '.$field);
+}
+$identity->saveNational(510,'0000000019');
+wfCheck(Database::run($pdo,'SELECT national_cipher FROM TravelerIdentity WHERE user_id=510')->fetchColumn()!==$encoded['national_cipher'],'repeated identifier uses fresh nonce');
+putenv('PROFILE_ENCRYPTION_KEY=');
+try{$identity->saveNational(510,'0000000019');throw new RuntimeException('Missing key accepted');}catch(RuleViolation $error){wfCheck($identity->complete(510),'missing key fails closed without deleting existing identity');}
+putenv('PROFILE_ENCRYPTION_KEY='.base64_encode(str_repeat('k',32)));
+
+sendUpdate(512,'/privacy');sendUpdate(512,null,'p:erase:0');sendUpdate(512,null,'p:erase_yes:0');
+wfCheck(!$identity->complete(512)&&!Database::run($pdo,'SELECT user_id FROM TravelerIdentity WHERE user_id=512')->fetchColumn(),'account erasure removes encrypted identity');
+
 // Complete guided tour form, including persistence across handler restarts.
 sendUpdate(999,'/admin');sendUpdate(999,null,'p:new:0');
 foreach(['=Synthetic CSV title','Synthetic Destination','Synthetic description','0',gmdate('Y-m-d H:i',time()+172800),gmdate('Y-m-d H:i',time()+180000),'0','5']as$input)sendUpdate(999,$input);

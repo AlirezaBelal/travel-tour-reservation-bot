@@ -2,8 +2,11 @@
 
 [![CI](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml) · [فارسی](README.fa.md)
 
-A self-hosted Persian Telegram bot for tour discovery, group reservations, manual
-payment review and tour operations. PHP, MySQL, GPL-3.0-only.
+Open-source, self-hosted Telegram tour booking system with a Persian interface,
+group reservations, admin tools, and encrypted traveler profiles. Built with PHP
+and MySQL. GPL-3.0-only.
+
+*Discover tours, manage group reservations, and track bookings directly in Telegram.*
 
 For independent tour operators who want to run reservations in their own Telegram
 bot. Travelers discover a tour, reserve seats, track approval and cancel; operators
@@ -33,7 +36,7 @@ separate external acceptance gates. Public source code does not provide a hosted
 - Restricted CSV reports without traveler profile columns; formula neutralization and export audit.
 - Docker Compose, readiness checks, additive legacy migrations and synthetic backup/restore CI.
 
-Existing `/list`, `/setprofile`, topic administration, membership approval and broadcast
+Existing `/list`, topic administration, membership approval and broadcast
 commands remain available for compatibility. Legacy memberships are not invented
 into dated tours or bookings: an operator creates real tours separately.
 
@@ -201,4 +204,14 @@ Licensed under **GPL-3.0-only**. See [LICENSE](LICENSE).
 
 ## Encrypted contact and national-code data
 
-Migration 003 adds `TravelerIdentity` for encrypted identifiers. Generate `PROFILE_ENCRYPTION_KEY` with `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` and keep it private and backed up separately from the database. An absent key prevents identity submission; loss of key makes stored identifiers unreadable. Share phone via Telegram's own-contact button only: forwarded/third-party contacts and typed numbers are rejected. A national-code checksum does **not** verify identity with a government registry. Old plaintext legacy fields are not copied into this table. Operators must disclose the collection and retention purpose and choose whether to enforce completion before booking with `REQUIRE_VERIFIED_PROFILE=true`. New registration does not request sex or birthday. No Telegram group/category membership is needed for tour booking. A public source repository must never contain real user data or bot tokens.
+Migration 003 adds `TravelerIdentity` for encrypted identifiers. Generate `PROFILE_ENCRYPTION_KEY` with `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` and keep it private and backed up separately from the database. An absent key prevents identity submission; loss of key makes stored identifiers unreadable. Share phone via Telegram's own-contact button only: third-party/unattributed contacts and typed numbers are rejected. A national-code checksum does **not** verify identity with a government registry. Old plaintext legacy fields are not copied into this table. Operators must disclose the collection and retention purpose and choose whether to enforce completion before booking with `REQUIRE_VERIFIED_PROFILE=true`. New registration does not request sex or birthday. No Telegram group/category membership is needed for tour booking. A public source repository must never contain real user data or bot tokens.
+
+### Upgrading legacy profiles safely
+
+`/setprofile` now aliases `/profile`. The old plaintext registration form is retired,
+including unfinished `Data.step` states (`name`, `contact`, `NationalCode`, `sex`,
+`birthday`). Its next input is discarded and the user is directed to `/profile`.
+Existing plaintext rows are **not** copied, deleted or converted automatically.
+See [migration and key handling](docs/MIGRATION.md#migration-003-encrypted-traveler-identity).
+For a new installation, set `REQUIRE_VERIFIED_PROFILE=true` after generating a
+private `PROFILE_ENCRYPTION_KEY`; upgrades retain the compatibility default `false`.

@@ -41,6 +41,8 @@ process recovery. The Docker/HTTP/separate-volume restore scenarios run in CI.
 | Reminder replay/cancellation, hold expiry, erasure/retention | `tests/operations_test.php` |
 | Persian forms, booking/review/cancel/manual pay, RBAC, CSV and rate limits | `tests/product_workflow_test.php` |
 | Telegram own-contact validation, national checksum, encrypted profile storage and booking gating | `tests/validators_test.php`, `tests/product_workflow_test.php`; legacy plaintext remains untouched |
+| Retired `/setprofile` plaintext path and all five unfinished legacy states; old values preserved | `tests/workflow_test.php`, `tests/product_workflow_test.php`, `tests/http_e2e.php` |
+| Authenticated identifier encryption, fresh nonces, missing-key failure and encrypted identity erasure | `tests/product_workflow_test.php` |
 | Real webhook entry point and payment endpoint | `tests/http_e2e.php` copied only into disposable CI container |
 | Fresh install, migrations, readiness, auth and source isolation | CI `install` job |
 | Runtime has no root secret and no DDL privilege, with working HTTP bookings | `tests/runtime_permissions.php` + HTTP suite after privilege restriction |

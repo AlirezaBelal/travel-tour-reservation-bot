@@ -31,4 +31,7 @@ assertSameValue(true, isSensitiveAdminCallback('confirmDelete-4'), 'deletion con
 
 assertSameValue([123], parseAdminIds('0,-1,999999999999999999999,123'), 'reject unusable administrator IDs');
 
+foreach (['name','contact','NationalCode','sex','birthday'] as $step) assertSameValue(true, isLegacyProfileStep($step), 'retired profile state');
+foreach ([null,false,'defult','tour_title','send'] as $step) assertSameValue(false, isLegacyProfileStep($step), 'healthy state preserved');
+
 fwrite(STDOUT, "Validator tests passed.\n");

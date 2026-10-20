@@ -2,6 +2,18 @@
 
 date_default_timezone_set('Asia/Tehran');
 
+// Retired profile forms must never receive new sensitive values, even when this
+// compatibility handler is invoked directly instead of through ProductBot.
+if ((is_string($text) && preg_match('/^\/setprofile(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u', $text))
+    || isLegacyProfileStep($db->get('Data', 'step', ['UserId' => $chatId]))) {
+    $db->update('Data', ['step' => 'defult'], ['UserId' => $chatId]);
+    return bot('sendMessage', [
+        'chat_id' => $chatId,
+        'text' => 'فرم قدیمی پروفایل بسته شد؛ اطلاعات این پیام ذخیره نشد. برای ثبت امن اطلاعات، /profile را بفرستید.',
+        'reply_markup' => json_encode(['remove_keyboard' => true]),
+    ]);
+}
+
 if (isAdmin($fromId)) {
 
     if (is_string($text) && preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text)) {
@@ -10,7 +22,7 @@ if (isAdmin($fromId)) {
 
         $catalogue->create($query, 0);
         $db->update('Data', ['step' => 'defult'], ['UserId' => $chatId]);
-        $T = 'Success';
+        $T = 'دسته ایجاد شد.';
 
         return sendMessage($chatId, "$T");
 
@@ -41,11 +53,11 @@ if (isAdmin($fromId)) {
         if ($n > 1) {
             $m++;
         }
-        $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-0"];
-        $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
+        $keyboard[$m][] = ['text' => "ایجاد دسته", 'callback_data' => "AddTopic-0"];
+        $keyboard[$m + 1][] = ['text' => "بازگشت", 'callback_data' => "BackHome"];
 
         $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-        return sendkeyboard($chatId, '$textm', $keyboard);
+        return sendkeyboard($chatId, $list, $keyboard);
 
     } elseif ($text === '/send') {
         $Topics = $db->select('Topics', '*');
@@ -96,8 +108,8 @@ if (isAdmin($fromId)) {
         $caption = "";
 
         if (count($topics) < 1) {
-            $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-$id"];
-            $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
+            $keyboard[$m][] = ['text' => "ایجاد دسته", 'callback_data' => "AddTopic-$id"];
+            $keyboard[$m + 1][] = ['text' => "بازگشت", 'callback_data' => "BackHome"];
             $caption = "...";
         } else {
             foreach ($topics as $Topic) {
@@ -114,8 +126,8 @@ if (isAdmin($fromId)) {
                 $keyboard[$m][] = ['text' => "🗑", 'callback_data' => "delete-$id2"];
                 $n += 2;
             }
-            $keyboard[$m + 1][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-$id"];
-            $keyboard[$m + 2][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
+            $keyboard[$m + 1][] = ['text' => "ایجاد دسته", 'callback_data' => "AddTopic-$id"];
+            $keyboard[$m + 2][] = ['text' => "بازگشت", 'callback_data' => "BackHome"];
         }
 
         $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
@@ -177,7 +189,7 @@ if ($text || isset($photo) || isset($document) || isset($video) || isset($messag
                 }
 
                 $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-                sendkeyboard($chatId, '$textm', $keyboard);
+                sendkeyboard($chatId, $list, $keyboard);
             } else {
                 sendMessage($chatId, "$profileFalse");
             }
@@ -185,10 +197,6 @@ if ($text || isset($photo) || isset($document) || isset($video) || isset($messag
             $db->insert('Data', ['UserId' => "$chatId", 'step' => 'defult']);
             sendMessage($chatId, "$start");
         }
-
-    } elseif ($text === '/setprofile') {
-        $db->update('Data', ['step' => "name"], ["UserId" => $chatId]);
-        return sendMessage($chatId, "$name");
 
     } else {
         if ($db->has('Data', ['UserId' => "$chatId"])) {
@@ -244,105 +252,15 @@ if ($text || isset($photo) || isset($document) || isset($video) || isset($messag
                 if (ctype_digit((string)$captionid) && $db->has('Topics', ['id' => $captionid])) {
                     $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
                     $db->update('Topics', ['caption' => $text], ['id' => $captionid]);
-                    $T = "Sucess";
+                    $T = "توضیحات دسته ذخیره شد.";
                 } else {
-                    $T = "False";
+                    $T = "دسته پیدا نشد؛ از منو دوباره انتخاب کنید.";
                 }
 
                 return sendMessage($chatId, "$T");
             }
 
-            switch ($step) {
-                case "name":
-                    if (!is_string($text) || trim($text) === '') {
-                        sendMessage($chatId, "$name");
-                        break;
-                    }
 
-                    $db->update('Data', ['Name' => trim($text)], ["UserId" => $chatId]);
-                    $keyboard = json_encode([
-                        'keyboard' => [
-                            [['text' => "ارسال شماره", 'request_contact' => true]],
-                        ],
-                        'resize_keyboard' => true,
-                    ], JSON_UNESCAPED_UNICODE);
-                    sendkeyboard($chatId, $contact, $keyboard);
-                    $db->update('Data', ['step' => "contact"], ["UserId" => $chatId]);
-                    break;
-
-                case "contact":
-                    if (isset($message['contact'])) {
-                        $contactPayload = $message['contact'];
-                        $phoneNumber = (string)($contactPayload['phone_number'] ?? '');
-                        $contactUserId = $contactPayload['user_id'] ?? null;
-
-                        if (isIranianMobileNumber($phoneNumber) && (int)$contactUserId === (int)$chatId) {
-                            $db->update('Data', ['step' => "NationalCode"], ["UserId" => $chatId]);
-                            $db->update('Data', ['Mobile' => $phoneNumber], ["UserId" => $chatId]);
-                            $T = $contact_true;
-                        } else {
-                            $T = $contact_false;
-                        }
-                    } else {
-                        $T = $contact2;
-                        $keyboard = json_encode([
-                            'keyboard' => [
-                                [['text' => "ارسال شماره", 'request_contact' => true]],
-                            ],
-                            'resize_keyboard' => true,
-                        ], JSON_UNESCAPED_UNICODE);
-                        return sendkeyboard($chatId, $T, $keyboard);
-                    }
-
-                    bot('sendMessage', [
-                        'chat_id' => $chatId,
-                        'text' => "$T",
-                        'reply_markup' => json_encode(['remove_keyboard' => true]),
-                    ]);
-                    break;
-
-                case "NationalCode":
-                    if (is_string($text) && isValidIranianNationalCode($text)) {
-                        $db->update('Data', ['step' => "sex"], ["UserId" => $chatId]);
-                        $db->update('Data', ['N_Code' => $text], ["UserId" => $chatId]);
-                        $keyboard = json_encode([
-                            'keyboard' => [
-                                [['text' => "دختر"], ['text' => "پسر"]],
-                            ],
-                            'resize_keyboard' => true,
-                        ], JSON_UNESCAPED_UNICODE);
-                        sendkeyboard($chatId, $NationalCodeTrue, $keyboard);
-                    } else {
-                        sendMessage($chatId, "$NationalCodeFalse");
-                    }
-                    break;
-
-                case "sex":
-                    if ($text === "پسر" || $text === "دختر") {
-                        $db->update('Data', ['step' => "birthday"], ["UserId" => $chatId]);
-                        $db->update('Data', ['sex' => $text], ["UserId" => $chatId]);
-                        bot('sendMessage', [
-                            'chat_id' => $chatId,
-                            'text' => "$sexTrue",
-                            'reply_markup' => json_encode(['remove_keyboard' => true]),
-                        ]);
-                    } else {
-                        sendMessage($chatId, "$sexFalse");
-                    }
-                    break;
-
-                case "birthday":
-                    if (is_string($text) && preg_match('/^\d{4}\/(0[1-9]|1[0-2])\/(0[1-9]|1\d|2[0-9]|3[01])$/', $text)) {
-                        $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-                        $db->update('Data', ['birthday' => $text], ["UserId" => $chatId]);
-                        $db->update('Data', ['profile' => "true"], ["UserId" => $chatId]);
-                        $T = $birthdayTrue;
-                    } else {
-                        $T = $birthdayFalse;
-                    }
-                    sendMessage($chatId, "$T");
-                    break;
-            }
         }
     }
 }
@@ -432,7 +350,7 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
             if ($n > 1) {
                 $m++;
             }
-            $keyboard[$m][] = ['text' => "BackToHome", 'callback_data' => "BackToHome"];
+            $keyboard[$m][] = ['text' => "بازگشت", 'callback_data' => "BackToHome"];
             $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
             sendkeyboard($chatId, "$caption", $keyboard);
         }
@@ -461,10 +379,10 @@ if ($data === "BackHome") {
     if ($n > 1) {
         $m++;
     }
-    $keyboard[$m][] = ['text' => "Add Topic", 'callback_data' => "AddTopic-0"];
-    $keyboard[$m + 1][] = ['text' => "BackHome", 'callback_data' => "BackHome"];
+    $keyboard[$m][] = ['text' => "ایجاد دسته", 'callback_data' => "AddTopic-0"];
+    $keyboard[$m + 1][] = ['text' => "بازگشت", 'callback_data' => "BackHome"];
     $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-    return editMessageKeyboard($chatId, $messageId, 'Topics', $keyboard, null);
+    return editMessageKeyboard($chatId, $messageId, 'دسته‌ها', $keyboard, null);
 }
 
 if ($data === "BackToHome") {
@@ -500,7 +418,7 @@ if ($data === "BackToHome") {
             }
 
             $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-            return editMessageKeyboard($chatId, $messageId, 'Tour groups', $keyboard, null);
+            return editMessageKeyboard($chatId, $messageId, 'عضویت‌های قدیمی دسته‌ها', $keyboard, null);
         }
 
         sendMessage($chatId, "$profileFalse");
@@ -528,7 +446,7 @@ if ($data === "BackToHome") {
     if (is_string($callbackId) && $callbackId !== '') {
         bot('answerCallbackQuery', [
             'callback_query_id' => $callbackId,
-            'text' => "با موفقیت تایید شد :))",
+            'text' => "عضویت تأیید شد.",
             'show_alert' => true,
         ]);
     }
