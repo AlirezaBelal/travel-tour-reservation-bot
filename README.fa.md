@@ -6,7 +6,7 @@
 بررسی مدیر، تأیید دستی پرداخت و اعلان‌های پایدار. عمومی بودن مخزن به معنی
 وجود یک ربات میزبانی‌شده نیست؛ هر اپراتور توکن، دیتابیس و دامنه خودش را لازم دارد.
 
-**شاخه توسعه و PR همچنان Draft هستند.** آزمون‌های خودکار با داده ساختگی،
+**انتشار کد متن‌باز به معنی تأیید محیط Production نیست.** آزمون‌های خودکار با داده ساختگی،
 Telegram شبیه‌سازی‌شده و پرداخت شبیه‌سازی‌شده محلی اجرا می‌شوند. اتصال زنده
 تلگرام، VPS و درگاه پذیرندگی جداگانه باید بررسی شوند.
 
@@ -15,7 +15,7 @@ Telegram شبیه‌سازی‌شده و پرداخت شبیه‌سازی‌شد
 Git، Docker Engine و Compose را نصب کنید:
 
 ```bash
-git clone --branch codex/production-hardening https://github.com/AlirezaBelal/travel-tour-reservation-bot.git
+git clone https://github.com/AlirezaBelal/travel-tour-reservation-bot.git
 cd travel-tour-reservation-bot
 cp .env.example .env
 ```
