@@ -21,6 +21,13 @@ the configured Compose supervisor restart with a new connection. Startup errors
 now emit only generic class/code information. Existing transactional outbox rows
 and five-minute recovery leases are preserved; there is no schema change.
 
+**Found:** queued bulk messages did not carry the initiating manager's permission
+metadata, so revoking a manager did not stop their already queued broadcast.
+**Correction:** record the authorizing actor and `notify` permission on each bulk
+item. The worker's existing permission check now suppresses delivery after role
+revocation. Telegram workflow tests cover confirmation, sender metadata and
+revocation before delivery. Already delivered messages cannot be recalled.
+
 **Added executable acceptance:**
 
 - `tests/worker_process_test.php`: kill a real subprocess after it claims a

@@ -46,6 +46,14 @@ Database::run($pdo,'UPDATE Tours SET starts_at=?,ends_at=? WHERE id=?',[gmdate('
 sendUpdate(500,null,'p:erase:0');wfCheck((bool)Database::run($pdo,'SELECT UserId FROM Data WHERE UserId=500')->fetchColumn(),'deletion confirmation required');sendUpdate(500,null,'p:erase_yes:0');wfCheck(!Database::run($pdo,'SELECT UserId FROM Data WHERE UserId=500')->fetchColumn(),'account deletion workflow');wfCheck((int)Database::run($pdo,'SELECT SUM(hits) FROM RateLimits WHERE user_id=500')->fetchColumn()>0,'account erasure does not bypass minute limit');wfCheck((int)Database::run($pdo,"SELECT COUNT(*) FROM NotificationOutbox WHERE JSON_UNQUOTE(JSON_EXTRACT(payload,'$._subject_user'))='500'")->fetchColumn()===0,'personal profile queue purged across administrator chats');
 // Input errors do not advance the persisted wizard; /cancel exits it.
 sendUpdate(506,null,'p:name:0');sendUpdate(506,str_repeat('x',151));wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=506')->fetchColumn()==='name','invalid input preserves form');sendUpdate(506,'/cancel');wfCheck(!Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=506')->fetchColumn(),'cancel clears form');
+// A revoked manager must not retain authority through a pending bulk-send queue.
+$access->assign(999,509,'manager');sendUpdate(509,null,'p:broadcast:0');sendUpdate(509,(string)$tour);sendUpdate(509,'Synthetic revocable broadcast');
+wfCheck((int)Database::run($pdo,"SELECT COUNT(*) FROM NotificationOutbox WHERE JSON_UNQUOTE(JSON_EXTRACT(payload,'$.text'))=?",['Synthetic revocable broadcast'])->fetchColumn()===0,'bulk send awaits explicit confirmation');
+sendUpdate(509,null,'p:broadcast_yes:0');
+$bulk=json_decode(Database::run($pdo,"SELECT payload FROM NotificationOutbox WHERE JSON_UNQUOTE(JSON_EXTRACT(payload,'$.text'))=? LIMIT 1",['Synthetic revocable broadcast'])->fetchColumn(),true);
+wfCheck(($bulk['_permission_actor']??null)===509&&($bulk['_required_permissions']??[])===['notify'],'bulk send records authorizing manager');
+$access->assign(999,509,'none');$bulkSent=0;(new NotificationWorker($pdo,$access))->tick(function($method,$payload)use(&$bulkSent){if(($payload['text']??null)==='Synthetic revocable broadcast')$bulkSent++;return['ok'=>true,'code'=>200];},1000,false);
+wfCheck($bulkSent===0,'role revocation suppresses pending bulk delivery');
 // Rate limiting: one warning per minute, no unbounded message fan-out.
 for($i=0;$i<35;$i++)sendUpdate(507,'/help');wfCheck((int)Database::run($pdo,"SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=507")->fetchColumn()===31,'rate limit bounds replies');
 fwrite(STDOUT,"Product Telegram workflows passed ($checks checks).\n");
