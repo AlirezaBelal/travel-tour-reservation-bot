@@ -1,6 +1,9 @@
 # Final acceptance record — 2026-10-20
 
-Status: **NOT READY for Release Candidate**. PR #4 must remain Draft.
+Status at the time of this record: **NOT READY for production Release Candidate**.
+A later maintainer decision to distribute the GPL source without hosting a
+production bot is separate from approving a production RC or closing these
+external acceptance gates. This document retains the original test evidence.
 The PR contains the exact final commit and CI run evidence; a proposed test is
 not a passing result. No live webhook, infrastructure or real payment was changed.
 
