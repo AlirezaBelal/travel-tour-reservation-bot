@@ -58,7 +58,17 @@ and store the resulting token privately in `.env`. Register
 to the same `TELEGRAM_WEBHOOK_SECRET` and `allowed_updates` to
 `["message","callback_query"]`. Use a protected local configuration/script for
 credentials; never paste them into issues, screenshots or shared command logs.
-Then open your bot in a **private chat** and send `/start`.
+After configuring your domain/TLS, use the supplied credential-safe helper:
+
+```bash
+docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.php --check
+# This next command contacts Telegram; run only with your own authorized bot/domain:
+docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.php --confirm
+```
+
+`--check` validates configuration syntax only. `--confirm` performs real registration
+without printing credentials and preserves pending updates. Then open your bot in
+a **private chat** and send `/start`.
 
 Only `public/` is a web document root. Never expose `.env`, repository root,
 dependencies, migrations or backups. The database is not published on a host port.

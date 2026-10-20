@@ -116,3 +116,11 @@ For non-Compose deployments provision equivalently separated users yourself.
 Database readiness uses an authenticated root TCP query inside the private DB
 container, so the maintenance service remains usable even if runtime grants need
 repair. Application readiness independently checks the restricted runtime account.
+
+## Webhook registration helper
+
+Use `bin/set-webhook.php https://YOUR_DOMAIN/index.php --check` through the app
+container to validate syntax without external contact. Only an explicitly invoked
+`--confirm` contacts Telegram and registers your authorized endpoint. It reads
+credentials from environment, prints no credential/body, and does not drop pending
+updates. A successful dry check does not validate the token, DNS, TLS or delivery.

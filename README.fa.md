@@ -40,7 +40,16 @@ HTTP فقط روی `127.0.0.1:8080` باز است. با Reverse Proxy و گوا�
 خصوصی نگه دارید. وبهوک `https://YOUR_DOMAIN/index.php` را با `setWebhook` ثبت
 کنید؛ `secret_token` باید با `TELEGRAM_WEBHOOK_SECRET` برابر و `allowed_updates`
 شامل `message` و `callback_query` باشد. توکن و Secret را در Issue، عکس یا
-لاگ عمومی نگذارید. سپس در گفتگوی خصوصی با ربات، `/start` را بفرستید.
+لاگ عمومی نگذارید. پس از آماده‌بودن دامنه و HTTPS، از ابزار آماده استفاده کنید:
+
+```bash
+docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.php --check
+docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.php --confirm
+```
+
+دستور اول فقط قالب تنظیمات را بررسی می‌کند. دستور دوم به تلگرام متصل می‌شود؛
+فقط برای ربات و دامنه مجاز خودتان اجرا کنید. Secret چاپ نمی‌شود و Updateهای
+منتظر حذف نمی‌شوند. سپس در گفتگوی خصوصی با ربات، `/start` را بفرستید.
 
 برای دیتابیس موجود، ابتدا [راهنمای ارتقا](docs/MIGRATION.md) را بخوانید.
 دستور `docker compose down -v` داده‌های Volume را حذف می‌کند؛ روی داده واقعی

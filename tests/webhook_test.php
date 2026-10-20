@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../src/webhook.php';
+require_once __DIR__ . '/../src/WebhookRegistration.php';
 
 $checks = 0;
 function checkWebhook(bool $expected, bool $actual, string $label): void
@@ -53,5 +54,12 @@ unset($bad['callback_query']['message']);
 checkWebhook(false, isSupportedPrivateUpdate($bad), 'inline callback rejected');
 foreach ([0, -1, '123', 1.5, true, 4503599627370496] as $id) {
     checkWebhook(false, isTelegramId($id), 'invalid actor ID');
+}
+$registration = WebhookRegistration::parameters('https://bot.example.test/index.php', $secret);
+checkWebhook(true, $registration['drop_pending_updates'] === 'false', 'registration preserves updates');
+checkWebhook(true, json_decode($registration['allowed_updates'], true) === ['message','callback_query'], 'registration update allowlist');
+foreach (['http://bot.example.test/index.php','https://user:password@bot.example.test/index.php','https://bot.example.test/index.php?secret=value','https://bot.example.test/index.php#fragment','not a URL'] as $url) {
+    try { WebhookRegistration::parameters($url,$secret); throw new RuntimeException('Unsafe webhook URL accepted.'); }
+    catch (InvalidArgumentException) { checkWebhook(true,true,'unsafe registration rejected'); }
 }
 fwrite(STDOUT, "Webhook tests passed ({$checks} checks).\n");
