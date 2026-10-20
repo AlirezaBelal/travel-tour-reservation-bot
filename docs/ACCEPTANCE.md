@@ -47,8 +47,9 @@ Group companions are counted, not required to disclose identities. CSVs cap at
 
 Start by reading the live PR head and compare it with your local branch. Preserve
 other commits. Publish with an expected-head lease; do not force-push over changes.
-Use the same branch `codex/production-hardening`, preserve migration 001, and add
-new numbered migrations for future schema changes. Existing tests must run before
+Use a short-lived branch from `master`, preserve migrations 001–003, and add
+new numbered migrations for future schema changes. PR #4 is merged and closed;
+the old hardening branch is not the current installation target. Existing tests must run before
 new integration suites. No test may use a real traveler record or live payment.
 
 The authoring environment does not contain PHP/Composer/MySQL/Docker; runtime
