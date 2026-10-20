@@ -13,7 +13,7 @@ manage inventory, manual payments and notifications from the Persian bot interfa
 [Product scope](docs/PRODUCT.md) · [Upgrade and recovery](docs/DEPLOYMENT.md) · [فارسی](README.fa.md).
 The current source distribution is on `master`; there is no shared hosted service.
 
-**Open-source distribution preview — not a production certification.** Automated tests use synthetic
+**Self-hosted open-source distribution — not a production certification.** Automated tests use synthetic
 travelers, a simulated Telegram transport and a local signed payment simulator.
 A live Telegram installation, VPS/TLS deployment and merchant payment gateway are
 separate external acceptance gates. Public source code does not provide a hosted bot.
@@ -39,7 +39,7 @@ into dated tours or bookings: an operator creates real tours separately.
 
 ## Quick start
 
-Requirements: Git, Docker Engine with Compose, and an independently created Telegram
+Requirements: Git, Docker Engine with Compose, OpenSSL for secret generation, and an independently created Telegram
 bot token. The maintained container uses PHP 8.4 and MySQL 8.0.
 
 ```bash
@@ -48,6 +48,7 @@ cd travel-tour-reservation-bot
 cp .env.example .env
 # Edit .env: token, owner Telegram IDs, webhook secret, database credentials, PROFILE_ENCRYPTION_KEY.
 # Generate a webhook secret: openssl rand -hex 32
+# Generate an encryption key: openssl rand -base64 32
 docker compose build app
 docker compose run --rm migrate php bin/install.php
 docker compose run --rm migrate php bin/restrict-runtime.php --confirm
@@ -183,14 +184,18 @@ and dump/restore. See [acceptance gates](docs/ACCEPTANCE.md),
 No test run proves your external Telegram token, HTTPS certificate, VPS security,
 backup storage or merchant account works. External gates remain explicitly open.
 
-## Discoverability and license
+## Documentation and community
 
-Suggested GitHub Topics: `telegram-bot`, `tour-booking`, `travel-reservation`, `php`,
-`mysql`, `booking-system`, `open-source`, `telegram-booking-bot`.
-Suggested description: “Self-hosted Persian Telegram tour reservations with group
-capacity, admin review, manual payments and durable notifications.”
-These values must be applied in repository **About** settings by an authorized
-maintainer; a README does not change GitHub metadata.
+[Documentation index](docs/README.md) · [Product scope](docs/PRODUCT.md) ·
+[Report a bug](https://github.com/AlirezaBelal/travel-tour-reservation-bot/issues) ·
+[Contribute](CONTRIBUTING.md) · [Security policy](SECURITY.md).
+
+Use `master` for installation and start focused contribution branches from it.
+There is no required development branch, category subscription or hosted service.
+Include your commit, installation method and synthetic reproduction steps when
+reporting a defect. Never attach `.env`, a database dump or traveler information.
+
+## License
 
 Licensed under **GPL-3.0-only**. See [LICENSE](LICENSE).
 

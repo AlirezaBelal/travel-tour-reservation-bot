@@ -29,8 +29,8 @@ requirements. Destructive production operations require operator review.
 
 Target `master` from a short-lived `fix/`, `docs/` or `feature/` branch. Keep a PR
 draft while its implementation or required checks are incomplete. Remove merged
-branches once their changes and any necessary history are retained. PR #4 is the
-completed source handoff, not a standing development branch or production gate.
+branches after their changes are integrated. `master` is the maintained source;
+completed development reports remain in Git/PR history rather than installation guides.
 Use [product scope](docs/PRODUCT.md) to distinguish a bug fix from a new feature.
 Passing synthetic CI does not authorize live Telegram changes, merchant payments,
 production deployment or a production certification.

@@ -1,0 +1,45 @@
+name: Bug report / گزارش خطا
+description: Report a reproducible defect using synthetic data only.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include bot tokens, .env files, encryption keys, database dumps or real traveler data.
+        برای گزارش امنیتی از SECURITY.md پیروی کنید؛ Secret و اطلاعات واقعی مسافر را اینجا ننویسید.
+  - type: input
+    id: revision
+    attributes:
+      label: Commit or version
+      description: The commit SHA you installed, not your private bot URL.
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options:
+        - Docker Compose
+        - Native PHP / MySQL
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use synthetic accounts/tours and describe the buttons or commands used.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include a redacted error code or CI link if useful; never paste private logs.
+    validations:
+      required: true

@@ -13,6 +13,7 @@ This dated source handoff is not a semantic-versioned release or production cert
 - Added optional encrypted phone/national-code profiles with owner-only Telegram contact sharing, checksum validation, and migration 003; no category membership needed for booking.
 - Preserved old membership migration and established legacy commands.
 - Aligned the public product guides, source status and contribution workflow with the completed handoff on master.
+- Removed temporary development-status reports from the distributed documentation; added a documentation index and a structured, secret-free bug report form.
 
 The source is available on master. Operators supply their own hosting, credentials
 and operational acceptance. No hosted service, real payment gateway or production

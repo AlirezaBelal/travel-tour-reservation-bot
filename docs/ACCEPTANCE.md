@@ -1,10 +1,30 @@
-# Acceptance gates and continuation record
+# Testing and acceptance
 
-This file defines executable gates; a test being listed is not proof that it passed.
-The PR records exact commit/run links. Automated CI permits a source-only open-source
-merge when the maintainer explicitly chooses publication; this is distinct from
-production acceptance, a paid release, or authorization to deploy third-party data.
-All blocked external production gates stay blocked until independently verified.
+This guide maps product behavior to repeatable tests. A listed test is not proof
+of a successful run: inspect the Actions result for the exact commit you install.
+[CI](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions) runs PHP
+8.0–8.4, MySQL 8.0, MariaDB 10.11 and disposable Docker installation/recovery.
+All fixtures are synthetic; never point a test suite at a traveler database.
+
+## Run the checks
+
+Follow the environment setup in [CONTRIBUTING.md](../CONTRIBUTING.md), then run:
+
+```bash
+composer install
+composer test:unit
+# Privately configure TEST_MYSQL_DSN, TEST_MYSQL_USER and TEST_MYSQL_PASSWORD.
+# The database must be disposable and named exactly travel_tour_test.
+composer test:integration
+composer audit
+git diff --check
+```
+
+`test:integration` rebuilds its fixtures. Preserve script order: legacy migration,
+legacy workflows, product/concurrency, operations, Telegram workflows, worker
+process recovery. The Docker/HTTP/separate-volume restore scenarios run in CI.
+
+## Automated evidence and operator checks
 
 | Gate | Reproducible evidence |
 |---|---|
@@ -32,7 +52,6 @@ All blocked external production gates stay blocked until independently verified.
 | Real refunds/financial settlement | **BLOCKED EXTERNAL** — policy, integration and authorization |
 | Production backup encryption/offsite storage/recovery objectives | **BLOCKED EXTERNAL** — operator storage and restore rehearsal |
 | Rotate any real token exposed in old Git history | **BLOCKED EXTERNAL** — BotFather account; repository cleanup does not revoke tokens |
-| GitHub About description/topics | Maintainer setting; connector currently exposes no repository metadata update operation |
 
 ## Explicit limitations
 
@@ -43,22 +62,15 @@ with MySQL. One booking per user/tour is retained after terminal transitions.
 Group companions are counted, not required to disclose identities. CSVs cap at
 5,000 rows and exclude traveler identity columns. Dates are Gregorian, currency IRR.
 
-## Safe continuation
+## Before admitting real travelers
 
-Start by reading the live PR head and compare it with your local branch. Preserve
-other commits. Publish with an expected-head lease; do not force-push over changes.
-Use a short-lived branch from `master`, preserve migrations 001–003, and add
-new numbered migrations for future schema changes. PR #4 is merged and closed;
-the old hardening branch is not the current installation target. Existing tests must run before
-new integration suites. No test may use a real traveler record or live payment.
+On your authorized installation, use test accounts and a synthetic free tour to
+verify onboarding, discovery, party reservation, administrator approval/rejection,
+capacity limits, notification delivery and cancellation. Verify role revocation,
+private reports and account deletion. Rehearse a worker/database restart and a
+backup restore into a different database volume. Establish your retention,
+key-recovery and manual-payment/refund procedures before collecting personal data.
 
-The authoring environment does not contain PHP/Composer/MySQL/Docker; runtime
-verification is performed in GitHub Actions. Do not report skipped/local-unavailable
-tests as passed. CI failures are corrected before recording a successful gate.
-
-## Final operational acceptance
-
-See [FINAL_ACCEPTANCE.md](FINAL_ACCEPTANCE.md) for review findings, exact execution
-boundaries and outstanding owner acceptance. CI container restart/recovery is an
-authorized disposable staging rehearsal, not permission to change a live webhook
-or deploy onto a VPS. An independent installation review is still required.
+Never replace another bot's webhook, migrate real records or run payment tests
+without the operator's authorization. A green CI result validates the synthetic
+source tests; it does not validate your Telegram account, TLS, server or backups.
