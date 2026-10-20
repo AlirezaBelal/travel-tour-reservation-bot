@@ -85,7 +85,9 @@ before normal use. The demo remains draft until explicitly published.
 
 Travelers: `/start` → **پروفایل** → enter leader name → **تور‌ها** or **جست‌وجوی تور** →
 view destination/dates/price/remaining capacity → enter number of people → confirm.
-Use **رزروهای من** for status/history or cancellation. `/cancel` exits a form;
+Use **رزروهای من** for status/history or cancellation. **پیام به مدیریت** sends a
+booking-specific question privately through the bot; authorized managers can reply
+from that booking, so manual-payment coordination needs no external contact guide. `/cancel` exits a form;
 `/help` explains the flow and `/privacy` explains deletion and retention.
 
 Owners: put your numeric Telegram user ID in `TELEGRAM_ADMIN_IDS`, then `/admin`.

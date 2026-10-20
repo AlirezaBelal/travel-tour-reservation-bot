@@ -37,6 +37,9 @@ $paidTour=$service->saveTour(999,$paidValues);sendUpdate(508,null,'p:name:0');se
 $paidBooking=(int)Database::run($pdo,'SELECT id FROM Bookings WHERE user_id=508 AND tour_id=?',[$paidTour])->fetchColumn();
 sendUpdate(502,null,"p:pay:$paidBooking");sendUpdate(502,'SYNTHETIC-UI-RECEIPT');wfCheck($service->booking(508,$paidBooking)['payment_status']==='pending','payment approval needs confirmation');
 sendUpdate(502,null,"p:pay_yes:$paidBooking");sendUpdate(502,null,"p:confirm:$paidBooking");wfCheck($service->booking(508,$paidBooking)['status']==='confirmed','manual payment then booking approval');
+sendUpdate(508,null,"p:contact:$paidBooking");sendUpdate(508,'Synthetic payment coordination question');wfCheck((int)Database::run($pdo,"SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=999 AND payload LIKE '%Synthetic payment coordination question%'")->fetchColumn()===1,'traveler reaches management inside bot');
+sendUpdate(502,null,"p:message:$paidBooking");sendUpdate(502,'Synthetic operator payment instructions');wfCheck((int)Database::run($pdo,"SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=508 AND payload LIKE '%Synthetic operator payment instructions%'")->fetchColumn()===1,'manager replies without exposing Telegram IDs');
+sendUpdate(501,null,"p:message:$paidBooking");wfCheck(str_contains(lastReply(501)['text'],'اجازه'),'unauthorized private message blocked');
 sendUpdate(502,null,'p:all_bookings:0');wfCheck(isset(lastReply(502)['reply_markup']),'confirmed and historical bookings accessible to managers');
 Database::run($pdo,'UPDATE Tours SET starts_at=?,ends_at=? WHERE id=?',[gmdate('Y-m-d H:i:s',time()-7200),gmdate('Y-m-d H:i:s',time()-3600),$paidTour]);sendUpdate(502,null,"p:complete:$paidBooking");wfCheck($service->booking(508,$paidBooking)['status']==='completed','manager completes ended booking through Telegram');
 // Account deletion is explicit, idempotent and does not disclose other accounts.

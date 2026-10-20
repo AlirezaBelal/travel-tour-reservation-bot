@@ -30,7 +30,7 @@ final class NotificationWorker
                 $obsolete=isset($payload['_expires_at']) && $payload['_expires_at']<=gmdate('Y-m-d H:i:s');
                 $authorized=true;
                 foreach((array)($payload['_required_permissions']??[])as$permission) {
-                    if(!is_string($permission)||!$this->access->allows((int)$row['chat_id'],$permission))$authorized=false;
+                    if(!is_string($permission)||!$this->access->allows((int)($payload['_permission_actor']??$row['chat_id']),$permission))$authorized=false;
                 }
                 if(!$authorized){Database::run($this->pdo,"UPDATE NotificationOutbox SET status='failed',error_code='permission_revoked',locked_at=NULL WHERE id=?",[$row['id']]);continue;}
 

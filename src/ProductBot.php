@@ -48,6 +48,8 @@ final class ProductBot
                 case 'mine': $this->mine($id);break;
                 case 'booking': $this->showBooking($id);break;
                 case 'history': $this->history($id,false);break;
+                case 'contact': $this->bookings->booking($actor,$id);$this->state('support_message',['booking'=>$id]);$this->reply('پیام مربوط به این رزرو را برای مدیریت بنویسید. رمز، اطلاعات کارت یا کد ملی نفرستید. /cancel برای انصراف.');break;
+                case 'message': $this->access->require($actor,'notify');$this->bookings->booking($actor,$id,true);$this->state('admin_message',['booking'=>$id]);$this->reply('متن راهنمایی یا پاسخ به سرپرست این رزرو را بنویسید. پیام از طریق همین ربات ارسال می‌شود. /cancel برای انصراف.');break;
                 case 'cancel_booking': $this->bookings->booking($actor,$id);$this->state('cancel_confirm',['booking'=>$id]);$this->reply('لغو رزرو باعث آزادشدن ظرفیت می‌شود. استرداد وجه خودکار نیست و باید با مدیر هماهنگ شود. لغو می‌کنید؟',[[['text'=>'تأیید لغو','callback_data'=>"p:cancel_yes:$id"]],[['text'=>'بازگشت','callback_data'=>"p:booking:$id"]]]);break;
                 case 'cancel_yes': $confirmation=$this->requireSession('cancel_confirm');if((int)$confirmation['booking']!==$id)throw new RuleViolation('تأیید لغو معتبر نیست.');$this->clear();$this->bookings->transition($actor,$id,'cancelled');$this->showBooking($id);break;
                 case 'admin': $this->admin();break;
@@ -201,6 +203,8 @@ final class ProductBot
             if($this->access->allows($this->actor,'payments')&&$booking['payment_status']!=='paid')$buttons[]=[['text'=>'بررسی پرداخت دستی','callback_data'=>"p:pay:$id"]];
             if($booking['status']==='confirmed')$buttons[]=[['text'=>'تکمیل پس از پایان تور','callback_data'=>"p:complete:$id"]];
         }elseif(in_array($booking['status'],['pending','confirmed'],true))$buttons[]=[['text'=>'لغو رزرو','callback_data'=>"p:cancel_booking:$id"]];
+        if($admin && $this->access->allows($this->actor,'notify') && $booking['user_id']!==null)$buttons[]=[['text'=>'پیام به سرپرست','callback_data'=>"p:message:$id"]];
+        elseif(!$admin)$buttons[]=[['text'=>'پیام به مدیریت درباره رزرو','callback_data'=>"p:contact:$id"]];
         $buttons[]=[['text'=>'جزئیات تور','callback_data'=>'p:tour:'.$booking['tour_id']]];
         $buttons[]=[['text'=>'تاریخچه وضعیت','callback_data'=>($admin?'p:review_history:':'p:history:').$id]];
         $buttons[]=[['text'=>'بازگشت','callback_data'=>$admin?'p:pending:0':'p:mine:0']];$this->reply($text,$buttons,$admin && $booking['user_id'] !== null ? (int)$booking['user_id'] : null,$admin?($this->access->allows($this->actor,'profiles')?['review','profiles']:['review']):[]);
@@ -269,6 +273,23 @@ final class ProductBot
         if($state==='name'){
             if($text===''||strlen($text)>150)throw new RuleViolation('نام باید کوتاه و غیرخالی باشد.');
             Database::run($this->pdo,"UPDATE Data SET Name=?,profile='true' WHERE UserId=?",[$text,$this->actor]);$this->clear();$this->reply('نام ذخیره شد. اکنون می‌توانید تور انتخاب کنید.',$this->menu());return;
+        }
+        if($state==='support_message'||$state==='admin_message'){
+            if($text===''||strlen($text)>2000)throw new RuleViolation('پیام را کوتاه‌تر وارد کنید.');
+            $id=(int)$payload['booking'];
+            if($state==='support_message'){
+                $this->bookings->booking($this->actor,$id);
+                foreach($this->access->reviewers()as$admin){
+                    if(!$this->access->allows($admin,'notify'))continue;
+                    $this->outbox->message($admin,"پیام مسافر درباره رزرو #$id:\n$text","support:{$this->update}:$admin",[[['text'=>'پاسخ به سرپرست','callback_data'=>"p:message:$id"]]],$this->actor,['notify','review']);
+                }
+            }else{
+                $this->access->require($this->actor,'notify');$booking=$this->bookings->booking($this->actor,$id,true);
+                if($booking['user_id']===null)throw new RuleViolation('حساب این مسافر حذف شده است.');
+                $this->outbox->enqueue((int)$booking['user_id'],'sendMessage',['text'=>"پیام مدیریت درباره رزرو #$id:\n$text",'reply_markup'=>json_encode(['inline_keyboard'=>[[['text'=>'پاسخ به مدیریت','callback_data'=>"p:contact:$id"]]]],JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE),'_subject_user'=>(int)$booking['user_id'],'_permission_actor'=>$this->actor,'_required_permissions'=>['notify','review']],"staff-message:{$this->update}:$id");
+                $this->access->audit($this->actor,'booking.message','booking',$id);
+            }
+            $this->clear();$this->reply('پیام در صف ارسال قرار گرفت. پاسخ از طریق همین ربات به شما می‌رسد.');return;
         }
         if($state==='search'){if($text===''||strlen($text)>200)throw new RuleViolation('عبارت جست‌وجو را کوتاه وارد کنید.');$this->state('filter',['query'=>$text]);$this->listing(0);return;}
         if($state==='quantity'){
