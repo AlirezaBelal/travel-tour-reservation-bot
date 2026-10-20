@@ -9,6 +9,19 @@ final class Outbox
         if (!in_array($method, ['sendMessage', 'copyMessage', 'editMessageText', 'editMessageCaption', 'answerCallbackQuery', 'sendDocument'], true)) {
             throw new InvalidArgumentException('Unsupported Telegram method.');
         }
+        if ($method === 'sendMessage' && is_string($payload['text'] ?? null)) {
+            $characters = preg_split('//u', $payload['text'], -1, PREG_SPLIT_NO_EMPTY);
+            if (is_array($characters) && count($characters) > 3500) {
+                $chunks = array_chunk($characters, 3500);
+                foreach ($chunks as $index => $chunk) {
+                    $part = $payload;
+                    $part['text'] = implode('', $chunk);
+                    if ($index !== count($chunks) - 1) unset($part['reply_markup']);
+                    $this->enqueue($chat, $method, $part, $key . ':part:' . $index);
+                }
+                return;
+            }
+        }
         $payload['chat_id'] = $chat;
         if ($method === 'answerCallbackQuery') {
             unset($payload['chat_id']);
@@ -18,9 +31,10 @@ final class Outbox
         ]);
     }
 
-    public function message(int $chat, string $text, string $key, array $keyboard = []): void
+    public function message(int $chat, string $text, string $key, array $keyboard = [], ?int $subject = null): void
     {
         $payload = ['text' => $text];
+        if ($subject !== null) $payload['_subject_user'] = $subject;
         if ($keyboard !== []) {
             $payload['reply_markup'] = json_encode(['inline_keyboard' => $keyboard], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
         }

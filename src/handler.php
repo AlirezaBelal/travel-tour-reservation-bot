@@ -362,12 +362,6 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
         $Topics = $db->select('Topics', ['Name', 'id', 'caption'], ['Groups' => $topicId]);
         if (count($Topics) < 1) {
             if ($memberships->request($chatId, $topicId)) {
-                $Name = $db->get('Data', 'Name', ['UserId' => $chatId]);
-                $Mobile = $db->get('Data', 'Mobile', ['UserId' => $chatId]);
-                $N_Code = $db->get('Data', 'N_Code', ['UserId' => $chatId]);
-                $birthday = $db->get('Data', 'birthday', ['UserId' => $chatId]);
-                $sex = $db->get('Data', 'sex', ['UserId' => $chatId]);
-
                 $id = (string)$topicId;
                 $TName = "";
                 $ids = "$topicId|";
@@ -391,14 +385,15 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
                     $TName .= $Topic_Name . " 👉 ";
                 }
 
-                $TXT = "new request!\n\nTopic : $TName \nname : $Name\nmobile : $Mobile\nN_Code : $N_Code\nbirthday : $birthday\nsex : $sex\nid : $chatId\nusername : @$userName";
+                $TXT = "درخواست عضویت در دسته قدیمی: $TName";
+
                 $keyboard = [[['text' => 'تایید ✅', 'callback_data' => "approve:$chatId:$topicId"]]];
                 $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
 
-                sendkeyboard(ADMINS[0], $TXT, $keyboard);
+                bot('sendMessage', ['chat_id' => ADMINS[0], 'text' => $TXT, 'reply_markup' => $keyboard, '_subject_user' => (int)$chatId]);
                 foreach (ADMINS as $admin) {
                     if ((int)$admin !== (int)ADMINS[0]) {
-                        sendMessage($admin, $TXT);
+                        bot('sendMessage', ['chat_id' => $admin, 'text' => $TXT, '_subject_user' => (int)$chatId]);
                     }
                 }
 
@@ -538,7 +533,7 @@ if ($data === "BackToHome") {
         ]);
     }
 
-    editMessageText($chatId, $messageId, "تایید شده ✅\n\n$text2");
+    editMessageText($chatId, $messageId, "تایید شده ✅\n\n$Names");
     $acceptTopic = "مدیریت ربات با عضویت شما در گروه $Names موافقت کرد✅";
     sendMessage($chatid, "$acceptTopic");
 

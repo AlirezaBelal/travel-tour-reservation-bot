@@ -117,6 +117,8 @@ jobs:
           DB_USERNAME=synthetic_bot
           DB_PASSWORD=synthetic_database_password
           DB_ROOT_PASSWORD=synthetic_root_password
+          PAYMENT_SANDBOX_ENABLED=true
+          PAYMENT_SANDBOX_SECRET=synthetic_signing_key_only_for_disposable_ci
           ENV
       - name: Build and initialize a clean database
         run: |
@@ -131,6 +133,10 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8080/index.php -H 'X-Telegram-Bot-Api-Secret-Token: synthetic_secret_for_ci_only_1234567890' -d '{}')" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/config.php)" = 404
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/.env)" = 404
+      - name: Run real HTTP booking and sandbox workflows
+        run: |
+          docker compose cp tests/http_e2e.php app:/tmp/http_e2e.php
+          docker compose exec -T app php /tmp/http_e2e.php
       - name: Back up and restore synthetic data
         run: |
           docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT INTO Data (UserId, Name) VALUES (303, '\''Synthetic backup fixture'\'')"'

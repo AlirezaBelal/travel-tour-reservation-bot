@@ -17,7 +17,7 @@ final class AccessControl
     {
         $role = $this->role($actor);
         return $role === 'owner' || in_array($permission, [
-            'manager' => ['tours', 'review', 'reports', 'export', 'notify', 'payments'],
+            'manager' => ['tours', 'review', 'reports', 'export', 'notify', 'payments', 'profiles'],
             'reviewer' => ['review', 'reports'],
             'reporter' => ['reports'],
         ][$role ?? ''] ?? [], true);

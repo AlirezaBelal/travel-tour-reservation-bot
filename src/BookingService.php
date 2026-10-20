@@ -108,7 +108,7 @@ final class BookingService
             $this->history($id, $actor, null, 'pending', null);
             $this->outbox->message($actor, "درخواست رزرو شماره $id برای $quantity نفر ثبت شد و در انتظار بررسی است.\nمبلغ کل: $amount ریال\nلغو پیش از شروع تور از بخش رزروهای من امکان‌پذیر است.", "booking:$id:pending");
             foreach ($this->access->reviewers() as $admin) {
-                $this->outbox->message($admin, "درخواست رزرو شماره $id برای تور $tourId، تعداد $quantity نفر در انتظار بررسی است.", "booking:$id:review:$admin", [[['text'=>'بررسی درخواست','callback_data'=>"p:review:$id"]]]);
+                $this->outbox->message($admin, "درخواست رزرو شماره $id برای تور {$tourId}، تعداد $quantity نفر در انتظار بررسی است.", "booking:$id:review:$admin", [[['text'=>'بررسی درخواست','callback_data'=>"p:review:$id"]]]);
             }
             return $id;
         });

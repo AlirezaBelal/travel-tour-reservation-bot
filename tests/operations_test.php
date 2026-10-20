@@ -8,6 +8,9 @@ function opCheck(bool $condition,string $label):void{global$checks;$checks++;if(
 function opDenied(callable $action):void{try{$action();throw new RuntimeException('Expected rejection.');}catch(RuleViolation){opCheck(true,'rule rejection');}}
 for($i=400;$i<430;$i++){$service->ensureUser($i);Database::run($pdo,'UPDATE Data SET Name=? WHERE UserId=?',['Synthetic person',$i]);}
 $values=['category_id'=>null,'title'=>'Synthetic operations','destination'=>'Synthetic destination','description'=>'Synthetic description','starts_at'=>gmdate('Y-m-d H:i:s',time()+3600),'ends_at'=>gmdate('Y-m-d H:i:s',time()+7200),'price'=>100,'capacity'=>20,'publication'=>'published'];
+// Long Persian replies are split without breaking UTF-8 or duplicating keyboards.
+$outbox->message(400,str_repeat('ش',4000),'long-unicode',[[['text'=>'Synthetic','callback_data'=>'p:home:0']]]);
+opCheck((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE payload LIKE '%ش%'")->fetchColumn()===2,'unicode message splitting');
 // Sandbox verifies signatures, order, amount, expiry, unique transactions and replay.
 $tour=$service->saveTour(999,$values);$id=$service->reserve(400,$tour,1,'sandbox-one');$booking=$service->booking(400,$id);
 $adapter=new SandboxPaymentAdapter(str_repeat('s',48));$payments=new PaymentService($pdo,$outbox);

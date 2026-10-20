@@ -97,8 +97,8 @@ final class ProductBot
         $this->reply('پیام را متوجه نشدم. از دکمه‌ها استفاده کنید یا /help بفرستید.',$this->menu());return true;
     }
 
-    private function reply(string $text,array $buttons=[]):void {
-        $this->outbox->message($this->actor,str_replace('\\n',"\n",$text),"update:{$this->update}:reply:".($this->sequence++),$buttons);
+    private function reply(string $text,array $buttons=[],?int $subject=null):void {
+        $this->outbox->message($this->actor,str_replace('\\n',"\n",$text),"update:{$this->update}:reply:".($this->sequence++),$buttons,$subject);
     }
     private function menu():array {
         $buttons=[[['text'=>'تور‌ها','callback_data'=>'p:tours:0'],['text'=>'دسته‌ها','callback_data'=>'p:cats:0']],[['text'=>'جست‌وجوی تور','callback_data'=>'p:search:0'],['text'=>'رزروهای من','callback_data'=>'p:mine:0']],[['text'=>'پروفایل','callback_data'=>'p:profile:0'],['text'=>'راهنما','callback_data'=>'p:help:0']]];
@@ -185,13 +185,18 @@ final class ProductBot
         $text="رزرو #$id\nتور: {$booking['title']}\nشروع: ".$this->local($booking['starts_at'])."\nتعداد نفرات: {$booking['quantity']}\nمبلغ کل: {$booking['amount']} ریال\nوضعیت رزرو: ".$this->status($booking['status'])."\nوضعیت پرداخت: ".$this->status($booking['payment_status']);
         if($booking['payment_status']==='pending'&&(int)$booking['amount']>0)$text.="\nپرداخت آنلاین فعال نیست. پس از هماهنگی با مدیر، واریز دستی بررسی می‌شود. پیش از هماهنگی، مبلغی واریز نکنید. مهلت بررسی اولیه پرداخت ۲۴ ساعت است.";
         $buttons=[];
+        if($admin && $booking['user_id'] !== null && $this->access->allows($this->actor,'profiles')) {
+            $leader = Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$booking['user_id']])->fetchColumn();
+            $text .= "\nنام سرپرست: " . ($leader ?: 'ثبت نشده');
+            $this->access->audit($this->actor,'profile.view','user',(int)$booking['user_id']);
+        }
         if($admin){
             if($booking['status']==='pending')$buttons[]=[['text'=>'تأیید رزرو','callback_data'=>"p:confirm:$id"],['text'=>'رد با دلیل اختیاری','callback_data'=>"p:reject:$id"]];
             if($this->access->allows($this->actor,'payments')&&$booking['payment_status']!=='paid')$buttons[]=[['text'=>'بررسی پرداخت دستی','callback_data'=>"p:pay:$id"]];
             if($booking['status']==='confirmed')$buttons[]=[['text'=>'تکمیل پس از پایان تور','callback_data'=>"p:complete:$id"]];
         }elseif(in_array($booking['status'],['pending','confirmed'],true))$buttons[]=[['text'=>'لغو رزرو','callback_data'=>"p:cancel_booking:$id"]];
         $buttons[]=[['text'=>'تاریخچه وضعیت','callback_data'=>($admin?'p:review_history:':'p:history:').$id]];
-        $buttons[]=[['text'=>'بازگشت','callback_data'=>$admin?'p:pending:0':'p:mine:0']];$this->reply($text,$buttons);
+        $buttons[]=[['text'=>'بازگشت','callback_data'=>$admin?'p:pending:0':'p:mine:0']];$this->reply($text,$buttons,$admin && $booking['user_id'] !== null ? (int)$booking['user_id'] : null);
     }
     private function history(int $id,bool $admin):void {
         $this->bookings->booking($this->actor,$id,$admin);
