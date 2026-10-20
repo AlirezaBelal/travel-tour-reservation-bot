@@ -1,8 +1,10 @@
 # Acceptance gates and continuation record
 
 This file defines executable gates; a test being listed is not proof that it passed.
-The PR records exact commit/run links. Keep PR #4 draft until all required gates
-and operator reviews are satisfied. No final release or deployment is authorized.
+The PR records exact commit/run links. Automated CI permits a source-only open-source
+merge when the maintainer explicitly chooses publication; this is distinct from
+production acceptance, a paid release, or authorization to deploy third-party data.
+All blocked external production gates stay blocked until independently verified.
 
 | Gate | Reproducible evidence |
 |---|---|
