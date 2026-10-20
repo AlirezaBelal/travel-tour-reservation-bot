@@ -25,6 +25,7 @@ try {
     migrateTopicMemberships($pdo);
     require_once __DIR__ . '/../database/product.php';
     migrateProduct($pdo);
+    migrateTravelerIdentity($pdo);
     fwrite(STDOUT, "Schema initialized and migrations applied.\n");
 } catch (Throwable $error) {
     fwrite(STDERR, "Installation failed (" . get_class($error) . "/" . $error->getCode() . "). Inspect configuration and database privately.\n");
