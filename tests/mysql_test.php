@@ -28,7 +28,7 @@ function verify(bool $value, string $message): void
     }
 }
 $pdo = testConnection();
-foreach (['TopicMemberships', 'SchemaMigrations', 'Data', 'Topics'] as $table) {
+foreach (['BotSessions','RateLimits','UpdateReceipts','NotificationOutbox','AuditLog','AdminRoles','Payments','BookingStatusHistory','BookingParticipants','Bookings','Tours','TopicMemberships','SchemaMigrations','Data','Topics'] as $table) {
     $pdo->exec("DROP TABLE IF EXISTS `$table`");
 }
 $legacy = file_get_contents(__DIR__ . '/../topic.sql');

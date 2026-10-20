@@ -29,6 +29,7 @@ $expired=$service->reserve(402,$tour,1,'sandbox-expired');Database::run($pdo,'UP
 $event3=array_replace($event,['order_ref'=>$service->booking(402,$expired)['order_ref'],'transaction'=>'SYNTHETIC-TX-EXPIRED']);$event3['signature']=$adapter->signature($event3);opDenied(fn()=>$payments->callback($adapter,$event3));
 $stale=array_replace($event,['timestamp'=>time()-600]);$stale['signature']=$adapter->signature($stale);opDenied(fn()=>$payments->callback($adapter,$stale));
 $unknown=array_replace($event,['order_ref'=>str_repeat('a',32)]);$unknown['signature']=$adapter->signature($unknown);opDenied(fn()=>$payments->callback($adapter,$unknown));
+$failedHold=$service->reserve(407,$tour,1,'failed-hold-expiry');Database::run($pdo,"UPDATE Payments SET status='failed',expires_at=? WHERE booking_id=?",[gmdate('Y-m-d H:i:s',time()-60),$failedHold]);
 // Every worker scenario starts with only synthetic queue data.
 $pdo->exec('DELETE FROM NotificationOutbox');
 $outbox->message(400,'Synthetic notification','same-key');$outbox->message(400,'Synthetic notification','same-key');opCheck((int)$pdo->query('SELECT COUNT(*) FROM NotificationOutbox')->fetchColumn()===1,'outbox enqueue idempotency');
@@ -50,6 +51,7 @@ $service->transition(999,$id,'confirmed',null,true);$pdo->exec('DELETE FROM Noti
 opCheck((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE payload LIKE '%_reminder_booking%'")->fetchColumn()===1,'one reminder per booking and tour version');
 opCheck($service->booking(402,$expired)['status']==='rejected'&&$service->booking(402,$expired)['payment_status']==='expired','expired unpaid hold rejected and released');
 $service->transition(400,$id,'cancelled');$pdo->exec("DELETE FROM NotificationOutbox WHERE payload NOT LIKE '%_reminder_booking%'");$sent=0;$worker->tick(function()use(&$sent){$sent++;return['ok'=>true,'code'=>200];},20,false);opCheck($sent===0,'cancelled booking reminder suppressed');
+opCheck($service->booking(407,$failedHold)['status']==='rejected'&&$service->booking(407,$failedHold)['payment_status']==='expired','failed unpaid payment hold also expires');
 // Completion is permitted only after a confirmed tour ends.
 $free=$service->saveTour(999,array_replace($values,['price'=>0]));$done=$service->reserve(404,$free,1,'complete');$service->transition(999,$done,'confirmed',null,true);opDenied(fn()=>$service->transition(999,$done,'completed',null,true));
 Database::run($pdo,'UPDATE Tours SET starts_at=?,ends_at=? WHERE id=?',[gmdate('Y-m-d H:i:s',time()-7200),gmdate('Y-m-d H:i:s',time()-3600),$free]);opDenied(fn()=>$service->transition(404,$done,'cancelled'));opCheck($service->transition(999,$done,'completed',null,true),'completed lifecycle');

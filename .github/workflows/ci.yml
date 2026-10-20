@@ -106,11 +106,8 @@ jobs:
         run: composer install --no-interaction --no-progress --prefer-dist
       - name: Test legacy migration, relational workflows and concurrent requests
         run: |
-          php tests/mysql_test.php
-          php tests/workflow_test.php
-          php tests/product_test.php
-          php tests/operations_test.php
-          php tests/product_workflow_test.php
+          composer test:integration
+          composer test:integration
         env:
           TEST_MYSQL_DSN: mysql:host=127.0.0.1;port=3306;dbname=travel_tour_test;charset=utf8mb4
           TEST_MYSQL_USER: root
@@ -164,6 +161,10 @@ jobs:
           docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "DELETE FROM Data WHERE UserId = 303"'
           docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE"' < backup.sql
           test "$(docker compose exec -T db sh -c 'mysql -N -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM Data WHERE UserId = 303"')" = 1
+      - name: Verify restored booking/payment/queue relationships
+        run: |
+          docker compose cp tests/restore_check.php app:/tmp/restore_check.php
+          docker compose exec -T app php /tmp/restore_check.php
       - name: Clean up synthetic environment
         if: always()
         run: docker compose down -v
