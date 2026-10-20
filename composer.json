@@ -29,7 +29,8 @@
       "@php tests/workflow_test.php",
       "@php tests/product_test.php",
       "@php tests/operations_test.php",
-      "@php tests/product_workflow_test.php"
+      "@php tests/product_workflow_test.php",
+      "@php tests/worker_process_test.php"
     ]
   }
 }

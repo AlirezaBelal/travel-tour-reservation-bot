@@ -89,6 +89,16 @@ outbox payloads, apply database/storage encryption and restrict logs/backups.
 The app health endpoint checks schema/connectivity, not worker liveness; monitor
 worker process health and pending/failed queue counts separately.
 
+A database exception terminates the worker with a nonzero status. Compose's
+`restart: unless-stopped` creates a new process and PDO connection; a manually run
+worker needs an equivalent supervisor. Initialization failures also exit with a
+generic class/code log rather than an exception trace. After a crash, a processing
+notification becomes eligible again after five minutes. Do not clear leases to
+accelerate production recovery: external delivery may already have succeeded.
+CI rehearses database restart with an empty synthetic queue and actual worker,
+plus process-kill recovery with fake Telegram transport. These checks do not
+verify Telegram connectivity or your server's restart policy.
+
 For local payment simulation in disposable data only, set APP_ENV=test (or development),
 PAYMENT_SANDBOX_ENABLED=true
 and a distinct random PAYMENT_SANDBOX_SECRET. Run

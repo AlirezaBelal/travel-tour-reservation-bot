@@ -14,6 +14,8 @@ and operator reviews are satisfied. No final release or deployment is authorized
 | Queue rollback atomicity | Failing synthetic outbox trigger in product integration test |
 | Sandbox signature, amount, order, expiry, success/failure/replay | `tests/operations_test.php` + actual HTTP callback in container |
 | Queue 429/5xx/permanent errors/backoff/leases/manual retry | `tests/operations_test.php`, fake external transport |
+| Real worker process kill, advisory-lock exclusion, persisted retry and lease recovery | `tests/worker_process_test.php` on both database engines; synthetic transport, actual subprocesses |
+| Database outage, supervisor restart, fresh worker connection and web restart | `tests/container_restart.sh` in disposable Compose project before any queued notifications |
 | Reminder replay/cancellation, hold expiry, erasure/retention | `tests/operations_test.php` |
 | Persian forms, booking/review/cancel/manual pay, RBAC, CSV and rate limits | `tests/product_workflow_test.php` |
 | Real webhook entry point and payment endpoint | `tests/http_e2e.php` copied only into disposable CI container |
@@ -49,3 +51,10 @@ new integration suites. No test may use a real traveler record or live payment.
 The authoring environment does not contain PHP/Composer/MySQL/Docker; runtime
 verification is performed in GitHub Actions. Do not report skipped/local-unavailable
 tests as passed. CI failures are corrected before recording a successful gate.
+
+## Final operational acceptance
+
+See [FINAL_ACCEPTANCE.md](FINAL_ACCEPTANCE.md) for review findings, exact execution
+boundaries and outstanding owner acceptance. CI container restart/recovery is an
+authorized disposable staging rehearsal, not permission to change a live webhook
+or deploy onto a VPS. An independent installation review is still required.

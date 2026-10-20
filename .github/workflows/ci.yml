@@ -116,6 +116,8 @@ jobs:
   install:
     name: Clean container install and restore
     runs-on: ubuntu-latest
+    env:
+      COMPOSE_PROJECT_NAME: acceptance-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - name: Create synthetic configuration
@@ -161,17 +163,22 @@ jobs:
             echo 'Sandbox unexpectedly enabled in production mode.' >&2
             exit 1
           fi
+      - name: Rehearse database outage and supervised worker recovery
+        run: bash tests/container_restart.sh
       - name: Run real HTTP booking and sandbox workflows
         run: |
           docker compose cp tests/http_e2e.php app:/tmp/http_e2e.php
           docker compose exec -T app php /tmp/http_e2e.php
       - name: Back up and restore synthetic data
         run: |
+          docker compose stop app worker
           docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "INSERT INTO Data (UserId, Name) VALUES (303, '\''Synthetic backup fixture'\'')"'
           docker compose exec -T db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --no-tablespaces --single-transaction "$MYSQL_DATABASE"' > backup.sql
           docker compose exec -T db sh -c 'mysql -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "DELETE FROM Data WHERE UserId = 303"'
           docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' < backup.sql
           test "$(docker compose exec -T db sh -c 'mysql -N -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" "$MYSQL_DATABASE" -e "SELECT COUNT(*) FROM Data WHERE UserId = 303"')" = 1
+          docker compose up -d app
+          curl --retry 15 --retry-delay 2 --retry-all-errors -fsS http://127.0.0.1:8080/health.php
       - name: Verify restored booking/payment/queue relationships
         run: |
           docker compose cp tests/restore_check.php app:/tmp/restore_check.php
