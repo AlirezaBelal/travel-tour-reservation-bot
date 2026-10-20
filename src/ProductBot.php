@@ -155,10 +155,12 @@ final class ProductBot
     private function local(string $utc):string {return(new DateTimeImmutable($utc,new DateTimeZone('UTC')))->setTimezone(new DateTimeZone($this->timezone))->format('Y-m-d H:i');}
     private function profile():void {
         $name=Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$this->actor])->fetchColumn();
-        $this->reply('نام سرپرست: '.($name?:'ثبت نشده')."\nشناسه حساب: {$this->actor}\nفقط نام برای رزرو لازم است.",[[['text'=>'ثبت یا ویرایش نام','callback_data'=>'p:name:0']],[['text'=>'حریم خصوصی و حذف حساب','callback_data'=>'p:privacy:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
+        $status=(new TravelerIdentity($this->pdo))->status($this->actor);
+        $mobile=$status['mobile']?'ثبت شد':'ثبت نشده';$national=$status['national']?'ثبت شد':'ثبت نشده';
+        $this->reply('نام سرپرست: '.($name?:'ثبت نشده')."\nشماره تلگرام: $mobile\nکد ملی: $national\nشناسه حساب: {$this->actor}\nشماره و کد ملی در این صفحه نمایش داده نمی‌شوند.",[[['text'=>'ثبت یا ویرایش نام','callback_data'=>'p:name:0']],[['text'=>'اشتراک شماره خودم','callback_data'=>'p:phone:0']],[['text'=>'ثبت یا ویرایش کد ملی','callback_data'=>'p:national:0']],[['text'=>'حریم خصوصی و حذف حساب','callback_data'=>'p:privacy:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
     }
     private function privacy():void {
-        $this->reply('برای مسیر جدید رزرو فقط نام سرپرست و تعداد همراهان جمع‌آوری می‌شود. اطلاعات قدیمی پروفایل تا حذف حساب حفظ می‌شوند. پاک‌سازی خودکار حساب غیرفعال فقط پس از فعال‌سازی سیاست توسط اپراتور و بدون رزرو فعال انجام می‌شود؛ مدت پیشنهادی ۱۸۰ روز است. سوابق عددی رزرو و پرداخت بدون اتصال به حساب برای گزارش باقی می‌مانند. شمارنده محدودیت پیام حداکثر ۲۴ ساعت می‌ماند تا حذف حساب محدودیت امنیتی را دور نزند. پیام‌های تلگرام و پشتیبان‌های اپراتور جداگانه نگهداری می‌شوند.',[[['text'=>'درخواست حذف حساب','callback_data'=>'p:erase:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
+        $this->reply('در پروفایل جدید نام سرپرست، شماره همراهی که با دکمه تلگرام به اشتراک گذاشته‌اید و کد ملی دارای رقم کنترل معتبر ذخیره می‌شود. شماره و کد ملی در پایگاه داده رمزگذاری شده و در گزارش‌های عمومی یا پیام‌های مدیر نمایش داده نمی‌شوند. بررسی رقم کنترل به معنی استعلام هویت از ثبت احوال نیست. حذف حساب پس از بستن رزروهای فعال، اطلاعات رمزگذاری‌شده را نیز پاک می‌کند. اطلاعات قدیمی پروفایل تا حذف حساب محفوظ‌اند. پاک‌سازی خودکار حساب غیرفعال فقط با سیاست مصوب اپراتور فعال می‌شود؛ پیشنهاد ۱۸۰ روز است. پیام‌های تلگرام و نسخه‌های پشتیبان قواعد نگهداری جداگانه دارند.',[[['text'=>'درخواست حذف حساب','callback_data'=>'p:erase:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
     }
     private function listing(int $offset,?int $category=null,bool $admin=false):void {
         if($offset>100000)throw new RuleViolation('شماره صفحه معتبر نیست.');
