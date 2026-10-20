@@ -8,6 +8,7 @@
 - Added durable outbox, retry/lease recovery, rate limits, reminders and expired unpaid holds.
 - Added local signed payment simulation, account anonymization and retention controls.
 - Added new domain/security/concurrency/workflow/HTTP/container/restore tests and bilingual setup guides.
+- Added optional encrypted phone/national-code profiles with owner-only Telegram contact sharing, checksum validation, and migration 003; no category membership needed for booking.
 - Preserved old membership migration and established legacy commands.
 
 No final release or production deployment has been made. See docs/ACCEPTANCE.md.
