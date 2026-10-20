@@ -76,17 +76,16 @@ $pdo->exec("INSERT INTO Data (UserId, profile) VALUES (999, 'true')");
 dispatchFlow(201, '/start');
 expectFlow($db->has('Data', ['UserId' => 201]), '/start creates user');
 dispatchFlow(201, '/setprofile');
-dispatchFlow(201, 'Synthetic Traveler');
-expectFlow($db->get('Data', 'step', ['UserId' => 201]) === 'contact', 'name advances to contact');
-dispatchFlow(201, null, null, ['phone_number' => '09121234567', 'user_id' => 202]);
-expectFlow($db->get('Data', 'step', ['UserId' => 201]) === 'contact', 'other traveler contact rejected');
-dispatchFlow(201, null, null, ['phone_number' => '09121234567', 'user_id' => 201]);
-dispatchFlow(201, '0000000000');
-expectFlow($db->get('Data', 'step', ['UserId' => 201]) === 'NationalCode', 'invalid national code rejected');
-dispatchFlow(201, '1234567891');
-dispatchFlow(201, 'پسر');
-dispatchFlow(201, '1400/01/01');
-expectFlow($db->get('Data', 'profile', ['UserId' => 201]) === 'true', 'profile completed');
+expectFlow($db->get('Data', 'step', ['UserId' => 201]) === 'defult', 'legacy profile command cannot start plaintext form');
+foreach (['name','contact','NationalCode','sex','birthday'] as $oldStep) {
+    $db->update('Data', ['step' => $oldStep], ['UserId' => 201]);
+    dispatchFlow(201, 'Synthetic discarded legacy input', null, ['phone_number' => '09121234567', 'user_id' => 201]);
+    $row = $db->get('Data', '*', ['UserId' => 201]);
+    expectFlow($row['step'] === 'defult', 'legacy state retired: '.$oldStep);
+    expectFlow($row['Mobile'] === null && $row['N_Code'] === null && $row['Name'] === null, 'legacy input never persisted: '.$oldStep);
+}
+// Existing completed profiles and healthy catalogue workflows remain supported.
+$db->update('Data', ['Name' => 'Synthetic Traveler', 'profile' => 'true'], ['UserId' => 201]);
 
 // Administrator catalogue creation through actual conversation steps.
 dispatchFlow(999, '/AddTopic Synthetic root');

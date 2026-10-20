@@ -16,7 +16,7 @@ function updateTest(int$actor,?string$text=null,?string$callback=null,?int$fixed
 $values=['category_id'=>null,'title'=>'Synthetic HTTP tour','destination'=>'Synthetic','description'=>'Synthetic HTTP end-to-end','starts_at'=>gmdate('Y-m-d H:i:s',time()+86400),'ends_at'=>gmdate('Y-m-d H:i:s',time()+90000),'price'=>0,'capacity'=>3,'publication'=>'published'];
 httpCheck((int)Database::run($pdo,'SELECT COUNT(*) FROM Tours WHERE title=?',['تور نمایشی — داده ساختگی'])->fetchColumn()===1,'demo seeding is repeatable and synthetic');
 $tour=$bookings->saveTour($owners[0],$values);
-updateTest(700,'/start');updateTest(700,null,'p:name:0');updateTest(700,'Synthetic HTTP Traveler');
+updateTest(700,'/start');updateTest(700,'/setprofile');httpCheck(Database::run($pdo,'SELECT step FROM Data WHERE UserId=700')->fetchColumn()==='defult','legacy command aliases secure profile');updateTest(700,null,'p:name:0');updateTest(700,'Synthetic HTTP Traveler');
 $syntheticPhone='+98'.'9'.str_repeat('2',9);
 updateTest(700,null,null,null,['phone_number'=>$syntheticPhone,'user_id'=>701]);
 httpCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=?',[700])->fetchColumn()==='phone','foreign contact rejected at HTTP boundary');
@@ -30,7 +30,8 @@ updateTest(700,null,"p:reserve_yes:$tour:2:1",$delivery);httpCheck((int)Database
 updateTest(701,null,"p:confirm:$booking");httpCheck($bookings->booking(700,$booking)['status']==='pending','HTTP forged admin callback denied');
 updateTest($owners[0],null,"p:confirm:$booking");httpCheck($bookings->booking(700,$booking)['status']==='confirmed','HTTP admin approval');
 updateTest(700,null,"p:cancel_booking:$booking");updateTest(700,null,"p:cancel_yes:$booking");httpCheck($bookings->used($tour)===0,'HTTP cancellation frees seats');
-updateTest(700,'/setprofile');httpCheck(Database::run($pdo,'SELECT step FROM Data WHERE UserId=700')->fetchColumn()==='name','legacy command routed through actual webhook');updateTest(700,'/cancel');updateTest(700,'Synthetic ignored after cancellation');httpCheck(Database::run($pdo,'SELECT Name FROM Data WHERE UserId=700')->fetchColumn()==='Synthetic HTTP Traveler','global cancel exits legacy profile form');
+Database::run($pdo,"UPDATE Data SET step='NationalCode' WHERE UserId=700");updateTest(700,'0000000019');httpCheck(Database::run($pdo,'SELECT N_Code FROM Data WHERE UserId=700')->fetchColumn()===null,'stale legacy identity input discarded via HTTP');
+updateTest(700,null,'p:name:0');updateTest(700,'/cancel');updateTest(700,'Synthetic ignored after cancellation');httpCheck(Database::run($pdo,'SELECT Name FROM Data WHERE UserId=700')->fetchColumn()==='Synthetic HTTP Traveler','global cancel exits secure profile form');
 httpCheck((int)Database::run($pdo,"SELECT COUNT(*) FROM NotificationOutbox WHERE method='answerCallbackQuery'")->fetchColumn()>0,'callback acknowledgements queued');
 // The application container never calls Telegram in CI; deliver through fake transport.
 $sent=0;$firstMethod=null;(new NotificationWorker($pdo,$access))->tick(function($method)use(&$sent,&$firstMethod){$firstMethod??=$method;$sent++;return['ok'=>true,'code'=>200];},100,false);httpCheck($firstMethod==='answerCallbackQuery','callback acknowledgement dispatch priority');httpCheck($sent>0,'HTTP-created notifications dispatched via simulated transport');

@@ -11,12 +11,14 @@ final class ProductBot
     {
         $this->actor=$actor; $this->update=$update; $this->sequence=0;
         $session=$this->session();
-        if($text!==null&&preg_match('/^\/(start|help|tours|bookings|profile|admin|cancel|privacy|search)(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u',$text,$match)) {
-            $command=$match[1];
+        $legacyStep=Database::run($this->pdo,'SELECT step FROM Data WHERE UserId=?',[$actor])->fetchColumn();
+        if($text!==null&&preg_match('/^\/(start|help|tours|bookings|profile|setprofile|admin|cancel|privacy|search)(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u',$text,$match)) {
+            $command=$match[1]==='setprofile'?'profile':$match[1];
             $this->clear();
             Database::run($this->pdo,"UPDATE Data SET step='defult' WHERE UserId=?",[$actor]);
+            if(isLegacyProfileStep($legacyStep))$this->retireLegacyProfile();
             if($command==='start'||$command==='help'||$command==='cancel') {
-                $this->reply($command==='cancel'?'عملیات جاری متوقف شد.':'خوش آمدید. برای تکمیل پروفایل، نام سرپرست، شماره اشتراک‌گذاشته‌شده از حساب خودتان و کد ملی معتبر را ثبت کنید. قیمت‌ها ریال و تاریخ‌ها میلادی با ساعت تهران هستند.\nاز دکمه‌ها استفاده کنید؛ /cancel در هر مرحله عملیات را متوقف می‌کند.',$this->menu());
+                $this->reply($command==='cancel'?'عملیات جاری متوقف شد. از منوی زیر ادامه دهید.':($command==='help'?$this->helpText():"به ربات رزرو و مدیریت تور خوش آمدید! 🌍\n\nاز معرفی تور تا پیگیری رزرو، مستقیم در تلگرام.\nتورهای منتشرشده را ببینید، مقصد دلخواهتان را پیدا کنید و برای ۱ تا ۲۰ نفر درخواست رزرو ثبت کنید.\n\nاز منوی زیر شروع کنید. وضعیت درخواست‌ها در «رزروهای من» دیده می‌شود؛ ثبت درخواست به معنی تأیید نهایی نیست. /cancel فرم جاری را متوقف می‌کند."),$this->menu());
             } elseif($command==='tours') $this->listing(0);
             elseif($command==='bookings') $this->mine(0);
             elseif($command==='profile') $this->profile();
@@ -25,12 +27,13 @@ final class ProductBot
             elseif($command==='search') { $this->state('search',[]);$this->reply('عنوان یا مقصد تور را وارد کنید. برای خروج /cancel بفرستید.'); }
             return true;
         }
+        if(isLegacyProfileStep($legacyStep)){$this->retireLegacyProfile();return true;}
         if($callback!==null&&str_starts_with($callback,'p:')) {
             if(!preg_match('/^p:([a-z_]{1,24}):([0-9]{1,16})(?::([0-9]{1,16}))?(?::([0-9]{1,16}))?$/D',$callback,$parts)) throw new RuleViolation('دکمه معتبر نیست. از منوی جدید استفاده کنید.');
             $action=$parts[1];$id=(int)$parts[2];$arg=(int)($parts[3]??0);$version=(int)($parts[4]??0);
             switch($action) {
                 case 'home': $this->clear();$this->reply('انتخاب کنید:',$this->menu());break;
-                case 'help': $this->reply('راهنما: پروفایل ← ثبت نام سرپرست؛ تورها ← جزئیات ← تعداد نفرات ← تأیید درخواست.\nدرخواست منتظر بررسی ظرفیت را نگه می‌دارد. تور پولی به تأیید دستی پرداخت و سپس تأیید رزرو نیاز دارد. لغو تا پیش از شروع تور مجاز است.\n/cancel برای خروج از فرم؛ /privacy برای حریم خصوصی.',$this->menu());break;
+                case 'help': $this->reply($this->helpText(),$this->menu());break;
                 case 'profile': $this->profile();break;
                 case 'name': $this->state('name',[]);$this->reply('نام سرپرست گروه را وارد کنید (حداکثر ۵۰ حرف).');break;
                 case 'phone':
@@ -100,21 +103,29 @@ final class ProductBot
             }
             return true;
         }
-        if($text!==null && preg_match('/^\/(?:setprofile|list|send)(?:\s|$)/',$text)){$this->clear();return false;}
+        if($text!==null && preg_match('/^\/(?:list|send)(?:\s|$)/',$text)){$this->clear();return false;}
         if($session!==null&&$session['state']==='phone'&&$contact!==null){
             (new TravelerIdentity($this->pdo))->saveMobile($actor,$contact);
             $this->state('national',[]);
-            $this->outbox->enqueue($actor,'sendMessage',['text'=>'شماره حساب شما ثبت شد. اکنون کد ملی ۱۰ رقمی سرپرست را وارد کنید.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
+            $this->outbox->enqueue($actor,'sendMessage',['text'=>'شماره همراه شما به‌صورت رمزگذاری‌شده ثبت شد. اکنون کد ملی ۱۰ رقمی سرپرست را وارد کنید؛ فقط ساختار و رقم کنترل بررسی می‌شود.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
             return true;
         }
         if($session!==null&&$session['state']!=='filter'&&$text!==null&&!str_starts_with($text,'/')) {
             $this->input($session['state'],json_decode($session['payload'],true,512,JSON_THROW_ON_ERROR),trim($text));return true;
         }
         // Keep the established profile/catalogue/approval commands available.
-        if($callback!==null||($text!==null&&(preg_match('/^(?:\/(?:list|setprofile|send)|Topics|ping|usage)(?:\s|$)/',$text)||preg_match('/^[\/#!]?(?:AddTopic) /i',$text)))) return false;
-        $legacyStep=Database::run($this->pdo,'SELECT step FROM Data WHERE UserId=?',[$actor])->fetchColumn();
+        if($callback!==null||($text!==null&&(preg_match('/^(?:\/(?:list|send)|Topics|ping|usage)(?:\s|$)/',$text)||preg_match('/^[\/#!]?(?:AddTopic) /i',$text)))) return false;
         if($legacyStep&&$legacyStep!=='defult')return false;
         $this->reply('پیام را متوجه نشدم. از دکمه‌ها استفاده کنید یا /help بفرستید.',$this->menu());return true;
+    }
+
+    private function retireLegacyProfile():void {
+        $this->clear();
+        Database::run($this->pdo,"UPDATE Data SET step='defult' WHERE UserId=?",[$this->actor]);
+        $this->outbox->enqueue($this->actor,'sendMessage',['text'=>'فرم قدیمی پروفایل بسته شد؛ اطلاعات این پیام ذخیره نشد. برای ثبت امن اطلاعات، /profile را بفرستید.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
+    }
+    private function helpText():string {
+        return "راهنما\n۱. از «پروفایل» نام سرپرست را ثبت کنید. برگزارکننده می‌تواند تکمیل شماره و کد ملی را الزامی کند.\n۲. از «تورها» یا «جست‌وجوی تور»، جزئیات و ظرفیت را ببینید و برای ۱ تا ۲۰ نفر درخواست بدهید.\n۳. در «رزروهای من»، وضعیت را پیگیری کنید یا پیش از شروع تور لغو کنید.\n\nثبت درخواست به معنی تأیید رزرو نیست. پرداخت پولی به بررسی دستی برگزارکننده نیاز دارد؛ پرداخت آنلاین و صدور بلیت خودکار نداریم.\nقیمت‌ها ریال و تاریخ‌ها میلادی‌اند. منطقه زمانی نمایش: {$this->timezone}.\n/cancel توقف فرم جاری؛ /privacy حریم خصوصی و حذف حساب.";
     }
 
     private function contactPrompt():void {
@@ -125,7 +136,7 @@ final class ProductBot
         $this->outbox->message($this->actor,str_replace('\\n',"\n",$text),"update:{$this->update}:reply:".($this->sequence++),$buttons,$subject,$permissions);
     }
     private function menu():array {
-        $buttons=[[['text'=>'تور‌ها','callback_data'=>'p:tours:0'],['text'=>'دسته‌ها','callback_data'=>'p:cats:0']],[['text'=>'جست‌وجوی تور','callback_data'=>'p:search:0'],['text'=>'رزروهای من','callback_data'=>'p:mine:0']],[['text'=>'پروفایل','callback_data'=>'p:profile:0'],['text'=>'راهنما','callback_data'=>'p:help:0']]];
+        $buttons=[[['text'=>'تورها','callback_data'=>'p:tours:0'],['text'=>'دسته‌ها','callback_data'=>'p:cats:0']],[['text'=>'جست‌وجوی تور','callback_data'=>'p:search:0'],['text'=>'رزروهای من','callback_data'=>'p:mine:0']],[['text'=>'پروفایل','callback_data'=>'p:profile:0'],['text'=>'راهنما','callback_data'=>'p:help:0']]];
         if($this->access->role($this->actor)!==null)$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];
         return $buttons;
     }

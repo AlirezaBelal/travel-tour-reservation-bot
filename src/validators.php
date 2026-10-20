@@ -89,3 +89,9 @@ function normalizeIranianMobile(string $phone): string
     }
     return '+98' . substr($digits, -10);
 }
+
+/** Old Data.step values are routing markers, never authorization to collect PII. */
+function isLegacyProfileStep(mixed $step): bool
+{
+    return is_string($step) && in_array($step, ['name', 'contact', 'NationalCode', 'sex', 'birthday'], true);
+}
