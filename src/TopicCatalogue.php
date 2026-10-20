@@ -11,7 +11,8 @@ final class TopicCatalogue
         if (trim($name) === '' || strlen($name) > 300 || $parentId < 0) {
             throw new InvalidArgumentException('Invalid topic.');
         }
-        $this->pdo->beginTransaction();
+        $ownTransaction = !$this->pdo->inTransaction();
+        if ($ownTransaction) $this->pdo->beginTransaction();
         try {
             if ($parentId !== 0) {
                 $parent = $this->pdo->prepare('SELECT id FROM Topics WHERE id = ? FOR UPDATE');
@@ -23,10 +24,10 @@ final class TopicCatalogue
             $insert = $this->pdo->prepare('INSERT INTO Topics (Name, `Groups`) VALUES (?, ?)');
             $insert->execute([trim($name), $parentId]);
             $id = (int)$this->pdo->lastInsertId();
-            $this->pdo->commit();
+            if ($ownTransaction) $this->pdo->commit();
             return $id;
         } catch (Throwable $error) {
-            if ($this->pdo->inTransaction()) {
+            if ($ownTransaction && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $error;
@@ -36,7 +37,8 @@ final class TopicCatalogue
     /** Deletes arbitrary-depth descendants atomically; never executes ALTER TABLE. */
     public function deleteTree(int $topicId): int
     {
-        $this->pdo->beginTransaction();
+        $ownTransaction = !$this->pdo->inTransaction();
+        if ($ownTransaction) $this->pdo->beginTransaction();
         try {
             $topics = $this->pdo->query('SELECT id, `Groups` FROM Topics ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC);
             $children = [];
@@ -61,10 +63,10 @@ final class TopicCatalogue
             foreach (array_keys($visited) as $id) {
                 $delete->execute([$id]);
             }
-            $this->pdo->commit();
+            if ($ownTransaction) $this->pdo->commit();
             return count($visited);
         } catch (Throwable $error) {
-            if ($this->pdo->inTransaction()) {
+            if ($ownTransaction && $this->pdo->inTransaction()) {
                 $this->pdo->rollBack();
             }
             throw $error;

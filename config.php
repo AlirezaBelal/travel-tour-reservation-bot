@@ -11,6 +11,7 @@ require_once __DIR__ . '/src/webhook.php';
 require_once __DIR__ . '/src/TopicMemberships.php';
 require_once __DIR__ . '/src/TopicCatalogue.php';
 require_once __DIR__ . '/src/profiles.php';
+require_once __DIR__ . '/src/product_bootstrap.php';
 
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->safeLoad();
@@ -55,33 +56,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
 
 function bot(string $method, array $data = []): array|false
 {
-    $curl = curl_init();
-    curl_setopt_array($curl, [
-        CURLOPT_URL => 'https://api.telegram.org/bot' . TOKEN . '/' . $method,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $data,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_CONNECTTIMEOUT => 5,
-        CURLOPT_TIMEOUT => 15,
-    ]);
-
-    $result = curl_exec($curl);
-    $statusCode = (int)curl_getinfo($curl, CURLINFO_HTTP_CODE);
-    $failed = $result === false;
-    curl_close($curl);
-
-    if ($failed || $statusCode < 200 || $statusCode >= 300) {
-        error_log('Telegram API request failed for method ' . $method . '.');
-        return false;
-    }
-
-    $decoded = json_decode((string)$result, true);
-    if (!is_array($decoded) || ($decoded['ok'] ?? false) !== true) {
-        error_log('Telegram API returned an unsuccessful response for method ' . $method . '.');
-        return false;
-    }
-
-    return $decoded;
+    global $outbox, $update, $fromId;
+    static $sequence = 0;
+    $chat = (int)($data['chat_id'] ?? $fromId);
+    $outbox->enqueue($chat, $method, $data, 'legacy:' . $update['update_id'] . ':' . $sequence++);
+    return ['ok' => true, 'queued' => true];
 }
 
 function sendMessage(int|string $chatId, string $text): array|false
@@ -204,6 +183,13 @@ $db = new Medoo([
     'username' => requiredEnv('DB_USERNAME'),
     'password' => requiredEnv('DB_PASSWORD'),
 ]);
+
+Database::configure($db->pdo);
+$outbox = new Outbox($db->pdo);
+$access = new AccessControl($db->pdo, ADMINS);
+$bookings = new BookingService($db->pdo, $access, $outbox);
+$productBot = new ProductBot($db->pdo, $bookings, $access, $outbox, environmentValue('APP_TIMEZONE','Asia/Tehran'));
+$processor = new WebhookProcessor($db->pdo, $bookings, $productBot, $outbox);
 
 $memberships = new TopicMemberships($db->pdo);
 $catalogue = new TopicCatalogue($db->pdo);

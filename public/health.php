@@ -16,7 +16,7 @@ try {
     }
     $pdo = new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4", getenv('DB_USERNAME'), getenv('DB_PASSWORD'), [PDO::ATTR_TIMEOUT => 2, PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
     $query = $pdo->prepare('SELECT version FROM SchemaMigrations WHERE version = ?');
-    $query->execute(['001_topic_memberships']);
+    $query->execute(['002_product']);
     if ($query->fetchColumn() === false) {
         throw new RuntimeException('Migration required.');
     }

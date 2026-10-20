@@ -31,5 +31,16 @@ services:
       interval: 10s
       timeout: 5s
       retries: 6
+  worker:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_SERVER: db
+      DB_PORT: 3306
+    command: [php, bin/worker.php]
+    depends_on:
+      app:
+        condition: service_healthy
 volumes:
   database:

@@ -6,7 +6,7 @@ final class BookingService
 
     public function ensureUser(int $id): void
     {
-        Database::run($this->pdo, "INSERT INTO Data(UserId,step) VALUES (?,'defult') ON DUPLICATE KEY UPDATE UserId=UserId", [$id]);
+        Database::run($this->pdo, "INSERT INTO Data(UserId,step) VALUES (?,'defult') ON DUPLICATE KEY UPDATE updated_at=UTC_TIMESTAMP()", [$id]);
     }
 
     public function used(int $tour): int
@@ -49,6 +49,9 @@ final class BookingService
             throw new RuleViolation('قیمت، ظرفیت، تاریخ یا وضعیت تور معتبر نیست.');
         }
         return Database::atomic($this->pdo, function () use ($actor, $values, $id, $fields) {
+            if ($values['category_id'] !== null && !Database::run($this->pdo, 'SELECT id FROM Topics WHERE id=? FOR UPDATE', [$values['category_id']])->fetchColumn()) {
+                throw new RuleViolation('دسته انتخاب‌شده وجود ندارد.');
+            }
             if ($id !== null) {
                 $previous = $this->tour($id, true);
                 if ($values['capacity'] < $this->used($id)) {
@@ -68,10 +71,11 @@ final class BookingService
         });
     }
 
-    public function reserve(int $actor, int $tourId, int $quantity, string $requestKey): int
+    public function reserve(int $actor, int $tourId, int $quantity, string $requestKey, ?int $expectedVersion = null): int
     {
         BookingRules::quantity($quantity);
-        return Database::atomic($this->pdo, function () use ($actor, $tourId, $quantity, $requestKey) {
+        return Database::atomic($this->pdo, function () use ($actor, $tourId, $quantity, $requestKey, $expectedVersion) {
+            Database::run($this->pdo, 'SELECT UserId FROM Data WHERE UserId=? FOR UPDATE', [$actor]);
             // Every capacity-changing operation takes the tour lock first.
             $tour = $this->tour($tourId, true);
             $existing = Database::run($this->pdo, 'SELECT * FROM Bookings WHERE user_id=? AND tour_id=? FOR UPDATE', [$actor,$tourId])->fetch(PDO::FETCH_ASSOC);
@@ -80,6 +84,9 @@ final class BookingService
                     throw new RuleViolation('برای این تور قبلاً درخواست ثبت کرده‌اید. از «رزروهای من» پیگیری کنید.');
                 }
                 return (int)$existing['id'];
+            }
+            if ($expectedVersion !== null && (int)$tour['version'] !== $expectedVersion) {
+                throw new RuleViolation('مشخصات تور تغییر کرده است؛ جزئیات جدید را ببینید و دوباره تأیید کنید.');
             }
             $name = Database::run($this->pdo, 'SELECT Name FROM Data WHERE UserId=?', [$actor])->fetchColumn();
             if (!is_string($name) || trim($name) === '') {
@@ -126,7 +133,7 @@ final class BookingService
         } elseif ($status !== 'cancelled') {
             throw new RuleViolation('اجازه تغییر این وضعیت را ندارید.');
         }
-        if ($reason !== null && strlen($reason) > 1000) {
+        if ($reason !== null && strlen($reason) > 500) {
             throw new RuleViolation('دلیل را کوتاه‌تر وارد کنید.');
         }
         return Database::atomic($this->pdo, function () use ($actor, $id, $status, $reason, $admin) {
@@ -196,7 +203,7 @@ final class BookingService
                 throw new RuleViolation('پرداخت رزرو بسته‌شده قابل تأیید نیست.');
             }
             try {
-                Database::run($this->pdo, "UPDATE Payments SET status='paid',method='manual',provider_tx=? WHERE booking_id=?", ['manual:' . $reference,$id]);
+                Database::run($this->pdo, "UPDATE Payments SET status='paid',method='manual',provider_tx=? WHERE booking_id=?", ['manual:' . hash('sha256', $reference),$id]);
             } catch (PDOException $error) {
                 if (($error->errorInfo[1] ?? null) === 1062) {
                     throw new RuleViolation('این شناسه پرداخت قبلاً استفاده شده است.');

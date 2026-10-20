@@ -14,16 +14,20 @@ final class Database
         if ($pdo->inTransaction()) {
             return $action();
         }
-        $pdo->beginTransaction();
-        try {
-            $result = $action();
-            $pdo->commit();
-            return $result;
-        } catch (Throwable $error) {
-            if ($pdo->inTransaction()) {
-                $pdo->rollBack();
+        for ($attempt = 0; ; $attempt++) {
+            $pdo->beginTransaction();
+            try {
+                $result = $action();
+                $pdo->commit();
+                return $result;
+            } catch (Throwable $error) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                if ($error instanceof PDOException && in_array((int)($error->errorInfo[1] ?? 0), [1205,1213], true) && $attempt < 4) {
+                    usleep(random_int(10000,50000));
+                    continue;
+                }
+                throw $error;
             }
-            throw $error;
         }
     }
 

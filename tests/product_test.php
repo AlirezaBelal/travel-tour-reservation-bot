@@ -11,11 +11,11 @@ $service = new BookingService($pdo,$access,$outbox);
 if (($argv[1]??'')==='worker') {
     try {
         // Deliberately establish an old snapshot before competing for the tour lock.
-        $pdo->beginTransaction();
-        $pdo->query('SELECT COUNT(*) FROM Bookings')->fetchColumn();
-        usleep(50000);
-        $service->reserve((int)$argv[2],(int)$argv[3],1,'concurrency');
-        $pdo->commit();
+        Database::atomic($pdo,function()use($pdo,$service,$argv){
+            $pdo->query('SELECT COUNT(*) FROM Bookings')->fetchColumn();
+            usleep(50000);
+            $service->reserve((int)$argv[2],(int)$argv[3],1,'concurrency');
+        });
         echo 'created';
     } catch (RuleViolation) { if($pdo->inTransaction())$pdo->rollBack(); echo 'full'; }
     exit;
@@ -72,7 +72,7 @@ $race=$service->saveTour(999,$values);
 $workers=[];
 for($i=310;$i<318;$i++){ $pipes=[]; $process=proc_open([PHP_BINARY,__FILE__,'worker',(string)$i,(string)$race],[1=>['pipe','w'],2=>['pipe','w']],$pipes); $workers[]=[$process,$pipes]; }
 $winners=0;
-foreach($workers as [$process,$pipes]) { $output=stream_get_contents($pipes[1]);$errors=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);productCheck(proc_close($process)===0&&$errors==='','concurrency worker');$winners+=$output==='created'?1:0; }
+foreach($workers as [$process,$pipes]) { $output=stream_get_contents($pipes[1]);$errors=stream_get_contents($pipes[2]);fclose($pipes[1]);fclose($pipes[2]);productCheck(proc_close($process)===0&&$errors==='','concurrency worker: '.$errors);$winners+=$output==='created'?1:0; }
 productCheck($winners===3&&$service->used($race)===3,'no overbooking across eight processes');
 productCheck((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE status='pending'")->fetchColumn()>0,'durable queued notifications');
 fwrite(STDOUT,"Product integration tests passed ($checks checks).\n");
