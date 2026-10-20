@@ -7,7 +7,7 @@ final class ProductBot
     private int $update=0;
     public function __construct(private PDO $pdo,private BookingService $bookings,private AccessControl $access,private Outbox $outbox,private string $timezone='Asia/Tehran') {}
 
-    public function dispatch(int $actor,?string $text,?string $callback,int $update):bool
+    public function dispatch(int $actor,?string $text,?string $callback,int $update,?array $contact=null):bool
     {
         $this->actor=$actor; $this->update=$update; $this->sequence=0;
         $session=$this->session();
@@ -16,7 +16,7 @@ final class ProductBot
             $this->clear();
             Database::run($this->pdo,"UPDATE Data SET step='defult' WHERE UserId=?",[$actor]);
             if($command==='start'||$command==='help'||$command==='cancel') {
-                $this->reply($command==='cancel'?'عملیات جاری متوقف شد.':'خوش آمدید. برای رزرو فقط نام سرپرست گروه لازم است. قیمت‌ها ریال و تاریخ‌ها میلادی با ساعت تهران هستند.\nاز دکمه‌ها استفاده کنید؛ /cancel در هر مرحله عملیات را متوقف می‌کند.',$this->menu());
+                $this->reply($command==='cancel'?'عملیات جاری متوقف شد.':'خوش آمدید. برای تکمیل پروفایل، نام سرپرست، شماره اشتراک‌گذاشته‌شده از حساب خودتان و کد ملی معتبر را ثبت کنید. قیمت‌ها ریال و تاریخ‌ها میلادی با ساعت تهران هستند.\nاز دکمه‌ها استفاده کنید؛ /cancel در هر مرحله عملیات را متوقف می‌کند.',$this->menu());
             } elseif($command==='tours') $this->listing(0);
             elseif($command==='bookings') $this->mine(0);
             elseif($command==='profile') $this->profile();
@@ -32,7 +32,14 @@ final class ProductBot
                 case 'home': $this->clear();$this->reply('انتخاب کنید:',$this->menu());break;
                 case 'help': $this->reply('راهنما: پروفایل ← ثبت نام سرپرست؛ تورها ← جزئیات ← تعداد نفرات ← تأیید درخواست.\nدرخواست منتظر بررسی ظرفیت را نگه می‌دارد. تور پولی به تأیید دستی پرداخت و سپس تأیید رزرو نیاز دارد. لغو تا پیش از شروع تور مجاز است.\n/cancel برای خروج از فرم؛ /privacy برای حریم خصوصی.',$this->menu());break;
                 case 'profile': $this->profile();break;
-                case 'name': $this->state('name',[]);$this->reply('نام سرپرست گروه را وارد کنید (حداکثر ۵۰ حرف). شماره تماس و کد ملی برای رزرو لازم نیست.');break;
+                case 'name': $this->state('name',[]);$this->reply('نام سرپرست گروه را وارد کنید (حداکثر ۵۰ حرف).');break;
+                case 'phone':
+                    $name=Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$actor])->fetchColumn();
+                    if(!is_string($name)||trim($name)==='')throw new RuleViolation('ابتدا نام سرپرست را در پروفایل ثبت کنید.');
+                    $this->state('phone',[]);$this->contactPrompt();break;
+                case 'national':
+                    if(!(new TravelerIdentity($this->pdo))->status($actor)['mobile'])throw new RuleViolation('ابتدا شماره خود را با دکمه اشتراک مخاطب تلگرام ثبت کنید.');
+                    $this->state('national',[]);$this->reply('کد ملی ۱۰ رقمی سرپرست را وارد کنید. کد ملی فقط برای هماهنگی هویت ذخیره می‌شود و در پیام‌ها یا خروجی عمومی نمایش داده نمی‌شود.');break;
                 case 'privacy': $this->privacy();break;
                 case 'erase': $this->state('erase_confirm',[]);$this->reply('حذف حساب، نام و پروفایل قدیمی و اطلاعات همراهان را پاک و رزروهای بسته‌شده را بی‌نام می‌کند. ابتدا تمام رزروهای فعال را لغو کنید. شمارنده امنیتی موقت تا ۲۴ ساعت باقی می‌ماند؛ پشتیبان‌ها و پیام‌های قبلی تلگرام تابع سیاست جداگانه‌اند. تأیید می‌کنید؟',[[['text'=>'بله، حذف حساب','callback_data'=>'p:erase_yes:0']],[['text'=>'انصراف','callback_data'=>'p:home:0']]]);break;
                 case 'erase_yes': $this->requireSession('erase_confirm');(new PrivacyService($this->pdo))->erase($actor);$this->reply('حساب و اطلاعات قابل حذف پاک شد. با /start می‌توانید دوباره شروع کنید.');break;
@@ -94,6 +101,12 @@ final class ProductBot
             return true;
         }
         if($text!==null && preg_match('/^\/(?:setprofile|list|send)(?:\s|$)/',$text)){$this->clear();return false;}
+        if($session!==null&&$session['state']==='phone'&&$contact!==null){
+            (new TravelerIdentity($this->pdo))->saveMobile($actor,$contact);
+            $this->state('national',[]);
+            $this->outbox->enqueue($actor,'sendMessage',['text'=>'شماره حساب شما ثبت شد. اکنون کد ملی ۱۰ رقمی سرپرست را وارد کنید.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
+            return true;
+        }
         if($session!==null&&$session['state']!=='filter'&&$text!==null&&!str_starts_with($text,'/')) {
             $this->input($session['state'],json_decode($session['payload'],true,512,JSON_THROW_ON_ERROR),trim($text));return true;
         }
@@ -104,6 +117,10 @@ final class ProductBot
         $this->reply('پیام را متوجه نشدم. از دکمه‌ها استفاده کنید یا /help بفرستید.',$this->menu());return true;
     }
 
+    private function contactPrompt():void {
+        $markup=['keyboard'=>[[['text'=>'اشتراک شماره خودم','request_contact'=>true]]],'resize_keyboard'=>true,'one_time_keyboard'=>true,'selective'=>true];
+        $this->outbox->enqueue($this->actor,'sendMessage',['text'=>'برای ثبت شماره فقط دکمه زیر را بزنید؛ شماره تایپی یا کارت مخاطب دیگران پذیرفته نمی‌شود. از اطلاعات فقط برای هماهنگی رزرو استفاده می‌شود.','reply_markup'=>json_encode($markup,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)],"update:{$this->update}:reply:".($this->sequence++));
+    }
     private function reply(string $text,array $buttons=[],?int $subject=null,array $permissions=[]):void {
         $this->outbox->message($this->actor,str_replace('\\n',"\n",$text),"update:{$this->update}:reply:".($this->sequence++),$buttons,$subject,$permissions);
     }
@@ -273,9 +290,14 @@ final class ProductBot
         $this->access->audit($this->actor,'notification.broadcast','tour',$tour);$this->reply("برای $count حساب در صف قرار گرفت؛ نتیجه ارسال را از وضعیت اعلان‌ها پیگیری کنید.");
     }
     private function input(string $state,array $payload,string $text):void {
+        if($state==='phone')throw new RuleViolation('برای امنیت فقط دکمه «اشتراک شماره خودم» را بزنید. شماره تایپی پذیرفته نمی‌شود.');
+        if($state==='national'){
+            (new TravelerIdentity($this->pdo))->saveNational($this->actor,$text);
+            $this->clear();$this->reply('کد ملی به‌صورت رمزگذاری‌شده ثبت شد. پروفایل شما تکمیل است.',$this->menu());return;
+        }
         if($state==='name'){
             if($text===''||strlen($text)>150)throw new RuleViolation('نام باید کوتاه و غیرخالی باشد.');
-            Database::run($this->pdo,"UPDATE Data SET Name=?,profile='true' WHERE UserId=?",[$text,$this->actor]);$this->clear();$this->reply('نام ذخیره شد. اکنون می‌توانید تور انتخاب کنید.',$this->menu());return;
+            Database::run($this->pdo,"UPDATE Data SET Name=?,profile='true' WHERE UserId=?",[$text,$this->actor]);$this->state('phone',[]);$this->contactPrompt();return;
         }
         if($state==='support_message'||$state==='admin_message'){
             if($text===''||strlen($text)>2000)throw new RuleViolation('پیام را کوتاه‌تر وارد کنید.');
