@@ -7,17 +7,18 @@ final class ProductBot
     private BookingReportService $reports;
     private BotSessionStore $sessions;
     public function __construct(
-    private PDO $pdo,
-    private BookingService $bookings,
-    private AccessControl $access,
-    private Outbox $outbox,
-    private string $timezone = 'Asia/Tehran',
-    ?BookingReportService $reports = null,
-    ?BotSessionStore $sessions = null
+        private PDO $pdo,
+        private BookingService $bookings,
+        private AccessControl $access,
+        private Outbox $outbox,
+        private string $timezone = 'Asia/Tehran',
+        ?BookingReportService $reports = null,
+        ?BotSessionStore $sessions = null
     ) {
         $this->reports = $reports ?? new BookingReportService($pdo, $bookings, $access);
         $this->sessions = $sessions ?? new BotSessionStore($pdo);
     }
+
     public function dispatch(int $actor,?string $text,?string $callback,int $update,?array $contact=null):bool
     {
         $this->actor=$actor;
@@ -51,6 +52,7 @@ final class ProductBot
         $this->reply('پیام را متوجه نشدم. از دکمه‌ها استفاده کنید یا /help بفرستید.',$this->menu());
         return true;
     }
+
     /** Slash commands take priority over any persisted form state. */
     private function dispatchCommand(int $actor, ?string $text, mixed $legacyStep): bool
     {
@@ -75,6 +77,7 @@ final class ProductBot
         }
         return false;
     }
+
     /** Product callbacks remain separate from the legacy compatibility handler. */
     private function dispatchProductCallback(int $actor, ?string $callback, int $update): bool
     {
@@ -85,250 +88,311 @@ final class ProductBot
             $arg=(int)($parts[3]??0);
             $version=(int)($parts[4]??0);
             switch($action) {
-                case 'home': $this->clear();
-                $this->reply('انتخاب کنید:',$this->menu());
-                break;
-                case 'help': $this->reply($this->helpText(),$this->menu());
-                break;
-                case 'profile': $this->profile();
-                break;
-                case 'name': $this->state('name',[]);
-                $this->reply('نام سرپرست گروه را وارد کنید (حداکثر ۵۰ حرف).');
-                break;
+                case 'home':
+                    $this->clear();
+                    $this->reply('انتخاب کنید:',$this->menu());
+                    break;
+                case 'help':
+                    $this->reply($this->helpText(),$this->menu());
+                    break;
+                case 'profile':
+                    $this->profile();
+                    break;
+                case 'name':
+                    $this->state('name',[]);
+                    $this->reply('نام سرپرست گروه را وارد کنید (حداکثر ۵۰ حرف).');
+                    break;
                 case 'phone':
-                $name=Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$actor])->fetchColumn();
-                if(!is_string($name)||trim($name)==='')throw new RuleViolation('ابتدا نام سرپرست را در پروفایل ثبت کنید.');
-                $this->state('phone',[]);
-                $this->contactPrompt();
-                break;
+                    $name=Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$actor])->fetchColumn();
+                    if(!is_string($name)||trim($name)==='')throw new RuleViolation('ابتدا نام سرپرست را در پروفایل ثبت کنید.');
+                    $this->state('phone',[]);
+                    $this->contactPrompt();
+                    break;
                 case 'national':
-                if(!(new TravelerIdentity($this->pdo))->status($actor)['mobile'])throw new RuleViolation('ابتدا شماره خود را با دکمه اشتراک مخاطب تلگرام ثبت کنید.');
-                $this->state('national',[]);
-                $this->reply('کد ملی ۱۰ رقمی سرپرست را وارد کنید. کد ملی فقط برای هماهنگی هویت ذخیره می‌شود و در پیام‌ها یا خروجی عمومی نمایش داده نمی‌شود.');
-                break;
-                case 'privacy': $this->privacy();
-                break;
-                case 'erase': $this->state('erase_confirm',[]);
-                $this->reply('حذف حساب، نام و پروفایل قدیمی و اطلاعات همراهان را پاک و رزروهای بسته‌شده را بی‌نام می‌کند. ابتدا تمام رزروهای فعال را لغو کنید. شمارنده امنیتی موقت تا ۲۴ ساعت باقی می‌ماند؛ پشتیبان‌ها و پیام‌های قبلی تلگرام تابع سیاست جداگانه‌اند. تأیید می‌کنید؟',[[['text'=>'بله، حذف حساب','callback_data'=>'p:erase_yes:0']],[['text'=>'انصراف','callback_data'=>'p:home:0']]]);
-                break;
-                case 'erase_yes': $this->requireSession('erase_confirm');
-                (new PrivacyService($this->pdo))->erase($actor);
-                $this->reply('حساب و اطلاعات قابل حذف پاک شد. با /start می‌توانید دوباره شروع کنید.');
-                break;
-                case 'tours': $this->listing($id);
-                break;
-                case 'search': $this->state('search',[]);
-                $this->reply('عنوان یا مقصد را وارد کنید:');
-                break;
-                case 'cats': $this->categories($id,$arg);
-                break;
-                case 'cat_tours': $this->listing($arg,$id);
-                break;
-                case 'tour': $this->showTour($id);
-                break;
-                case 'reserve': $this->showTour($id);
-                $this->state('quantity',['tour'=>$id]);
-                $this->reply('چند نفر هستید؟ عددی بین ۱ تا ۲۰ وارد کنید. ظرفیت شامل سرپرست و همراهان است.');
-                break;
+                    if(!(new TravelerIdentity($this->pdo))->status($actor)['mobile'])throw new RuleViolation('ابتدا شماره خود را با دکمه اشتراک مخاطب تلگرام ثبت کنید.');
+                    $this->state('national',[]);
+                    $this->reply('کد ملی ۱۰ رقمی سرپرست را وارد کنید. کد ملی فقط برای هماهنگی هویت ذخیره می‌شود و در پیام‌ها یا خروجی عمومی نمایش داده نمی‌شود.');
+                    break;
+                case 'privacy':
+                    $this->privacy();
+                    break;
+                case 'erase':
+                    $this->state('erase_confirm',[]);
+                    $this->reply('حذف حساب، نام و پروفایل قدیمی و اطلاعات همراهان را پاک و رزروهای بسته‌شده را بی‌نام می‌کند. ابتدا تمام رزروهای فعال را لغو کنید. شمارنده امنیتی موقت تا ۲۴ ساعت باقی می‌ماند؛ پشتیبان‌ها و پیام‌های قبلی تلگرام تابع سیاست جداگانه‌اند. تأیید می‌کنید؟',[[['text'=>'بله، حذف حساب','callback_data'=>'p:erase_yes:0']],[['text'=>'انصراف','callback_data'=>'p:home:0']]]);
+                    break;
+                case 'erase_yes':
+                    $this->requireSession('erase_confirm');
+                    (new PrivacyService($this->pdo))->erase($actor);
+                    $this->reply('حساب و اطلاعات قابل حذف پاک شد. با /start می‌توانید دوباره شروع کنید.');
+                    break;
+                case 'tours':
+                    $this->listing($id);
+                    break;
+                case 'search':
+                    $this->state('search',[]);
+                    $this->reply('عنوان یا مقصد را وارد کنید:');
+                    break;
+                case 'cats':
+                    $this->categories($id,$arg);
+                    break;
+                case 'cat_tours':
+                    $this->listing($arg,$id);
+                    break;
+                case 'tour':
+                    $this->showTour($id);
+                    break;
+                case 'reserve':
+                    $this->showTour($id);
+                    $this->state('quantity',['tour'=>$id]);
+                    $this->reply('چند نفر هستید؟ عددی بین ۱ تا ۲۰ وارد کنید. ظرفیت شامل سرپرست و همراهان است.');
+                    break;
                 case 'reserve_yes':
-                $booking=$this->bookings->reserve($actor,$id,$arg,"update:$update",$version);
-                $this->clear();
-                $this->showBooking($booking);
-                break;
-                case 'mine': $this->mine($id);
-                break;
-                case 'booking': $this->showBooking($id);
-                break;
-                case 'history': $this->history($id,false);
-                break;
-                case 'contact': $this->bookings->booking($actor,$id);
-                $this->state('support_message',['booking'=>$id]);
-                $this->reply('پیام مربوط به این رزرو را برای مدیریت بنویسید. رمز، اطلاعات کارت یا کد ملی نفرستید. /cancel برای انصراف.');
-                break;
-                case 'message': $this->access->require($actor,'notify');
-                $this->bookings->booking($actor,$id,true);
-                $this->state('admin_message',['booking'=>$id]);
-                $this->reply('متن راهنمایی یا پاسخ به سرپرست این رزرو را بنویسید. پیام از طریق همین ربات ارسال می‌شود. /cancel برای انصراف.');
-                break;
-                case 'cancel_booking': $this->bookings->booking($actor,$id);
-                $this->state('cancel_confirm',['booking'=>$id]);
-                $this->reply('لغو رزرو باعث آزادشدن ظرفیت می‌شود. استرداد وجه خودکار نیست و باید با مدیر هماهنگ شود. لغو می‌کنید؟',[[['text'=>'تأیید لغو','callback_data'=>"p:cancel_yes:$id"]],[['text'=>'بازگشت','callback_data'=>"p:booking:$id"]]]);
-                break;
-                case 'cancel_yes': $confirmation=$this->requireSession('cancel_confirm');
-                if((int)$confirmation['booking']!==$id)throw new RuleViolation('تأیید لغو معتبر نیست.');
-                $this->clear();
-                $this->bookings->transition($actor,$id,'cancelled');
-                $this->showBooking($id);
-                break;
-                case 'admin': $this->admin();
-                break;
-                case 'manage_tours': $this->listing($id,null,true);
-                break;
-                case 'new': $this->access->require($actor,'tours');
-                $this->state('tour_title',['publication'=>'draft']);
-                $this->reply('عنوان تور جدید را وارد کنید:');
-                break;
-                case 'edit': $this->access->require($actor,'tours');
-                $editTour=$this->bookings->tour($id);
-                $this->state('tour_title',['id'=>$id,'publication'=>$editTour['publication'],'expected_version'=>(int)$editTour['version']]);
-                $this->reply('ویرایش کامل تور: عنوان جدید را وارد کنید. قیمت رزروهای قبلی ثابت می‌ماند. /cancel برای انصراف.');
-                break;
-                case 'publish': case 'inactive':
-                $this->bookings->publication($actor,$id,$action==='publish'?'published':'inactive');
-                $this->showTour($id);
-                break;
-                case 'archive': $this->access->require($actor,'tours');
-                $this->state('archive_confirm',['tour'=>$id]);
-                $this->reply('تور از دسترس ثبت درخواست خارج و سوابق رزرو حفظ می‌شود. رزروهای فعال خودکار لغو نمی‌شوند. تأیید می‌کنید؟',[[['text'=>'تأیید بایگانی','callback_data'=>"p:archive_yes:$id"]],[['text'=>'انصراف','callback_data'=>"p:tour:$id"]]]);
-                break;
+                    $booking=$this->bookings->reserve($actor,$id,$arg,"update:$update",$version);
+                    $this->clear();
+                    $this->showBooking($booking);
+                    break;
+                case 'mine':
+                    $this->mine($id);
+                    break;
+                case 'booking':
+                    $this->showBooking($id);
+                    break;
+                case 'history':
+                    $this->history($id,false);
+                    break;
+                case 'contact':
+                    $this->bookings->booking($actor,$id);
+                    $this->state('support_message',['booking'=>$id]);
+                    $this->reply('پیام مربوط به این رزرو را برای مدیریت بنویسید. رمز، اطلاعات کارت یا کد ملی نفرستید. /cancel برای انصراف.');
+                    break;
+                case 'message':
+                    $this->access->require($actor,'notify');
+                    $this->bookings->booking($actor,$id,true);
+                    $this->state('admin_message',['booking'=>$id]);
+                    $this->reply('متن راهنمایی یا پاسخ به سرپرست این رزرو را بنویسید. پیام از طریق همین ربات ارسال می‌شود. /cancel برای انصراف.');
+                    break;
+                case 'cancel_booking':
+                    $this->bookings->booking($actor,$id);
+                    $this->state('cancel_confirm',['booking'=>$id]);
+                    $this->reply('لغو رزرو باعث آزادشدن ظرفیت می‌شود. استرداد وجه خودکار نیست و باید با مدیر هماهنگ شود. لغو می‌کنید؟',[[['text'=>'تأیید لغو','callback_data'=>"p:cancel_yes:$id"]],[['text'=>'بازگشت','callback_data'=>"p:booking:$id"]]]);
+                    break;
+                case 'cancel_yes':
+                    $confirmation=$this->requireSession('cancel_confirm');
+                    if((int)$confirmation['booking']!==$id)throw new RuleViolation('تأیید لغو معتبر نیست.');
+                    $this->clear();
+                    $this->bookings->transition($actor,$id,'cancelled');
+                    $this->showBooking($id);
+                    break;
+                case 'admin':
+                    $this->admin();
+                    break;
+                case 'manage_tours':
+                    $this->listing($id,null,true);
+                    break;
+                case 'new':
+                    $this->access->require($actor,'tours');
+                    $this->state('tour_title',['publication'=>'draft']);
+                    $this->reply('عنوان تور جدید را وارد کنید:');
+                    break;
+                case 'edit':
+                    $this->access->require($actor,'tours');
+                    $editTour=$this->bookings->tour($id);
+                    $this->state('tour_title',['id'=>$id,'publication'=>$editTour['publication'],'expected_version'=>(int)$editTour['version']]);
+                    $this->reply('ویرایش کامل تور: عنوان جدید را وارد کنید. قیمت رزروهای قبلی ثابت می‌ماند. /cancel برای انصراف.');
+                    break;
+                case 'publish':
+                    case 'inactive':
+                    $this->bookings->publication($actor,$id,$action==='publish'?'published':'inactive');
+                    $this->showTour($id);
+                    break;
+                case 'archive':
+                    $this->access->require($actor,'tours');
+                    $this->state('archive_confirm',['tour'=>$id]);
+                    $this->reply('تور از دسترس ثبت درخواست خارج و سوابق رزرو حفظ می‌شود. رزروهای فعال خودکار لغو نمی‌شوند. تأیید می‌کنید؟',[[['text'=>'تأیید بایگانی','callback_data'=>"p:archive_yes:$id"]],[['text'=>'انصراف','callback_data'=>"p:tour:$id"]]]);
+                    break;
                 case 'archive_yes':
-                $confirmation=$this->requireSession('archive_confirm');
-                if((int)$confirmation['tour']!==$id)throw new RuleViolation('تأیید بایگانی معتبر نیست.');
-                $this->clear();
-                $this->bookings->publication($actor,$id,'archived');
-                $this->reply('تور بایگانی شد.',$this->menu());
-                break;
-                case 'category_new': $this->access->require($actor,'tours');
-                $this->state('category_parent',[]);
-                $this->reply('شناسه دسته والد را وارد کنید؛ صفر یعنی دسته اصلی. شناسه‌ها در «دسته‌ها» نمایش داده می‌شوند.');
-                break;
-                case 'category_delete': $this->access->require($actor,'tours');
-                $this->state('category_delete',[]);
-                $this->reply('شناسه دسته‌ای را که باید حذف شود وارد کنید:');
-                break;
+                    $confirmation=$this->requireSession('archive_confirm');
+                    if((int)$confirmation['tour']!==$id)throw new RuleViolation('تأیید بایگانی معتبر نیست.');
+                    $this->clear();
+                    $this->bookings->publication($actor,$id,'archived');
+                    $this->reply('تور بایگانی شد.',$this->menu());
+                    break;
+                case 'category_new':
+                    $this->access->require($actor,'tours');
+                    $this->state('category_parent',[]);
+                    $this->reply('شناسه دسته والد را وارد کنید؛ صفر یعنی دسته اصلی. شناسه‌ها در «دسته‌ها» نمایش داده می‌شوند.');
+                    break;
+                case 'category_delete':
+                    $this->access->require($actor,'tours');
+                    $this->state('category_delete',[]);
+                    $this->reply('شناسه دسته‌ای را که باید حذف شود وارد کنید:');
+                    break;
                 case 'cat_delete_yes':
-                $confirmation=$this->requireSession('category_delete_confirm');
-                if((int)$confirmation['category']!==$id)throw new RuleViolation('تأیید حذف دسته معتبر نیست.');
-                $this->clear();
-                $this->access->require($actor,'tours');
-                try {
-                    $count=(new TopicCatalogue($this->pdo))->deleteTree($id);
-                }
-                catch(PDOException $error) {
-                    if(($error->errorInfo[1]??null)===1451)throw new RuleViolation('دسته به تور مرتبط است؛ ابتدا دسته تور را تغییر دهید.');
-                    throw $error;
-                }
-                $this->access->audit($actor,'category.delete','category',$id);
-                $this->reply("تعداد دسته‌های حذف‌شده: $count");
-                break;
-                case 'pending': $this->pending($id);
-                break;
-                case 'all_bookings': $this->allBookings($id);
-                break;
-                case 'tour_bookings': $this->allBookings($arg,$id);
-                break;
-                case 'review': $this->showBooking($id,true);
-                break;
-                case 'review_history': $this->history($id,true);
-                break;
-                case 'confirm': $this->bookings->transition($actor,$id,'confirmed',null,true);
-                $this->showBooking($id,true);
-                break;
-                case 'complete': $this->bookings->transition($actor,$id,'completed',null,true);
-                $this->showBooking($id,true);
-                break;
-                case 'reject': $this->access->require($actor,'review');
-                $this->state('reject',['booking'=>$id]);
-                $this->reply('دلیل رد درخواست را وارد کنید؛ برای رد بدون دلیل، علامت - بفرستید.');
-                break;
-                case 'pay': $this->access->require($actor,'payments');
-                $this->bookings->booking($actor,$id,true);
-                $this->state('pay_reference',['booking'=>$id]);
-                $this->reply('پس از بررسی واقعی واریز، یک شناسه یکتا با ۳ تا ۸۰ حرف یا عدد انگلیسی وارد کنید. هرگز شماره کارت یا اطلاعات بانکی مسافر را وارد نکنید.');
-                break;
-                case 'pay_yes': $payload=$this->requireSession('pay_confirm');
-                if((int)$payload['booking']!==$id)throw new RuleViolation('فرم منقضی شده است.');
-                $this->bookings->manualPayment($actor,$id,$payload['reference']);
-                $this->clear();
-                $this->showBooking($id,true);
-                break;
-                case 'report': $this->report($id);
-                break;
-                case 'report_select': $this->access->require($actor,'reports');
-                $this->state('report',[]);
-                $this->reply('شناسه تور را وارد کنید:');
-                break;
-                case 'export': $this->export($id);
-                break;
-                case 'roles': $this->access->require($actor,'roles');
-                $this->state('role_user',[]);
-                $this->reply('شناسه عددی تلگرام مدیر را وارد کنید:');
-                break;
-                case 'role_yes': $payload=$this->requireSession('role_confirm');
-                if((int)$payload['user']!==$id)throw new RuleViolation('فرم معتبر نیست.');
-                $this->access->assign($actor,$id,$payload['role']);
-                $this->clear();
-                $this->reply('نقش مدیر به‌روز شد.');
-                break;
-                case 'notify': $this->access->require($actor,'notify');
-                $this->notifications();
-                break;
-                case 'retry': $this->outbox->retry($actor,$id,$this->access);
-                $this->reply('اعلان ناموفق برای تلاش مجدد صف شد.');
-                break;
-                case 'broadcast': $this->access->require($actor,'notify');
-                $this->state('broadcast_target',[]);
-                $this->reply('شناسه تور را برای ارسال به مسافران فعال وارد کنید؛ صفر یعنی همه حساب‌ها.');
-                break;
-                case 'broadcast_yes': $payload=$this->requireSession('broadcast_confirm');
-                $this->broadcast($payload['tour'],$payload['text']);
-                $this->clear();
-                break;
-                default: throw new RuleViolation('این دکمه دیگر معتبر نیست. از /start شروع کنید.');
+                    $confirmation=$this->requireSession('category_delete_confirm');
+                    if((int)$confirmation['category']!==$id)throw new RuleViolation('تأیید حذف دسته معتبر نیست.');
+                    $this->clear();
+                    $this->access->require($actor,'tours');
+                    try {
+                        $count=(new TopicCatalogue($this->pdo))->deleteTree($id);
+                    }
+                    catch(PDOException $error) {
+                        if(($error->errorInfo[1]??null)===1451)throw new RuleViolation('دسته به تور مرتبط است؛ ابتدا دسته تور را تغییر دهید.');
+                        throw $error;
+                    }
+                    $this->access->audit($actor,'category.delete','category',$id);
+                    $this->reply("تعداد دسته‌های حذف‌شده: $count");
+                    break;
+                case 'pending':
+                    $this->pending($id);
+                    break;
+                case 'all_bookings':
+                    $this->allBookings($id);
+                    break;
+                case 'tour_bookings':
+                    $this->allBookings($arg,$id);
+                    break;
+                case 'review':
+                    $this->showBooking($id,true);
+                    break;
+                case 'review_history':
+                    $this->history($id,true);
+                    break;
+                case 'confirm':
+                    $this->bookings->transition($actor,$id,'confirmed',null,true);
+                    $this->showBooking($id,true);
+                    break;
+                case 'complete':
+                    $this->bookings->transition($actor,$id,'completed',null,true);
+                    $this->showBooking($id,true);
+                    break;
+                case 'reject':
+                    $this->access->require($actor,'review');
+                    $this->state('reject',['booking'=>$id]);
+                    $this->reply('دلیل رد درخواست را وارد کنید؛ برای رد بدون دلیل، علامت - بفرستید.');
+                    break;
+                case 'pay':
+                    $this->access->require($actor,'payments');
+                    $this->bookings->booking($actor,$id,true);
+                    $this->state('pay_reference',['booking'=>$id]);
+                    $this->reply('پس از بررسی واقعی واریز، یک شناسه یکتا با ۳ تا ۸۰ حرف یا عدد انگلیسی وارد کنید. هرگز شماره کارت یا اطلاعات بانکی مسافر را وارد نکنید.');
+                    break;
+                case 'pay_yes':
+                    $payload=$this->requireSession('pay_confirm');
+                    if((int)$payload['booking']!==$id)throw new RuleViolation('فرم منقضی شده است.');
+                    $this->bookings->manualPayment($actor,$id,$payload['reference']);
+                    $this->clear();
+                    $this->showBooking($id,true);
+                    break;
+                case 'report':
+                    $this->report($id);
+                    break;
+                case 'report_select':
+                    $this->access->require($actor,'reports');
+                    $this->state('report',[]);
+                    $this->reply('شناسه تور را وارد کنید:');
+                    break;
+                case 'export':
+                    $this->export($id);
+                    break;
+                case 'roles':
+                    $this->access->require($actor,'roles');
+                    $this->state('role_user',[]);
+                    $this->reply('شناسه عددی تلگرام مدیر را وارد کنید:');
+                    break;
+                case 'role_yes':
+                    $payload=$this->requireSession('role_confirm');
+                    if((int)$payload['user']!==$id)throw new RuleViolation('فرم معتبر نیست.');
+                    $this->access->assign($actor,$id,$payload['role']);
+                    $this->clear();
+                    $this->reply('نقش مدیر به‌روز شد.');
+                    break;
+                case 'notify':
+                    $this->access->require($actor,'notify');
+                    $this->notifications();
+                    break;
+                case 'retry':
+                    $this->outbox->retry($actor,$id,$this->access);
+                    $this->reply('اعلان ناموفق برای تلاش مجدد صف شد.');
+                    break;
+                case 'broadcast':
+                    $this->access->require($actor,'notify');
+                    $this->state('broadcast_target',[]);
+                    $this->reply('شناسه تور را برای ارسال به مسافران فعال وارد کنید؛ صفر یعنی همه حساب‌ها.');
+                    break;
+                case 'broadcast_yes':
+                    $payload=$this->requireSession('broadcast_confirm');
+                    $this->broadcast($payload['tour'],$payload['text']);
+                    $this->clear();
+                    break;
+                default:
+                    throw new RuleViolation('این دکمه دیگر معتبر نیست. از /start شروع کنید.');
             }
             return true;
         }
         return false;
     }
+
     private function retireLegacyProfile():void {
         $this->clear();
         Database::run($this->pdo,"UPDATE Data SET step='defult' WHERE UserId=?",[$this->actor]);
         $this->outbox->enqueue($this->actor,'sendMessage',['text'=>'فرم قدیمی پروفایل بسته شد؛ اطلاعات این پیام ذخیره نشد. برای ثبت امن اطلاعات، /profile را بفرستید.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
     }
+
     private function helpText():string {
         return "راهنما\n۱. از «پروفایل» نام سرپرست را ثبت کنید. برگزارکننده می‌تواند تکمیل شماره و کد ملی را الزامی کند.\n۲. از «تورها» یا «جست‌وجوی تور»، جزئیات و ظرفیت را ببینید و برای ۱ تا ۲۰ نفر درخواست بدهید.\n۳. در «رزروهای من»، وضعیت را پیگیری کنید یا پیش از شروع تور لغو کنید.\n\nثبت درخواست به معنی تأیید رزرو نیست. پرداخت پولی به بررسی دستی برگزارکننده نیاز دارد؛ پرداخت آنلاین و صدور بلیت خودکار نداریم.\nقیمت‌ها ریال و تاریخ‌ها میلادی‌اند. منطقه زمانی نمایش: {$this->timezone}.\n/cancel توقف فرم جاری؛ /privacy حریم خصوصی و حذف حساب.";
     }
+
     private function contactPrompt():void {
         $markup=['keyboard'=>[[['text'=>'اشتراک شماره خودم','request_contact'=>true]]],'resize_keyboard'=>true,'one_time_keyboard'=>true,'selective'=>true];
         $this->outbox->enqueue($this->actor,'sendMessage',['text'=>'برای ثبت شماره فقط دکمه زیر را بزنید؛ شماره تایپی یا کارت مخاطب دیگران پذیرفته نمی‌شود. از اطلاعات فقط برای هماهنگی رزرو استفاده می‌شود.','reply_markup'=>json_encode($markup,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)],"update:{$this->update}:reply:".($this->sequence++));
     }
+
     private function reply(string $text,array $buttons=[],?int $subject=null,array $permissions=[]):void {
         $this->outbox->message($this->actor,str_replace('\\n',"\n",$text),"update:{$this->update}:reply:".($this->sequence++),$buttons,$subject,$permissions);
     }
+
     private function menu():array {
         $buttons=[[['text'=>'تورها','callback_data'=>'p:tours:0'],['text'=>'دسته‌ها','callback_data'=>'p:cats:0']],[['text'=>'جست‌وجوی تور','callback_data'=>'p:search:0'],['text'=>'رزروهای من','callback_data'=>'p:mine:0']],[['text'=>'پروفایل','callback_data'=>'p:profile:0'],['text'=>'راهنما','callback_data'=>'p:help:0']]];
         if($this->access->role($this->actor)!==null)$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];
         return $buttons;
     }
+
     private function state(string $state, array $payload): void
     {
         $this->sessions->put($this->actor, $state, $payload);
     }
+
     private function session(): ?array
     {
         return $this->sessions->get($this->actor);
     }
+
     private function requireSession(string $state): array
     {
         return $this->sessions->require($this->actor, $state);
     }
+
     private function clear(): void
     {
         $this->sessions->clear($this->actor);
     }
+
     private function number(string $text,int $max=4503599627370495):int {
         $text=strtr($text,['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
         if(!preg_match('/^[0-9]{1,16}$/D',$text)||(float)$text>$max)throw new RuleViolation('یک عدد معتبر وارد کنید.');
         return(int)$text;
     }
+
     private function date(string $text):string {
         $date=DateTimeImmutable::createFromFormat('!Y-m-d H:i',$text,new DateTimeZone($this->timezone));
         if(!$date||$date->format('Y-m-d H:i')!==$text)throw new RuleViolation('تاریخ میلادی و ساعت را مانند 2027-04-21 08:30 وارد کنید.');
         return $date->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
     }
+
     private function local(string $utc):string {
         return(new DateTimeImmutable($utc,new DateTimeZone('UTC')))->setTimezone(new DateTimeZone($this->timezone))->format('Y-m-d H:i');
     }
+
     private function profile():void {
         $name=Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$this->actor])->fetchColumn();
         $status=(new TravelerIdentity($this->pdo))->status($this->actor);
@@ -336,9 +400,11 @@ final class ProductBot
         $national=$status['national']?'ثبت شد':'ثبت نشده';
         $this->reply('نام سرپرست: '.($name?:'ثبت نشده')."\nشماره تلگرام: $mobile\nکد ملی: $national\nشناسه حساب: {$this->actor}\nشماره و کد ملی در این صفحه نمایش داده نمی‌شوند.",[[['text'=>'ثبت یا ویرایش نام','callback_data'=>'p:name:0']],[['text'=>'اشتراک شماره خودم','callback_data'=>'p:phone:0']],[['text'=>'ثبت یا ویرایش کد ملی','callback_data'=>'p:national:0']],[['text'=>'حریم خصوصی و حذف حساب','callback_data'=>'p:privacy:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
     }
+
     private function privacy():void {
         $this->reply('در پروفایل جدید نام سرپرست، شماره همراهی که با دکمه تلگرام به اشتراک گذاشته‌اید و کد ملی دارای رقم کنترل معتبر ذخیره می‌شود. شماره و کد ملی در پایگاه داده رمزگذاری شده و در گزارش‌های عمومی یا پیام‌های مدیر نمایش داده نمی‌شوند. بررسی رقم کنترل به معنی استعلام هویت از ثبت احوال نیست. حذف حساب پس از بستن رزروهای فعال، اطلاعات رمزگذاری‌شده را نیز پاک می‌کند. اطلاعات قدیمی پروفایل تا حذف حساب محفوظ‌اند. پاک‌سازی خودکار حساب غیرفعال فقط با سیاست مصوب اپراتور فعال می‌شود؛ پیشنهاد ۱۸۰ روز است. پیام‌های تلگرام و نسخه‌های پشتیبان قواعد نگهداری جداگانه دارند.',[[['text'=>'درخواست حذف حساب','callback_data'=>'p:erase:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
     }
+
     private function listing(int $offset,?int $category=null,bool $admin=false):void {
         if($offset>100000)throw new RuleViolation('شماره صفحه معتبر نیست.');
         if($admin)$this->access->require($this->actor,'tours');
@@ -362,6 +428,7 @@ final class ProductBot
         $buttons[]=[['text'=>'بازگشت به منو','callback_data'=>'p:home:0']];
         $this->reply($rows===[]?'توری مطابق این انتخاب پیدا نشد. برای پاک‌کردن جست‌وجو از منوی اصلی دوباره وارد شوید.':'تور را انتخاب کنید:',$buttons);
     }
+
     private function categories(int $parent,int $offset):void {
         if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
         $rows=Database::run($this->pdo,"SELECT id,Name FROM Topics WHERE `Groups`=? ORDER BY id LIMIT 20 OFFSET $offset",[$parent])->fetchAll(PDO::FETCH_ASSOC);
@@ -372,6 +439,7 @@ final class ProductBot
         $buttons[]=[['text'=>'دسته‌های اصلی','callback_data'=>'p:cats:0'],['text'=>'منو','callback_data'=>'p:home:0']];
         $this->reply('دسته‌بندی‌ها؛ عدد کنار نام، شناسه دسته است:',$buttons);
     }
+
     private function showTour(int $id):void {
         $tour=$this->bookings->tour($id);
         if($tour['publication']!=='published'&&!$this->access->allows($this->actor,'tours')&&!Database::run($this->pdo,'SELECT id FROM Bookings WHERE user_id=? AND tour_id=?',[$this->actor,$id])->fetchColumn())throw new RuleViolation('این تور منتشر نشده است.');
@@ -387,6 +455,7 @@ final class ProductBot
         $buttons[]=[['text'=>'بازگشت','callback_data'=>'p:home:0']];
         $this->reply($text,$buttons);
     }
+
     private function mine(int $offset):void {
         if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
         $rows=Database::run($this->pdo,"SELECT id,status FROM Bookings WHERE user_id=? ORDER BY id DESC LIMIT 10 OFFSET $offset",[$this->actor])->fetchAll(PDO::FETCH_ASSOC);
@@ -396,9 +465,11 @@ final class ProductBot
         $buttons[]=[['text'=>'منو','callback_data'=>'p:home:0']];
         $this->reply($rows?'رزروهای جاری و قبلی شما:':'هنوز رزروی ندارید.',$buttons);
     }
+
     private function status(string $status):string {
         return['pending'=>'در انتظار','confirmed'=>'تأییدشده','rejected'=>'ردشده','cancelled'=>'لغوشده','completed'=>'تکمیل‌شده','paid'=>'پرداخت‌شده','expired'=>'منقضی','failed'=>'ناموفق'][$status]??$status;
     }
+
     private function showBooking(int $id,bool $admin=false):void {
         $booking=$this->bookings->booking($this->actor,$id,$admin);
         $text="رزرو #$id\nتور: {$booking['title']}\nشروع: ".$this->local($booking['starts_at'])."\nتعداد نفرات: {$booking['quantity']}\nمبلغ کل: {$booking['amount']} ریال\nوضعیت رزرو: ".$this->status($booking['status'])."\nوضعیت پرداخت: ".$this->status($booking['payment_status']);
@@ -422,12 +493,14 @@ final class ProductBot
         $buttons[]=[['text'=>'بازگشت','callback_data'=>$admin?'p:pending:0':'p:mine:0']];
         $this->reply($text,$buttons,$admin && $booking['user_id'] !== null ? (int)$booking['user_id'] : null,$admin?($this->access->allows($this->actor,'profiles')?['review','profiles']:['review']):[]);
     }
+
     private function history(int $id,bool $admin):void {
         $this->bookings->booking($this->actor,$id,$admin);
         $rows=Database::run($this->pdo,'SELECT new_status,created_at FROM BookingStatusHistory WHERE booking_id=? ORDER BY id DESC LIMIT 20',[$id])->fetchAll(PDO::FETCH_ASSOC);
         $lines=array_map(fn($row)=>$this->local($row['created_at']).' — '.$this->status($row['new_status']),$rows);
         $this->reply(implode("\n",$lines));
     }
+
     private function admin():void {
         if($this->access->role($this->actor)===null)throw new RuleViolation('دسترسی مدیریت ندارید.');
         $buttons=[];
@@ -439,6 +512,7 @@ final class ProductBot
         $buttons[]=[['text'=>'منو','callback_data'=>'p:home:0']];
         $this->reply('مدیریت؛ نقش شما: '.(['owner'=>'مدیر اصلی','manager'=>'مدیر','reviewer'=>'بررسی درخواست‌ها','reporter'=>'گزارش‌گیر'][$this->access->role($this->actor)]??'نامشخص'),$buttons);
     }
+
     private function pending(int $offset):void {
         $this->access->require($this->actor,'review');
         if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
@@ -449,6 +523,7 @@ final class ProductBot
         $buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];
         $this->reply($rows?'درخواست‌های منتظر بررسی:':'درخواست منتظری وجود ندارد.',$buttons);
     }
+
     private function allBookings(int $offset,?int $tour=null):void {
         $this->access->require($this->actor,'review');
         if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
@@ -461,6 +536,7 @@ final class ProductBot
         $buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];
         $this->reply('رزروها با وضعیت جاری و قبلی:',$buttons);
     }
+
     private function report(int $id): void
     {
         $summary = $this->reports->summary($this->actor, $id);
@@ -479,6 +555,7 @@ final class ProductBot
         $buttons[] = [['text' => 'مدیریت', 'callback_data' => 'p:admin:0']];
         $this->reply($text, $buttons, null, ['reports']);
     }
+
     private function export(int $id): void
     {
         $csv = $this->reports->csv($this->actor, $id);
@@ -495,6 +572,7 @@ final class ProductBot
         $this->access->audit($this->actor, 'booking.export', 'tour', $id);
         $this->reply('فایل در صف ارسال امن قرار گرفت.');
     }
+
     private function notifications():void {
         $rows=Database::run($this->pdo,'SELECT status,COUNT(*) total FROM NotificationOutbox GROUP BY status')->fetchAll(PDO::FETCH_ASSOC);
         $text='وضعیت صف اعلان‌ها:';
@@ -504,6 +582,7 @@ final class ProductBot
         foreach($failed as$row)$buttons[]=[['text'=>"تلاش مجدد #{$row['id']} ({$row['error_code']})",'callback_data'=>'p:retry:'.$row['id']]];
         $this->reply($text,$buttons);
     }
+
     private function broadcast(int $tour,string $text):void {
         $this->access->require($this->actor,'notify');
         $after=0;
@@ -520,6 +599,7 @@ final class ProductBot
         $this->access->audit($this->actor,'notification.broadcast','tour',$tour);
         $this->reply("برای $count حساب در صف قرار گرفت؛ نتیجه ارسال را از وضعیت اعلان‌ها پیگیری کنید.");
     }
+
     private function input(string $state,array $payload,string $text):void {
         if($state==='phone')throw new RuleViolation('برای امنیت فقط دکمه «اشتراک شماره خودم» را بزنید. شماره تایپی پذیرفته نمی‌شود.');
         if($state==='national'){
