@@ -135,7 +135,7 @@ This dated source handoff is not a semantic-versioned release or production cert
 - Added Persian guided operations, RBAC, audited manual payment review and restricted safe CSVs.
 - Added durable outbox, retry/lease recovery, rate limits, reminders and expired unpaid holds.
 - Added local signed payment simulation, account anonymization and retention controls.
-- Added new domain/security/concurrency/workflow/HTTP/container/restore tests and bilingual setup guides.
+- Added new domain/security/concurrency/workflow/HTTP/container/restore tests and setup guides.
 - Added optional encrypted phone/national-code profiles with owner-only Telegram contact sharing, checksum validation, and migration 003; no category membership needed for booking.
 - Preserved old membership migration and catalogue commands; redirected `/setprofile` to encrypted profiles and retired all unfinished plaintext profile states. Added regression coverage for unchanged historical values, own-account contact checks, authenticated encryption, fresh nonces and missing-key failure.
 - Aligned the public product guides, source status and contribution workflow with the completed handoff on master.

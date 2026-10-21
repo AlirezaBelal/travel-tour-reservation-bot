@@ -47,7 +47,7 @@ security reports. Hosting and account administration remain the operator's respo
 | Dates and money | Gregorian date entry; configurable display timezone; UTC storage; integer IRR |
 | Operations | Own bot token, HTTPS hosting, MySQL, worker, encryption key and backup/restore policy required |
 
-Install using [English](../README.md#quick-start) or [فارسی](../README.fa.md#نصب-از-صفر).
+Install using the [quick start](../README.md#quick-start).
 Read [deployment/recovery](DEPLOYMENT.md) and [migration](MIGRATION.md) before
 upgrading existing data. [Acceptance gates](ACCEPTANCE.md) distinguish repeatable
 synthetic checks from operator-specific live acceptance. Source publication does
