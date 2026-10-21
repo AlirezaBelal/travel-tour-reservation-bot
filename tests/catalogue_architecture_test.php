@@ -2,10 +2,10 @@
 declare(strict_types=1);
 
 require __DIR__ . '/../src/product_bootstrap.php';
-$parameter = (new ReflectionMethod(ProductBot::class, '__construct'))->getParameters()[4];
+$parameter = (new ReflectionMethod(TourController::class, '__construct'))->getParameters()[0];
 if ($parameter->getName() !== 'catalogue' || $parameter->isOptional()
     || (string)$parameter->getType() !== TourCatalogService::class) {
-    throw new RuntimeException('Catalogue must be an explicit required ProductBot dependency.');
+    throw new RuntimeException('Catalogue must be an explicit required TourController dependency.');
 }
 $source = file_get_contents(__DIR__ . '/../src/TourCatalogService.php');
 if ($source === false) {
@@ -18,9 +18,9 @@ foreach (token_get_all($source) as $token) {
         throw new RuntimeException('Catalogue depends on Telegram/delivery: ' . $token[1]);
     }
 }
-$source = file_get_contents(__DIR__ . '/../src/ProductBot.php');
+$source = file_get_contents(__DIR__ . '/../src/TourController.php');
 if ($source === false) {
-    throw new RuntimeException('ProductBot source is missing.');
+    throw new RuntimeException('TourController source is missing.');
 }
 $tokens = token_get_all($source);
 $checked = [];

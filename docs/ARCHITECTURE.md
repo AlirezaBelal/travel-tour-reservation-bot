@@ -329,7 +329,7 @@ projection, legacy-data preservation and erasure.
 
 The application architecture test token-scans real source for presentation
 persistence/construction, pure payment-rule dependencies, global state in extracted
-services and source-level dependency cycles. Six source mutations prove detection
+services and source-level dependency cycles. Seven source mutations prove detection
 without executing injected code. The cycle scope is references between classes
 with matching `src/*.php` filenames; dynamic includes and runtime-created edges
 are outside this narrow check.
@@ -437,3 +437,22 @@ by environment changes, direct lifecycle authorization, idempotency, shared hist
 and full reservation/payment/history/outbox rollback under an owning transaction.
 Existing facade/Telegram, eight-process capacity, two-process lifecycle and
 four-process manual-review tests remain required against both database engines.
+
+## Focused tour conversation and category operations
+
+`TourController` now owns catalogue navigation, tour editing forms, publication
+confirmation and category UI. Its six explicit collaborators contain no raw PDO
+or transport construction. `TourCategoryService` independently enforces tour
+administrator authority, translates referenced-category failures and commits each
+mutation with its audit. Profile UI remains in `TravelerProfileController`;
+`ProductBot` routes these components and retains booking/review/administration UI.
+Owner-role and notification callbacks are separated from booking review routing.
+
+The catalogue architecture guard follows the three actual rendering methods in
+`TourController`; a seventh source mutation proves that controller persistence
+violations are detected. Direct category tests cover unauthorized calls and
+injected audit failure rolling back a new category. Existing end-to-end tour
+wizard, search, category, reservation and administrator tests are unchanged.
+PHPCS's Generic.Metrics.CyclomaticComplexity sniff records baseline `ProductBot`
+from commit `2c10ee7` and the final product/tour/profile controllers in CI artifacts.
+Metrics are evidence, not an alternative to the behavior gates.

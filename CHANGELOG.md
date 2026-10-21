@@ -1,5 +1,12 @@
 # Changelog
 
+## Focused tour conversation — 2026-10-21
+
+- Extracted tour/catalogue/category UI from the product router and separated
+  administration/notification callback routing from booking review.
+- Added independently authorized/atomic category operations, audit-failure rollback
+  coverage and tool-measured before/after controller complexity artifacts.
+
 ## Independent booking use cases — 2026-10-21
 
 - Separated reservation creation, lifecycle changes, authorized reads and history

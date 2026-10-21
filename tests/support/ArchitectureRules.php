@@ -46,7 +46,7 @@ final class ArchitectureRules
                     $errors[] = 'domain.infrastructure';
                 }
                 if (in_array($name, ['TravelerProfileService', 'BookingQueryService', 'LegacyTopicService',
-                    'PaymentReviewService', 'TourCatalogService', 'TourService', 'LegacyMembershipService', 'LegacyBroadcastService', 'ReservationService', 'BookingLifecycleService', 'BookingReader', 'BookingHistoryStore'], true)
+                    'PaymentReviewService', 'TourCatalogService', 'TourService', 'LegacyMembershipService', 'LegacyBroadcastService', 'ReservationService', 'BookingLifecycleService', 'BookingReader', 'BookingHistoryStore', 'TourCategoryService'], true)
                     && ($type === T_GLOBAL || ($type === T_VARIABLE
                         && in_array($value, ['$GLOBALS', '$_ENV', '$_SERVER', '$_POST'], true)))) {
                     $errors[] = 'application.global';
