@@ -43,6 +43,10 @@ jobs:
         if: always()
         run: |
           cat quality-generated/phpstan-report.json || true
+          cp src/handler.php quality-generated/handler-formatted.php
+          php tools/quality/vendor/bin/phpcbf --standard=.phpcs.xml quality-generated/handler-formatted.php || true
+          php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --level=6 --no-progress --error-format=json > quality-generated/level6-probe.json || true
+          php tools/quality/vendor/bin/phpcs --standard=.phpcs.xml --report=json > quality-generated/style-report.json || true
           git fetch --no-tags --depth=1 origin 2c10ee733ae1a4a8639895a03d12e5f45815b483
           git show 2c10ee733ae1a4a8639895a03d12e5f45815b483:src/ProductBot.php > quality-generated/ProductBot-before.php
           php tools/quality/vendor/bin/phpcs --standard=tools/quality/complexity.xml --report=json quality-generated/ProductBot-before.php > quality-generated/complexity-before.json || true

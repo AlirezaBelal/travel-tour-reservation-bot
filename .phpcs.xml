@@ -2,7 +2,6 @@
 <ruleset name="Travel Tour PHP">
     <description>PSR-12 for application source; global class names remain compatible.</description>
     <file>src</file>
-    <exclude-pattern>*/handler.php</exclude-pattern>
     <arg name="extensions" value="php"/>
     <arg value="n"/>
     <rule ref="PSR12">
