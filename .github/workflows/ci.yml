@@ -10,6 +10,40 @@ permissions:
   contents: read
 
 jobs:
+  quality:
+    name: Static analysis and quality toolchain
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: curl, json, pdo_mysql
+          coverage: none
+      - name: Install application and isolated quality tools
+        run: |
+          composer install --no-interaction --no-progress --prefer-dist
+          composer install --working-dir=tools/quality --no-interaction --no-progress --prefer-dist
+          composer audit --working-dir=tools/quality --no-interaction
+          mkdir -p quality-generated
+          cp tools/quality/composer.lock quality-generated/toolchain.lock
+      - name: Analyze application classes at PHPStan level 5
+        run: |
+          php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --no-progress --error-format=json > quality-generated/phpstan-report.json
+      - name: Collect real diagnostics and formatting proposal
+        if: always()
+        run: |
+          cat quality-generated/phpstan-report.json || true
+          php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --no-progress --generate-baseline=quality-generated/phpstan-baseline.neon --allow-empty-baseline
+          cp -r src quality-generated/src
+          php tools/quality/vendor/bin/phpcbf --standard=.phpcs.xml quality-generated/src > quality-generated/formatting-report.txt || true
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: quality-diagnostics
+          path: quality-generated/
+          retention-days: 7
+
   php:
     name: PHP ${{ matrix.php-version }}
     runs-on: ubuntu-latest

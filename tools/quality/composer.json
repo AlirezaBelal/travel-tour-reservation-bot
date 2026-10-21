@@ -1,0 +1,14 @@
+{
+  "name": "travel-tour/quality-tools",
+  "description": "Isolated development-only PHP quality tools",
+  "type": "project",
+  "license": "GPL-3.0-only",
+  "require": {
+    "phpstan/phpstan": "^2.1",
+    "squizlabs/php_codesniffer": "^3.13"
+  },
+  "config": {
+    "platform": { "php": "8.0.30" },
+    "sort-packages": true
+  }
+}
