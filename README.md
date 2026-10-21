@@ -1,6 +1,6 @@
 # Travel Tour Reservation Bot
 
-[![CI](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml) · [فارسی](README.fa.md)
+[![CI](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml)
 
 Self-hosted, open-source **PHP/MySQL Telegram tour reservations** with a Persian traveler and admin interface. GPL-3.0-only. This repository provides source code, **not** a hosted bot or production certification.
 
@@ -42,7 +42,7 @@ The `worker` **must be running** to send notifications and process scheduled tas
 
 ## Traveler and operator guide
 
-Travelers: `/start` → profile → tour/search → select group size → confirm request → `/bookings` or «رزروهای من» to track/cancel. Only the account holder's Telegram-shared contact is accepted; `/privacy` describes erasure. A booking request is **not** final confirmation.
+Travelers: `/start` → profile → tour/search → select group size → confirm request → `/bookings` to track/cancel. Only the account holder's Telegram-shared contact is accepted; `/privacy` describes erasure. A booking request is **not** final confirmation.
 
 Operators: configure `TELEGRAM_ADMIN_IDS`, open `/admin`, create/publish tours, review requests and manual payments, manage roles, reports and queued notifications. Never ask travelers to send bank credentials or national IDs in chat.
 

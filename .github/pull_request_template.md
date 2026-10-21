@@ -1,9 +1,9 @@
-## Summary / خلاصه تغییر
+## Summary
 
 Explain what problem is fixed and whether the public behavior or migration
 contract changes.
 
-## Verification / آزمون‌ها
+## Verification
 
 - [ ] Relevant unit, characterization and negative tests passed (or explain N/A).
 - [ ] PHP 8.0–8.4 CI and static/style gates passed on the exact PR head.
