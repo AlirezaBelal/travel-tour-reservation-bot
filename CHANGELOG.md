@@ -1,5 +1,12 @@
 # Changelog
 
+## Follow-up: constrain automated dependency update scope — 2026-10-21
+
+- Prevent routine Dependabot PRs from automatically targeting new major versions
+  of PHP quality tools and GitHub Actions; preserve weekly minor/patch reviews.
+- Breaking major upgrades require their own compatibility and full CI review.
+  This does not replace prompt review of security advisories.
+
 ## Repository maintenance readiness — 2026-10-21
 
 - Replaced stale source snapshot notes with verified post-refactor baseline

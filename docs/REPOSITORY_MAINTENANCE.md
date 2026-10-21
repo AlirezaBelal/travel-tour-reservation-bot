@@ -49,8 +49,12 @@ branches. Refresh the branch list to confirm only intended refs remain.
 
 The tracked Dependabot configuration proposes weekly PRs for the application
 Composer dependencies, separate development quality tools, and GitHub Actions.
-These are **reviewable updates**, never automatic merges. Review changes,
-keep pinned complete Action SHAs, and require the full CI matrix. Independently
+These are **reviewable updates**, never automatic merges. Routine version
+updates are limited to minor/patch releases; **major upgrades require an
+explicit maintainer-initiated compatibility review** because PHPCS 4 and
+GitHub Actions major versions may change platform/runtime requirements.
+Security alerts and necessary security upgrades must still be assessed promptly.
+Review changes, keep pinned complete Action SHAs, and require the full CI matrix. Independently
 review Docker base-image digests and migration compatibility.
 
 In Settings → Security, enable Dependabot alerts/security updates and private
