@@ -465,3 +465,17 @@ checked directly. `Payments.php` remains a pure compatibility loader and
 `NotificationWorker.php` requires the transport definition for existing callers.
 No class body, payment semantics or transport behavior changes. A no-network
 loader test checks all historical includes and the existing local signed adapter.
+
+## Booking conversation boundary
+
+`BookingController` owns booking requests/reviews, payment confirmation, related
+messages and report cards. It resolves the actor/update from the same explicit
+conversation context and depends on authorized application services; it does not
+construct services or perform persistence. `ProductBot` now has six constructor
+collaborators rather than nine at baseline `2c10ee7` (eleven temporarily after the
+query extraction). It routes three focused controllers and retains only generic
+navigation, role/notification administration and dispatch. Notification target
+validation lives in its application service rather than the product router.
+Direct tests exercise owner-scoped booking cards, unrelated-route fallback and
+notification target/permission denial. Complexity artifacts include all four
+presentation components, not just the reduced router.

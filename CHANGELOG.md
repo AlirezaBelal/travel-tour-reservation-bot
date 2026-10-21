@@ -1,5 +1,12 @@
 # Changelog
 
+## Booking conversation boundary — 2026-10-21
+
+- Isolated booking/review/payment/report UI into a focused controller, reducing
+  the product router to generic navigation and administration with six collaborators.
+- Added direct actor/card/fallback coverage and application-owned notification
+  target validation; complexity reporting includes every extracted controller.
+
 ## Explicit payment and transport source boundaries — 2026-10-21
 
 - Moved payment types and Telegram transport into individually named source files,

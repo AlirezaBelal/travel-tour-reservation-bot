@@ -34,9 +34,17 @@ final class NotificationAdminService
         return ['statuses' => $statuses, 'failed' => $failed];
     }
 
-    public function broadcast(int $actor, int $update, int $tour, string $text): int
+    public function validateTarget(int $actor, int $tour): void
     {
         $this->access->require($actor, 'notify');
+        if ($tour !== 0 && !Database::run($this->pdo, 'SELECT id FROM Tours WHERE id=?', [$tour])->fetchColumn()) {
+            throw new RuleViolation('تور موردنظر پیدا نشد.');
+        }
+    }
+
+    public function broadcast(int $actor, int $update, int $tour, string $text): int
+    {
+        $this->validateTarget($actor, $tour);
         $after = 0;
         $count = 0;
 
