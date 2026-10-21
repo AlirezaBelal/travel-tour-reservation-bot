@@ -6,6 +6,7 @@ final class ProductBot
     private int $actor=0;
     private int $update=0;
     private BookingReportService $reports;
+    private BotSessionStore $sessions;
 
     public function __construct(
         private PDO $pdo,
@@ -13,9 +14,11 @@ final class ProductBot
         private AccessControl $access,
         private Outbox $outbox,
         private string $timezone = 'Asia/Tehran',
-        ?BookingReportService $reports = null
+        ?BookingReportService $reports = null,
+        ?BotSessionStore $sessions = null
     ) {
         $this->reports = $reports ?? new BookingReportService($pdo, $bookings, $access);
+        $this->sessions = $sessions ?? new BotSessionStore($pdo);
     }
 
     public function dispatch(int $actor,?string $text,?string $callback,int $update,?array $contact=null):bool
@@ -23,6 +26,28 @@ final class ProductBot
         $this->actor=$actor; $this->update=$update; $this->sequence=0;
         $session=$this->session();
         $legacyStep=Database::run($this->pdo,'SELECT step FROM Data WHERE UserId=?',[$actor])->fetchColumn();
+        if ($this->dispatchCommand($actor, $text, $legacyStep)) return true;
+        if(isLegacyProfileStep($legacyStep)){$this->retireLegacyProfile();return true;}
+        if ($this->dispatchProductCallback($actor, $callback, $update)) return true;
+        if($text!==null && preg_match('/^\/(?:list|send)(?:\s|$)/',$text)){$this->clear();return false;}
+        if($session!==null&&$session['state']==='phone'&&$contact!==null){
+            (new TravelerIdentity($this->pdo))->saveMobile($actor,$contact);
+            $this->state('national',[]);
+            $this->outbox->enqueue($actor,'sendMessage',['text'=>'شماره همراه شما به‌صورت رمزگذاری‌شده ثبت شد. اکنون کد ملی ۱۰ رقمی سرپرست را وارد کنید؛ فقط ساختار و رقم کنترل بررسی می‌شود.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
+            return true;
+        }
+        if($session!==null&&$session['state']!=='filter'&&$text!==null&&!str_starts_with($text,'/')) {
+            $this->input($session['state'],json_decode($session['payload'],true,512,JSON_THROW_ON_ERROR),trim($text));return true;
+        }
+        // Keep the established profile/catalogue/approval commands available.
+        if($callback!==null||($text!==null&&(preg_match('/^(?:\/(?:list|send)|Topics|ping|usage)(?:\s|$)/',$text)||preg_match('/^[\/#!]?(?:AddTopic) /i',$text)))) return false;
+        if($legacyStep&&$legacyStep!=='defult')return false;
+        $this->reply('پیام را متوجه نشدم. از دکمه‌ها استفاده کنید یا /help بفرستید.',$this->menu());return true;
+    }
+
+    /** Slash commands take priority over any persisted form state. */
+    private function dispatchCommand(int $actor, ?string $text, mixed $legacyStep): bool
+    {
         if($text!==null&&preg_match('/^\/(start|help|tours|bookings|profile|setprofile|admin|cancel|privacy|search)(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u',$text,$match)) {
             $command=$match[1]==='setprofile'?'profile':$match[1];
             $this->clear();
@@ -38,7 +63,12 @@ final class ProductBot
             elseif($command==='search') { $this->state('search',[]);$this->reply('عنوان یا مقصد تور را وارد کنید. برای خروج /cancel بفرستید.'); }
             return true;
         }
-        if(isLegacyProfileStep($legacyStep)){$this->retireLegacyProfile();return true;}
+        return false;
+    }
+
+    /** Product callbacks remain separate from the legacy compatibility handler. */
+    private function dispatchProductCallback(int $actor, ?string $callback, int $update): bool
+    {
         if($callback!==null&&str_starts_with($callback,'p:')) {
             if(!preg_match('/^p:([a-z_]{1,24}):([0-9]{1,16})(?::([0-9]{1,16}))?(?::([0-9]{1,16}))?$/D',$callback,$parts)) throw new RuleViolation('دکمه معتبر نیست. از منوی جدید استفاده کنید.');
             $action=$parts[1];$id=(int)$parts[2];$arg=(int)($parts[3]??0);$version=(int)($parts[4]??0);
@@ -114,20 +144,7 @@ final class ProductBot
             }
             return true;
         }
-        if($text!==null && preg_match('/^\/(?:list|send)(?:\s|$)/',$text)){$this->clear();return false;}
-        if($session!==null&&$session['state']==='phone'&&$contact!==null){
-            (new TravelerIdentity($this->pdo))->saveMobile($actor,$contact);
-            $this->state('national',[]);
-            $this->outbox->enqueue($actor,'sendMessage',['text'=>'شماره همراه شما به‌صورت رمزگذاری‌شده ثبت شد. اکنون کد ملی ۱۰ رقمی سرپرست را وارد کنید؛ فقط ساختار و رقم کنترل بررسی می‌شود.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
-            return true;
-        }
-        if($session!==null&&$session['state']!=='filter'&&$text!==null&&!str_starts_with($text,'/')) {
-            $this->input($session['state'],json_decode($session['payload'],true,512,JSON_THROW_ON_ERROR),trim($text));return true;
-        }
-        // Keep the established profile/catalogue/approval commands available.
-        if($callback!==null||($text!==null&&(preg_match('/^(?:\/(?:list|send)|Topics|ping|usage)(?:\s|$)/',$text)||preg_match('/^[\/#!]?(?:AddTopic) /i',$text)))) return false;
-        if($legacyStep&&$legacyStep!=='defult')return false;
-        $this->reply('پیام را متوجه نشدم. از دکمه‌ها استفاده کنید یا /help بفرستید.',$this->menu());return true;
+        return false;
     }
 
     private function retireLegacyProfile():void {
@@ -151,20 +168,26 @@ final class ProductBot
         if($this->access->role($this->actor)!==null)$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];
         return $buttons;
     }
-    private function state(string $state,array $payload):void {
-        Database::run($this->pdo,'INSERT INTO BotSessions(user_id,state,payload) VALUES (?,?,?) ON DUPLICATE KEY UPDATE state=VALUES(state),payload=VALUES(payload),updated_at=UTC_TIMESTAMP()',[$this->actor,$state,json_encode($payload,JSON_THROW_ON_ERROR|JSON_UNESCAPED_UNICODE)]);
+    private function state(string $state, array $payload): void
+    {
+        $this->sessions->put($this->actor, $state, $payload);
     }
-    private function session():?array {
-        $row=Database::run($this->pdo,'SELECT * FROM BotSessions WHERE user_id=?',[$this->actor])->fetch(PDO::FETCH_ASSOC);
-        if(!$row)return null;
-        if($row['updated_at']<gmdate('Y-m-d H:i:s',time()-1800)){$this->clear();return null;}
-        return $row;
+
+    private function session(): ?array
+    {
+        return $this->sessions->get($this->actor);
     }
-    private function requireSession(string $state):array {
-        $session=$this->session();if(!$session||$session['state']!==$state)throw new RuleViolation('فرم منقضی شده است؛ دوباره از منو شروع کنید.');
-        return json_decode($session['payload'],true,512,JSON_THROW_ON_ERROR);
+
+    private function requireSession(string $state): array
+    {
+        return $this->sessions->require($this->actor, $state);
     }
-    private function clear():void {Database::run($this->pdo,'DELETE FROM BotSessions WHERE user_id=?',[$this->actor]);}
+
+    private function clear(): void
+    {
+        $this->sessions->clear($this->actor);
+    }
+
     private function number(string $text,int $max=4503599627370495):int {
         $text=strtr($text,['۰'=>'0','۱'=>'1','۲'=>'2','۳'=>'3','۴'=>'4','۵'=>'5','۶'=>'6','۷'=>'7','۸'=>'8','۹'=>'9']);
         if(!preg_match('/^[0-9]{1,16}$/D',$text)||(float)$text>$max)throw new RuleViolation('یک عدد معتبر وارد کنید.');return(int)$text;
