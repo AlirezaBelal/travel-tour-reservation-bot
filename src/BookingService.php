@@ -1,19 +1,16 @@
 <?php
-
 final class BookingService
 {
-    public function __construct(private PDO $pdo, private AccessControl $access, private Outbox $outbox) {}
-
+    public function __construct(private PDO $pdo, private AccessControl $access, private Outbox $outbox) {
+    }
     public function ensureUser(int $id): void
     {
         Database::run($this->pdo, "INSERT INTO Data(UserId,step) VALUES (?,'defult') ON DUPLICATE KEY UPDATE updated_at=UTC_TIMESTAMP()", [$id]);
     }
-
     public function used(int $tour): int
     {
         return array_sum(array_map('intval', Database::run($this->pdo, "SELECT quantity FROM Bookings WHERE tour_id=? AND status IN ('pending','confirmed','completed') FOR UPDATE", [$tour])->fetchAll(PDO::FETCH_COLUMN)));
     }
-
     public function tour(int $id, bool $lock = false): array
     {
         $tour = Database::run($this->pdo, 'SELECT * FROM Tours WHERE id=?' . ($lock ? ' FOR UPDATE' : ''), [$id])->fetch(PDO::FETCH_ASSOC);
@@ -22,7 +19,6 @@ final class BookingService
         }
         return $tour;
     }
-
     public function saveTour(int $actor, array $values, ?int $id = null): int
     {
         $this->access->require($actor, 'tours');
@@ -47,8 +43,8 @@ final class BookingService
             throw new RuleViolation('زمان پایان تور باید بعد از زمان شروع باشد.');
         }
         if (!is_int($values['price']) || $values['price'] < 0 || $values['price'] > 1000000000000
-            || !is_int($values['capacity']) || $values['capacity'] < 1 || $values['capacity'] > 100000
-            || !in_array($values['publication'], ['draft','published','inactive','archived'], true)) {
+        || !is_int($values['capacity']) || $values['capacity'] < 1 || $values['capacity'] > 100000
+        || !in_array($values['publication'], ['draft','published','inactive','archived'], true)) {
             throw new RuleViolation('قیمت، ظرفیت، تاریخ یا وضعیت تور معتبر نیست.');
         }
         return Database::atomic($this->pdo, function () use ($actor, $values, $id, $fields) {
@@ -68,15 +64,16 @@ final class BookingService
                 foreach ($users as $user) {
                     $this->outbox->message((int)$user, "مشخصات تور شماره $id تغییر کرد. لطفاً جزئیات جدید را از فهرست تورها ببینید.", "tour:$id:version:" . ($previous['version'] + 1) . ":user:$user");
                 }
-            } else {
+            }
+            else {
                 Database::run($this->pdo, 'INSERT INTO Tours(' . implode(',', $fields) . ') VALUES (?,?,?,?,?,?,?,?,?)', array_map(fn($f) => $values[$f], $fields));
                 $id = (int)$this->pdo->lastInsertId();
             }
             $this->access->audit($actor, 'tour.save', 'tour', $id);
             return $id;
-        });
+        }
+        );
     }
-
     public function publication(int $actor,int $id,string $publication):int
     {
         $this->access->require($actor,'tours');
@@ -90,9 +87,9 @@ final class BookingService
             $this->saveTour($actor,$tour,$id);
             $this->access->audit($actor,'tour.publication.'.$publication,'tour',$id);
             return$id;
-        });
+        }
+        );
     }
-
     public function reserve(int $actor, int $tourId, int $quantity, string $requestKey, ?int $expectedVersion = null): int
     {
         BookingRules::quantity($quantity);
@@ -136,9 +133,9 @@ final class BookingService
                 $this->outbox->message($admin, "درخواست رزرو شماره $id برای تور {$tourId}، تعداد $quantity نفر در انتظار بررسی است.", "booking:$id:review:$admin", [[['text'=>'بررسی درخواست','callback_data'=>"p:review:$id"]]], null, ['review']);
             }
             return $id;
-        });
+        }
+        );
     }
-
     public function booking(int $actor, int $id, bool $administrative = false): array
     {
         if ($administrative) {
@@ -150,12 +147,12 @@ final class BookingService
         }
         return $booking;
     }
-
     public function transition(int $actor, int $id, string $status, ?string $reason = null, bool $admin = false): bool
     {
         if ($admin) {
             $this->access->require($actor, 'review');
-        } elseif ($status !== 'cancelled') {
+        }
+        elseif ($status !== 'cancelled') {
             throw new RuleViolation('اجازه تغییر این وضعیت را ندارید.');
         }
         if ($reason !== null && strlen($reason) > 500) {
@@ -199,14 +196,13 @@ final class BookingService
                 $this->outbox->message((int)$row['user_id'], $text, "booking:$id:status:$status");
             }
             return true;
-        });
+        }
+        );
     }
-
     private function history(int $id, int $actor, ?string $old, string $new, ?string $reason): void
     {
         Database::run($this->pdo, 'INSERT INTO BookingStatusHistory(booking_id,actor_id,old_status,new_status,reason) VALUES (?,?,?,?,?)', [$id,$actor,$old,$new,$reason]);
     }
-
     public function manualPayment(int $actor, int $id, string $reference): bool
     {
         $this->access->require($actor, 'payments');
@@ -229,7 +225,8 @@ final class BookingService
             }
             try {
                 Database::run($this->pdo, "UPDATE Payments SET status='paid',method='manual',provider_tx=? WHERE booking_id=?", ['manual:' . hash('sha256', $reference),$id]);
-            } catch (PDOException $error) {
+            }
+            catch (PDOException $error) {
                 if (($error->errorInfo[1] ?? null) === 1062) {
                     throw new RuleViolation('این شناسه پرداخت قبلاً استفاده شده است.');
                 }
@@ -240,6 +237,7 @@ final class BookingService
                 $this->outbox->message((int)$booking['user_id'], "پرداخت رزرو شماره $id توسط مدیر تأیید شد. وضعیت رزرو جداگانه بررسی می‌شود.", "payment:$id:paid");
             }
             return true;
-        });
+        }
+        );
     }
 }
