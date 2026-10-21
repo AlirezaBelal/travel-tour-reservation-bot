@@ -1,5 +1,12 @@
 # Changelog
 
+## Legacy category application flow — 2026-10-21
+
+- Extracted configured-owner category creation and caption forms from the legacy
+  handler into an explicitly wired service without global or Telegram dependencies.
+- Preserved legacy commands and response text; added direct permission, form-state
+  and transaction rollback coverage on MySQL/MariaDB.
+
 ## Catalogue application service — 2026-10-21
 
 - Characterized catalogue visibility, literal search, ordering and pagination before

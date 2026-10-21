@@ -6,6 +6,8 @@ require __DIR__ . '/../src/profiles.php';
 require __DIR__ . '/../src/TopicMemberships.php';
 require __DIR__ . '/../src/TopicCatalogue.php';
 require __DIR__ . '/../src/LegacyHandlerAdapter.php';
+require __DIR__ . '/../src/Database.php';
+require __DIR__ . '/../src/LegacyTopicService.php';
 
 define('ADMINS', [999]);
 $dsn = getenv('TEST_MYSQL_DSN');
@@ -16,6 +18,7 @@ $pdo = new PDO($dsn, getenv('TEST_MYSQL_USER') ?: 'root', getenv('TEST_MYSQL_PAS
 $db = new Medoo\Medoo(['pdo' => $pdo, 'database_type' => 'mysql']);
 $memberships = new TopicMemberships($pdo);
 $catalogue = new TopicCatalogue($pdo);
+$topicForms = new LegacyTopicService($pdo, $catalogue, ADMINS);
 $calls = [];
 $checks = 0;
 function expectFlow(bool $condition, string $label): void
@@ -57,7 +60,7 @@ function copymessage(int|string $chatId, int|string $fromChatId, int|string $mes
 }
 function dispatchFlow(int $actor, ?string $input = null, ?string $callback = null, array $contactPayload = []): array
 {
-    global $db, $memberships, $catalogue, $calls;
+    global $db, $memberships, $catalogue, $topicForms, $calls;
     $calls = [];
     $fromId = $chatId = $actor;
     $text = $input;
@@ -71,7 +74,7 @@ function dispatchFlow(int $actor, ?string $input = null, ?string $callback = nul
     LegacyHandlerAdapter::dispatch(
         $db, $memberships, $catalogue, $fromId, $chatId,
         $text, $data, $messageId, $callbackId, $text2, $userName,
-        $message, $photo, $document, $video
+        $message, $photo, $document, $video, $topicForms
     );
     return $calls;
 }
@@ -133,4 +136,47 @@ expectFlow($db->has('Topics', ['id' => $leaf]), 'unauthorized confirmed delete r
 dispatchFlow(999, null, "confirmDelete-$root");
 expectFlow(!$db->has('Topics', ['id' => $leaf]) && !$db->has('Topics', ['id' => $root]), 'confirmed deep deletion');
 expectFlow($memberships->status(201, $leaf) === null, 'deleted catalogue removes related membership');
+// Direct application calls have the same configured-owner boundary as legacy routing.
+$before = (int)$pdo->query('SELECT COUNT(*) FROM Topics')->fetchColumn();
+try {
+    $topicForms->createRoot(201, 201, 'Synthetic unauthorized category');
+    throw new RuntimeException('Direct legacy creation bypassed owner permissions.');
+} catch (RuleViolation $error) {
+    expectFlow((int)$pdo->query('SELECT COUNT(*) FROM Topics')->fetchColumn() === $before,
+        'direct service denies non-owner without writes');
+}
+$db->update('Data', ['step' => 'AddTopic-0'], ['UserId' => 201]);
+expectFlow($topicForms->submit(201, 201, 'Synthetic unauthorized child') === 'ignored',
+    'forged persisted topic form does not grant authority');
+expectFlow($db->get('Data', 'step', ['UserId' => 201]) === 'AddTopic-0',
+    'unauthorized topic form does not advance');
+$db->update('Data', ['step' => 'defult'], ['UserId' => 201]);
+$topicForms->begin(999, 999, 0);
+expectFlow($topicForms->submit(999, 999, '   ') === 'ignored', 'empty topic retains form');
+expectFlow($topicForms->submit(999, 999, 'Synthetic direct legacy category') === 'caption',
+    'service creates category without Telegram helpers');
+$directTopic = (int)$db->get('Topics', 'id', ['Name' => 'Synthetic direct legacy category']);
+expectFlow($topicForms->submit(999, 999, "Synthetic caption ' ?") === 'saved', 'direct caption accepted literally');
+expectFlow($db->get('Topics', 'caption', ['id' => $directTopic]) === "Synthetic caption ' ?",
+    'direct caption stored with prepared query');
+$db->update('Data', ['step' => 'caption-999999'], ['UserId' => 999]);
+expectFlow($topicForms->submit(999, 999, 'Synthetic missing caption') === 'missing', 'missing category reported');
+expectFlow($db->get('Data', 'step', ['UserId' => 999]) === 'caption-999999', 'missing category preserves legacy state');
+$db->update('Data', ['step' => 'AddTopic-invalid'], ['UserId' => 999]);
+expectFlow($topicForms->submit(999, 999, 'Synthetic malformed form') === 'ignored'
+    && $db->get('Data', 'step', ['UserId' => 999]) === 'defult', 'malformed parent safely resets form');
+// Category creation and conversation advancement roll back together on storage failure.
+$topicForms->begin(999, 999, 0);
+$pdo->exec("CREATE TRIGGER synthetic_fail_legacy_step BEFORE UPDATE ON Data FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic legacy state failure'");
+try {
+    $topicForms->submit(999, 999, 'Synthetic rollback legacy category');
+    throw new RuntimeException('Expected synthetic legacy state failure.');
+} catch (PDOException $error) {
+    expectFlow(!$db->has('Topics', ['Name' => 'Synthetic rollback legacy category']),
+        'conversation failure rolls back newly created category');
+} finally {
+    $pdo->exec('DROP TRIGGER synthetic_fail_legacy_step');
+}
+$db->update('Data', ['step' => 'defult'], ['UserId' => 999]);
+expectFlow($topicForms->submit(999, 999, 'Synthetic unrelated input') === null, 'unrelated legacy input remains unhandled');
 fwrite(STDOUT, "Telegram workflow regression tests passed ({$checks} checks).\n");
