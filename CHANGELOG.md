@@ -1,5 +1,11 @@
 # Changelog
 
+## Static analysis and reproducible quality tools — 2026-10-21
+
+- Added isolated, locked PHPStan/PHPCS dependencies and a level-5 analysis gate
+  without baseline suppression. Corrected Closure PHPDoc and legacy symbol typing.
+- Preserved live PDO rollback checks behind a tested cleanup boundary.
+
 ## Explicit conversation and ingress dependencies — 2026-10-21
 
 - Extracted profile UI into a focused controller and shared per-update conversation

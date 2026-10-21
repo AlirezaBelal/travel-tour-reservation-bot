@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/TransactionCleanup.php';
 
 final class TopicCatalogue
 {
@@ -48,8 +49,8 @@ final class TopicCatalogue
             if ($ownTransaction) $this->pdo->commit();
             return $id;
         } catch (Throwable $error) {
-            if ($ownTransaction && $this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
+            if ($ownTransaction) {
+                TransactionCleanup::rollbackIfActive($this->pdo);
             }
             throw $error;
         }
@@ -87,8 +88,8 @@ final class TopicCatalogue
             if ($ownTransaction) $this->pdo->commit();
             return count($visited);
         } catch (Throwable $error) {
-            if ($ownTransaction && $this->pdo->inTransaction()) {
-                $this->pdo->rollBack();
+            if ($ownTransaction) {
+                TransactionCleanup::rollbackIfActive($this->pdo);
             }
             throw $error;
         }

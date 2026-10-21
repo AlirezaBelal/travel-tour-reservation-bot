@@ -1,6 +1,8 @@
 parameters:
     level: 5
     phpVersion: 80030
+    bootstrapFiles:
+        - tools/quality/phpstan-bootstrap.php
     paths:
         - src
     excludePaths:

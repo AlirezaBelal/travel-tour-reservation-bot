@@ -391,3 +391,26 @@ per-update dependencies. The renderer receives its responder through the adapter
 No service reads a global request/actor/outbox. Unit tests cover HTTP outcomes and
 six response payload contracts; real HTTP/legacy integration tests exercise the
 production wiring, while direct conversation tests prove actor/form/key isolation.
+
+## Static analysis scope and diagnostic baseline
+
+PHPStan 2.3.1 runs at level 5 targeting PHP 8.0.30 over `src`, excluding only the
+scoped `handler.php` rendering template. That template is covered by source
+architecture rules, legacy characterization and HTTP/database integration. The
+analysis bootstrap provides the configured `ADMINS` symbol with a synthetic value
+inside the analyzer process only; the application never loads it. No baseline or
+ignored errors is included in the analysis configuration.
+
+The initial diagnostic baseline contained seven findings: three stale transaction
+state deductions, two Closure PHPDoc parsing errors, one unreachable false
+comparison and the runtime-defined owner constant. The Closure union is now
+parenthesized, the dead condition removed and the runtime symbol supplied for
+analysis. Transaction cleanup re-reads PDO state through a shared infrastructure
+boundary, preserving the guard for automatically aborted/deadlocked transactions.
+A PDO test double proves inactive/active/double-cleanup behavior; existing real
+rollback/deadlock/capacity tests remain unchanged. Tool dependencies are isolated
+from production and locked separately; Composer audits both dependency graphs.
+
+The PHPCS configuration targets source classes with PSR-12 while preserving global
+class names (namespace migration is outside compatibility scope). The generated
+formatting proposal is reviewed separately before style enforcement is activated.

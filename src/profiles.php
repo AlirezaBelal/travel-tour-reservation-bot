@@ -2,7 +2,7 @@
 
 function isAdmin(int|string|null $chatId): bool
 {
-    if ($chatId === null || $chatId === false || $chatId === '') {
+    if ($chatId === null || $chatId === '') {
         return false;
     }
 
