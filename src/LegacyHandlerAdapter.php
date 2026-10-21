@@ -6,7 +6,7 @@ final class LegacyHandlerAdapter
 {
     public static function dispatch(TopicCatalogue $catalogue, LegacyTopicService $topicForms,
         LegacyMembershipService $membershipFlow, LegacyBroadcastService $broadcasts,
-        array $owners, LegacyUpdate $update): void
+        array $owners, LegacyUpdate $update, LegacyResponder $responder): void
     {
         $fromId = $update->actor;
         $chatId = $update->chat;

@@ -43,136 +43,15 @@ define('TOKEN', $telegramToken);
 define('ADMINS', $adminIds);
 
 $webhookSecret = requiredEnv('TELEGRAM_WEBHOOK_SECRET');
-if (!webhookSecretIsValid($webhookSecret, $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? null)) {
-    http_response_code(403);
+$request = HttpIngress::decode($webhookSecret,
+    $_SERVER['HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN'] ?? null,
+    $_SERVER['REQUEST_METHOD'] ?? '', file_get_contents('php://input', false, null, 0, 1048577));
+if ($request['status'] !== 200 || $request['update'] === null) {
+    http_response_code($request['status']);
+    if ($request['status'] === 405) header('Allow: POST');
     exit;
 }
-if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-    http_response_code(405);
-    header('Allow: POST');
-    exit;
-}
-
-
-
-function bot(string $method, array $data = []): array|false
-{
-    global $outbox, $update, $fromId;
-    static $sequence = 0;
-    $chat = (int)($data['chat_id'] ?? $fromId);
-    $key = $method === 'answerCallbackQuery' && isset($data['callback_query_id']) ? 'callback:' . $data['callback_query_id'] : 'legacy:' . $update['update_id'] . ':' . $sequence++;
-    $outbox->enqueue($chat, $method, $data, $key);
-    return ['ok' => true, 'queued' => true];
-}
-
-function sendMessage(int|string $chatId, string $text): array|false
-{
-    return bot('sendMessage', ['chat_id' => $chatId, 'text' => $text]);
-}
-
-function sendkeyboard(int|string $chatId, string $text, string $keyboard): array|false
-{
-    return bot('sendMessage', [
-        'chat_id' => $chatId,
-        'text' => $text,
-        'reply_markup' => $keyboard,
-    ]);
-}
-
-function copymessage(int|string $chatId, int|string $fromChatId, int|string $messageId): array|false
-{
-    return bot('copyMessage', [
-        'chat_id' => $chatId,
-        'from_chat_id' => $fromChatId,
-        'message_id' => $messageId,
-    ]);
-}
-
-function editMessageText(int|string $chatId, int|string $messageId, string $text): array|false
-{
-    return bot('editMessageText', [
-        'chat_id' => $chatId,
-        'message_id' => $messageId,
-        'text' => $text,
-    ]);
-}
-
-function editMessageKeyboard(int|string $chatId, int|string $messageId, string $text, string $keyboard, mixed $caption = null): array|false
-{
-    return bot('editMessageText', [
-        'chat_id' => $chatId,
-        'message_id' => $messageId,
-        'text' => $text,
-        'reply_markup' => $keyboard,
-    ]);
-}
-
-function editMessageCaption(int|string $chatId, int|string $messageId, string $caption): array|false
-{
-    return bot('editMessageCaption', [
-        'chat_id' => $chatId,
-        'message_id' => $messageId,
-        'caption' => $caption,
-    ]);
-}
-
-function sendfile(int|string $chatId, string $document, string $text): array|false
-{
-    return bot('sendDocument', [
-        'chat_id' => $chatId,
-        'document' => $document,
-        'caption' => $text,
-        'parse_mode' => 'Markdown',
-    ]);
-}
-
-function advancedBuild(array $buttons, int|array $perline, bool $json = true, string $TEXT = '', string $perfix = ''): array|string|false
-{
-    $keyboard = [];
-    $n = $m = 0;
-
-    foreach ($buttons as $button) {
-        $callback = $button['id'];
-        $text = $button['Name'];
-        if ((is_array($perline) && ($perline[$m] ?? null) === $n) || $n === $perline) {
-            $m++;
-            $n = 0;
-        }
-
-        $keyboard[$m][] = ['text' => $text, 'callback_data' => (string)$text];
-        $keyboard[$m][] = ['text' => $TEXT, 'callback_data' => $perfix . $callback];
-        $n += 2;
-    }
-
-    return $json
-        ? json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE)
-        : $keyboard;
-}
-
-
-$rawUpdate = file_get_contents('php://input', false, null, 0, 1048577);
-if (!is_string($rawUpdate) || trim($rawUpdate) === '') {
-    http_response_code(200);
-    exit;
-}
-
-if (strlen($rawUpdate) > 1048576) {
-    http_response_code(413);
-    exit;
-}
-
-try {
-    $update = json_decode($rawUpdate, true, 512, JSON_THROW_ON_ERROR);
-} catch (JsonException) {
-    http_response_code(400);
-    exit;
-}
-
-if (!isSupportedPrivateUpdate($update)) {
-    // Acknowledge unsupported updates without side effects or Telegram retries.
-    http_response_code(200);
-    exit;
-}
+$update = $request['update'];
 
 $db = new Medoo([
     'database_type' => 'mysql',
@@ -223,11 +102,11 @@ $messageId = $incoming['messageId'];
 
 if (isset($update['callback_query']) && isSensitiveAdminCallback($data) && !isAdmin($fromId)) {
     if (is_string($callbackId) && $callbackId !== '') {
-        bot('answerCallbackQuery', [
+        $outbox->enqueue((int)$fromId, 'answerCallbackQuery', [
             'callback_query_id' => $callbackId,
             'text' => 'این عملیات فقط برای ادمین مجاز است.',
             'show_alert' => true,
-        ]);
+        ], 'callback:' . $callbackId);
     }
     $data = false;
 }

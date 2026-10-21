@@ -11,6 +11,7 @@ require __DIR__ . '/../src/LegacyTopicService.php';
 require __DIR__ . '/../src/LegacyMembershipService.php';
 require __DIR__ . '/../src/LegacyBroadcastService.php';
 require __DIR__ . '/../src/LegacyUpdate.php';
+require __DIR__ . '/../src/LegacyResponder.php';
 
 define('ADMINS', [999]);
 $dsn = getenv('TEST_MYSQL_DSN');
@@ -78,7 +79,7 @@ function dispatchFlow(int $actor, ?string $input = null, ?string $callback = nul
     $photo = $document = $video = null;
     LegacyHandlerAdapter::dispatch($catalogue, $topicForms, $membershipFlow, $broadcasts, ADMINS,
         new LegacyUpdate($actor, $actor, $input, $callback, 1, 'synthetic-query',
-            (bool)$input || $contactPayload !== []));
+            (bool)$input || $contactPayload !== []), new LegacyResponder(Closure::fromCallable('bot')));
     return $calls;
 }
 

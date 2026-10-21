@@ -1,5 +1,13 @@
 # Changelog
 
+## Explicit conversation and ingress dependencies — 2026-10-21
+
+- Extracted profile UI into a focused controller and shared per-update conversation
+  context; preserved response sequencing, contact consent and erasure flows.
+- Replaced legacy global output helpers with an injected responder/transport and
+  separated pure HTTP ingress decisions from database composition.
+- Added HTTP, responder and actor/form/response-key isolation coverage.
+
 ## Legacy application boundaries — 2026-10-21
 
 - Extracted legacy membership eligibility/approval and broadcast recipient/form

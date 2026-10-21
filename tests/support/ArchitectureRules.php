@@ -22,14 +22,14 @@ final class ArchitectureRules
                 if ($type === T_STRING && $value !== $name && in_array($value, $names, true)) {
                     $dependencies[$name][] = $value;
                 }
-                if (in_array($name, ['ProductBot', 'handler'], true) && $type === T_STRING
+                if ((in_array($name, ['ProductBot', 'handler'], true) || str_ends_with($name, 'Controller')) && $type === T_STRING
                     && in_array(strtolower($value), ['database', 'pdo', 'mysqli'], true)) {
                     $errors[] = 'presentation.persistence';
                 }
                 if ($name === 'handler' && $type === T_VARIABLE && $value === '$db') {
                     $errors[] = 'presentation.persistence';
                 }
-                if ($name === 'ProductBot' && $type === T_NEW) {
+                if (($name === 'ProductBot' || str_ends_with($name, 'Controller')) && $type === T_NEW) {
                     for ($next = $index + 1; isset($tokens[$next]); $next++) {
                         if (is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
                             continue;

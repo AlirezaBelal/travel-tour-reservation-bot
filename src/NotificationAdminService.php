@@ -12,6 +12,11 @@ final class NotificationAdminService
         private Outbox $outbox
     ) {}
 
+    public function retry(int $actor, int $id): void
+    {
+        $this->outbox->retry($actor, $id, $this->access);
+    }
+
     public function overview(int $actor): array
     {
         $this->access->require($actor, 'notify');
