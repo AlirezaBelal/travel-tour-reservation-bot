@@ -35,6 +35,25 @@ $check((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE status='f
 (new NotificationWorker($pdo, $access))->tick($transport, 10, false);
 $check($sent === 1, 'invalid payloads are not retried automatically');
 
+// Keep the malformed rows while erasing another account: JSON extraction must be guarded.
+Database::run($pdo, "INSERT INTO Data(UserId,Name,step) VALUES (882,'Synthetic erasure target','defult')");
+$outbox->message(882, 'Synthetic own message', 'boundary-erase-own');
+$outbox->message(999, 'Synthetic subject message', 'boundary-erase-subject', [], 882);
+$privacy = new PrivacyService($pdo);
+$privacy->erase(882);
+$check(Database::run($pdo, 'SELECT UserId FROM Data WHERE UserId=882')->fetchColumn() === false,
+    'unrelated malformed JSON does not prevent account erasure');
+$check((int)Database::run($pdo, 'SELECT COUNT(*) FROM NotificationOutbox WHERE idem_key IN (?,?)',
+    [hash('sha256', 'boundary-erase-own'), hash('sha256', 'boundary-erase-subject')])->fetchColumn() === 0,
+    'erasure removes own messages and valid subject-tagged messages in administrator chats');
+$check((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=880 AND error_code='invalid_payload'")->fetchColumn() === 2
+    && (int)$pdo->query('SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=881')->fetchColumn() === 1,
+    'erasure preserves unrelated malformed and healthy messages');
+$privacy->erase(882);
+$privacy->erase(880);
+$check((int)$pdo->query('SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=880')->fetchColumn() === 0,
+    'erasure is repeatable and also removes malformed payloads belonging to its recipient');
+
 $pdo->exec('DELETE FROM NotificationOutbox');
 $outbox->message(880, 'Synthetic rate-limited delivery', 'boundary-429');
 (new NotificationWorker($pdo, $access))->tick(static fn () => ['ok' => false, 'code' => 429, 'retry_after' => 45], 1, false);
