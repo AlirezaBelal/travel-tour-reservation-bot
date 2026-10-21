@@ -8,6 +8,7 @@ use Medoo\Medoo;
 require __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/src/validators.php';
 require_once __DIR__ . '/src/webhook.php';
+require_once __DIR__ . '/src/IncomingUpdate.php';
 require_once __DIR__ . '/src/TopicMemberships.php';
 require_once __DIR__ . '/src/TopicCatalogue.php';
 require_once __DIR__ . '/src/profiles.php';
@@ -195,50 +196,34 @@ $processor = new WebhookProcessor($db->pdo, $bookings, $productBot, $outbox);
 $memberships = new TopicMemberships($db->pdo);
 $catalogue = new TopicCatalogue($db->pdo);
 
-$text = $chatType = $chatTitle = $userName = $firstName = $callbackId = $data = $query = $fromId = false;
-$text2 = $messageId2 = false;
-$message = [];
-$photo = $document = $video = null;
-$chatId = $messageId = null;
+// The pure ingress mapper preserves the lexical variables needed by the
+// compatibility adapter, without mixing JSON shape parsing with PDO bootstrap.
+$incoming = IncomingUpdate::context($update);
+$text = $incoming['text'];
+$chatType = $incoming['chatType'];
+$chatTitle = $incoming['chatTitle'];
+$userName = $incoming['userName'];
+$firstName = $incoming['firstName'];
+$callbackId = $incoming['callbackId'];
+$data = $incoming['data'];
+$query = $incoming['query'];
+$fromId = $incoming['fromId'];
+$text2 = $incoming['text2'];
+$messageId2 = $incoming['messageId2'];
+$message = $incoming['message'];
+$photo = $incoming['photo'];
+$document = $incoming['document'];
+$video = $incoming['video'];
+$chatId = $incoming['chatId'];
+$messageId = $incoming['messageId'];
 
-if (isset($update['message']) || isset($update['edited_message'])) {
-    $message = $update['message'] ?? $update['edited_message'];
-    $messageId = $message['message_id'] ?? null;
-    $text = $message['text'] ?? null;
-    $photo = $message['photo'] ?? null;
-    $document = $message['document'] ?? null;
-    $video = $message['video'] ?? null;
-    $chat = is_array($message['chat'] ?? null) ? $message['chat'] : [];
-    $chatId = $chat['id'] ?? null;
-    $chatType = $chat['type'] ?? null;
-    $chatTitle = $chat['title'] ?? 'Unknown';
-    $from = is_array($message['from'] ?? null) ? $message['from'] : [];
-    $fromId = $from['id'] ?? null;
-    $firstName = $from['first_name'] ?? '';
-    $userName = $from['username'] ?? 'Empty';
-} elseif (isset($update['callback_query'])) {
-    $callback = $update['callback_query'];
-    $message = is_array($callback['message'] ?? null) ? $callback['message'] : [];
-    $chat = is_array($message['chat'] ?? null) ? $message['chat'] : [];
-    $chatId = $chat['id'] ?? null;
-    $text2 = $message['text'] ?? null;
-    $messageId = $message['message_id'] ?? null;
-    $data = $callback['data'] ?? null;
-    $callbackId = $callback['id'] ?? null;
-    $from = is_array($callback['from'] ?? null) ? $callback['from'] : [];
-    $fromId = $from['id'] ?? null;
-    $firstName = $from['first_name'] ?? '';
-    $userName = $from['username'] ?? 'Empty';
-    $messageId2 = $messageId;
-
-    if (isSensitiveAdminCallback($data) && !isAdmin($fromId)) {
-        if (is_string($callbackId) && $callbackId !== '') {
-            bot('answerCallbackQuery', [
-                'callback_query_id' => $callbackId,
-                'text' => 'این عملیات فقط برای ادمین مجاز است.',
-                'show_alert' => true,
-            ]);
-        }
-        $data = false;
+if (isset($update['callback_query']) && isSensitiveAdminCallback($data) && !isAdmin($fromId)) {
+    if (is_string($callbackId) && $callbackId !== '') {
+        bot('answerCallbackQuery', [
+            'callback_query_id' => $callbackId,
+            'text' => 'این عملیات فقط برای ادمین مجاز است.',
+            'show_alert' => true,
+        ]);
     }
+    $data = false;
 }

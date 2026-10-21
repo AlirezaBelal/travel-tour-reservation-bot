@@ -32,6 +32,20 @@ changing booking, payment or notification rules.
 | PaymentAdapter / PaymentService | Verified events, unique order/transaction identity, amount/freshness checks |
 | PrivacyService / Scheduler | Explicit erasure, inactive-profile retention, reminders and unpaid hold expiration |
 
+## Testable ingress normalization
+
+`config.php` authenticates the HTTP request and rejects unsupported updates
+before opening the database connection. `IncomingUpdate::context()` maps the
+already-supported private message or callback into the previous lexical
+request fields **without I/O**. It rejects invalid updates if called on its
+own. Sensitive administrator callbacks remain checked and denied in the HTTP
+bootstrap before dispatch; this mapping does not authorize requests.
+
+`tests/incoming_update_test.php` covers message, callback, own-contact shape,
+legacy false/null defaults and unsupported update rejection without MySQL.
+The end-to-end HTTP, legacy compatibility, and MySQL/MariaDB tests remain the
+authoritative regression gates for the whole pipeline.
+
 ## Additive migration lineage
 
 001 retains old Data/Topics and copies `topic<id>` statuses into TopicMemberships.

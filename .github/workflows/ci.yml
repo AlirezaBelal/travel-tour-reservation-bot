@@ -44,6 +44,7 @@ jobs:
       - name: Run webhook security tests
         run: |
           php tests/webhook_test.php
+          php tests/incoming_update_test.php
           php tests/booking_unit_test.php
           php tests/architecture_test.php
 
