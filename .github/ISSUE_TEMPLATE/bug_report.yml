@@ -1,4 +1,4 @@
-name: Bug report / گزارش خطا
+name: Bug report
 description: Report a reproducible defect using synthetic data only.
 title: "[Bug]: "
 body:
@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Do not include bot tokens, .env files, encryption keys, database dumps or real traveler data.
-        برای گزارش امنیتی از SECURITY.md پیروی کنید؛ Secret و اطلاعات واقعی مسافر را اینجا ننویسید.
+        Follow SECURITY.md to report vulnerabilities privately.
   - type: input
     id: revision
     attributes:
