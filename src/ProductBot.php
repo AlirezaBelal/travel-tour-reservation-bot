@@ -6,6 +6,7 @@ final class ProductBot
     private int $update=0;
     private BookingReportService $reports;
     private BotSessionStore $sessions;
+    private NotificationAdminService $notificationAdmin;
     public function __construct(
         private PDO $pdo,
         private BookingService $bookings,
@@ -13,10 +14,12 @@ final class ProductBot
         private Outbox $outbox,
         private string $timezone = 'Asia/Tehran',
         ?BookingReportService $reports = null,
-        ?BotSessionStore $sessions = null
+        ?BotSessionStore $sessions = null,
+        ?NotificationAdminService $notificationAdmin = null
     ) {
         $this->reports = $reports ?? new BookingReportService($pdo, $bookings, $access);
         $this->sessions = $sessions ?? new BotSessionStore($pdo);
+        $this->notificationAdmin = $notificationAdmin ?? new NotificationAdminService($pdo, $access, $outbox);
     }
 
     public function dispatch(int $actor,?string $text,?string $callback,int $update,?array $contact=null):bool
@@ -573,30 +576,29 @@ final class ProductBot
         $this->reply('فایل در صف ارسال امن قرار گرفت.');
     }
 
-    private function notifications():void {
-        $rows=Database::run($this->pdo,'SELECT status,COUNT(*) total FROM NotificationOutbox GROUP BY status')->fetchAll(PDO::FETCH_ASSOC);
-        $text='وضعیت صف اعلان‌ها:';
-        foreach($rows as$row)$text.="\n{$row['status']}: {$row['total']}";
-        $failed=Database::run($this->pdo,"SELECT id,error_code FROM NotificationOutbox WHERE status='failed' ORDER BY id DESC LIMIT 10")->fetchAll(PDO::FETCH_ASSOC);
-        $buttons=[];
-        foreach($failed as$row)$buttons[]=[['text'=>"تلاش مجدد #{$row['id']} ({$row['error_code']})",'callback_data'=>'p:retry:'.$row['id']]];
-        $this->reply($text,$buttons);
+    private function notifications(): void
+    {
+        $overview = $this->notificationAdmin->overview($this->actor);
+        $text = 'وضعیت صف اعلان‌ها:';
+        foreach ($overview['statuses'] as $row) {
+            $text .= "\n{$row['status']}: {$row['total']}";
+        }
+
+        $buttons = [];
+        foreach ($overview['failed'] as $row) {
+            $buttons[] = [[
+                'text' => "تلاش مجدد #{$row['id']} ({$row['error_code']})",
+                'callback_data' => 'p:retry:' . $row['id'],
+            ]];
+        }
+        $this->reply($text, $buttons);
     }
 
-    private function broadcast(int $tour,string $text):void {
-        $this->access->require($this->actor,'notify');
-        $after=0;
-        $count=0;
-        do{
-            $rows=$tour===0?Database::run($this->pdo,'SELECT UserId AS id FROM Data WHERE UserId>? ORDER BY UserId LIMIT 200',[$after])->fetchAll(PDO::FETCH_ASSOC):Database::run($this->pdo,"SELECT DISTINCT user_id AS id FROM Bookings WHERE tour_id=? AND user_id>? AND status IN ('pending','confirmed') ORDER BY user_id LIMIT 200",[$tour,$after])->fetchAll(PDO::FETCH_ASSOC);
-            foreach($rows as$row){
-                $after=(int)$row['id'];
-                $this->outbox->enqueue($after,'sendMessage',['text'=>$text,'_permission_actor'=>$this->actor,'_required_permissions'=>['notify']],"broadcast:{$this->update}:$after");
-                $count++;
-            }
-        }
-        while(count($rows)===200);
-        $this->access->audit($this->actor,'notification.broadcast','tour',$tour);
+    private function broadcast(int $tour, string $text): void
+    {
+        $count = $this->notificationAdmin->broadcast(
+            $this->actor, $this->update, $tour, $text
+        );
         $this->reply("برای $count حساب در صف قرار گرفت؛ نتیجه ارسال را از وضعیت اعلان‌ها پیگیری کنید.");
     }
 
