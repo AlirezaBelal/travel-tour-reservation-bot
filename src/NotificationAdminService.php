@@ -10,7 +10,8 @@ final class NotificationAdminService
         private PDO $pdo,
         private AccessControl $access,
         private Outbox $outbox
-    ) {}
+    ) {
+    }
 
     public function retry(int $actor, int $id): void
     {

@@ -1,18 +1,24 @@
 <?php
+
 declare(strict_types=1);
 
 /** Authorized state changes coordinate the existing tour/booking/payment lock order. */
 final class BookingLifecycleService
 {
-    public function __construct(private PDO $pdo, private TourInventory $inventory,
-        private BookingReader $reader, private AccessControl $access, private Outbox $outbox,
-        private BookingHistoryStore $history) {}
+    public function __construct(
+        private PDO $pdo,
+        private TourInventory $inventory,
+        private BookingReader $reader,
+        private AccessControl $access,
+        private Outbox $outbox,
+        private BookingHistoryStore $history
+    ) {
+    }
     public function transition(int $actor, int $id, string $status, ?string $reason = null, bool $admin = false): bool
     {
         if ($admin) {
             $this->access->require($actor, 'review');
-        }
-        elseif ($status !== 'cancelled') {
+        } elseif ($status !== 'cancelled') {
             throw new RuleViolation('اجازه تغییر این وضعیت را ندارید.');
         }
         if ($reason !== null && strlen($reason) > 500) {
@@ -44,7 +50,7 @@ final class BookingLifecycleService
             Database::run($this->pdo, 'UPDATE Bookings SET status=?,version=version+1 WHERE id=?', [$status,$id]);
             $this->history->append($id, $actor, $row['status'], $status, $reason);
             $this->access->audit($actor, 'booking.' . $status, 'booking', $id);
-            $labels = ['confirmed'=>'تأییدشده','rejected'=>'ردشده','cancelled'=>'لغوشده','completed'=>'تکمیل‌شده'];
+            $labels = ['confirmed' => 'تأییدشده','rejected' => 'ردشده','cancelled' => 'لغوشده','completed' => 'تکمیل‌شده'];
             if ($row['user_id'] !== null) {
                 $text = "وضعیت رزرو شماره $id: " . $labels[$status];
                 if ($reason !== null && $reason !== '') {
@@ -56,7 +62,6 @@ final class BookingLifecycleService
                 $this->outbox->message((int)$row['user_id'], $text, "booking:$id:status:$status");
             }
             return true;
-        }
-        );
+        });
     }
 }

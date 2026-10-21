@@ -1,10 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 /** Owner-authorized legacy recipient selection and consumption of its persisted form. */
 final class LegacyBroadcastService
 {
-    public function __construct(private PDO $pdo, private TopicMemberships $memberships, private array $owners) {}
+    public function __construct(private PDO $pdo, private TopicMemberships $memberships, private array $owners)
+    {
+    }
 
     public function begin(int $actor, int $chat, string $selection): void
     {
@@ -19,7 +22,9 @@ final class LegacyBroadcastService
     {
         return Database::atomic($this->pdo, function () use ($actor, $chat): ?array {
             $step = (string)Database::run($this->pdo, 'SELECT step FROM Data WHERE UserId=? FOR UPDATE', [$chat])->fetchColumn();
-            if (!str_starts_with($step, 'send')) return null;
+            if (!str_starts_with($step, 'send')) {
+                return null;
+            }
             Database::run($this->pdo, "UPDATE Data SET step='defult' WHERE UserId=?", [$chat]);
             if (!in_array($actor, $this->owners, true)) {
                 return ['authorized' => false, 'recipients' => []];

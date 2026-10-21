@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . '/RuleViolation.php';
 require_once __DIR__ . '/TransactionCleanup.php';
 require_once __DIR__ . '/BookingRules.php';
@@ -17,7 +18,7 @@ final class Database
         if ($pdo->inTransaction()) {
             return $action();
         }
-        for ($attempt = 0; ; $attempt++) {
+        for ($attempt = 0;; $attempt++) {
             $pdo->beginTransaction();
             try {
                 $result = $action();
@@ -26,7 +27,7 @@ final class Database
             } catch (Throwable $error) {
                 TransactionCleanup::rollbackIfActive($pdo);
                 if ($error instanceof PDOException && in_array((int)($error->errorInfo[1] ?? 0), [1205,1213], true) && $attempt < 4) {
-                    usleep(random_int(10000,50000));
+                    usleep(random_int(10000, 50000));
                     continue;
                 }
                 throw $error;

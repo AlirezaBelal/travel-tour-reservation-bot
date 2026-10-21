@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /** Self-service profile operations and separately authorized administrator views. */
@@ -9,7 +10,8 @@ final class TravelerProfileService
         private TravelerIdentity $identity,
         private PrivacyService $privacy,
         private AccessControl $access
-    ) {}
+    ) {
+    }
 
     public function legacyStep(int $actor): ?string
     {

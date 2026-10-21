@@ -1,11 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 /** Explicit Telegram response adapter; tests replace only the external delivery closure. */
 final class LegacyResponder
 {
     /** @param Closure(string, array): (array|false) $send */
-    public function __construct(private Closure $send) {}
+    public function __construct(private Closure $send)
+    {
+    }
     public function bot(string $method, array $payload = []): array|false
     {
         return ($this->send)($method, $payload);

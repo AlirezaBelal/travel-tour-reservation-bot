@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /** Tour value validation without persistence, delivery or configuration. */
@@ -28,9 +29,11 @@ final class TourRules
         if ($values['ends_at'] <= $values['starts_at']) {
             throw new RuleViolation('زمان پایان تور باید بعد از زمان شروع باشد.');
         }
-        if (!is_int($values['price']) || $values['price'] < 0 || $values['price'] > 1000000000000
-        || !is_int($values['capacity']) || $values['capacity'] < 1 || $values['capacity'] > 100000
-        || !in_array($values['publication'], ['draft','published','inactive','archived'], true)) {
+        if (
+            !is_int($values['price']) || $values['price'] < 0 || $values['price'] > 1000000000000
+            || !is_int($values['capacity']) || $values['capacity'] < 1 || $values['capacity'] > 100000
+            || !in_array($values['publication'], ['draft','published','inactive','archived'], true)
+        ) {
             throw new RuleViolation('قیمت، ظرفیت، تاریخ یا وضعیت تور معتبر نیست.');
         }
     }

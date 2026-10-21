@@ -5,7 +5,9 @@ final class BotSessionStore
 {
     private const TTL_SECONDS = 1800;
 
-    public function __construct(private PDO $pdo) {}
+    public function __construct(private PDO $pdo)
+    {
+    }
 
     public function put(int $actor, string $state, array $payload): void
     {
@@ -20,7 +22,9 @@ final class BotSessionStore
     public function get(int $actor): ?array
     {
         $row = Database::run(
-            $this->pdo, 'SELECT * FROM BotSessions WHERE user_id=?', [$actor]
+            $this->pdo,
+            'SELECT * FROM BotSessions WHERE user_id=?',
+            [$actor]
         )->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
             return null;

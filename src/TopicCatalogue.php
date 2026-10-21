@@ -1,4 +1,5 @@
 <?php
+
 require_once __DIR__ . '/TransactionCleanup.php';
 
 final class TopicCatalogue
@@ -34,7 +35,9 @@ final class TopicCatalogue
             throw new InvalidArgumentException('Invalid topic.');
         }
         $ownTransaction = !$this->pdo->inTransaction();
-        if ($ownTransaction) $this->pdo->beginTransaction();
+        if ($ownTransaction) {
+            $this->pdo->beginTransaction();
+        }
         try {
             if ($parentId !== 0) {
                 $parent = $this->pdo->prepare('SELECT id FROM Topics WHERE id = ? FOR UPDATE');
@@ -46,7 +49,9 @@ final class TopicCatalogue
             $insert = $this->pdo->prepare('INSERT INTO Topics (Name, `Groups`) VALUES (?, ?)');
             $insert->execute([trim($name), $parentId]);
             $id = (int)$this->pdo->lastInsertId();
-            if ($ownTransaction) $this->pdo->commit();
+            if ($ownTransaction) {
+                $this->pdo->commit();
+            }
             return $id;
         } catch (Throwable $error) {
             if ($ownTransaction) {
@@ -60,7 +65,9 @@ final class TopicCatalogue
     public function deleteTree(int $topicId): int
     {
         $ownTransaction = !$this->pdo->inTransaction();
-        if ($ownTransaction) $this->pdo->beginTransaction();
+        if ($ownTransaction) {
+            $this->pdo->beginTransaction();
+        }
         try {
             $topics = $this->pdo->query('SELECT id, `Groups` FROM Topics ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC);
             $children = [];
@@ -85,7 +92,9 @@ final class TopicCatalogue
             foreach (array_keys($visited) as $id) {
                 $delete->execute([$id]);
             }
-            if ($ownTransaction) $this->pdo->commit();
+            if ($ownTransaction) {
+                $this->pdo->commit();
+            }
             return count($visited);
         } catch (Throwable $error) {
             if ($ownTransaction) {

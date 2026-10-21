@@ -1,10 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 /** Manual payment review: authorization, locked payment writes, audit and outbox. */
 final class PaymentReviewService
 {
-    public function __construct(private PDO $pdo, private AccessControl $access, private Outbox $outbox) {}
+    public function __construct(private PDO $pdo, private AccessControl $access, private Outbox $outbox)
+    {
+    }
 
     public function record(int $actor, int $id, string $reference): bool
     {
@@ -12,13 +15,18 @@ final class PaymentReviewService
         if (!PaymentRules::isManualReference($reference)) {
             throw new RuleViolation('شناسه تأیید پرداخت باید ۳ تا ۸۰ حرف یا عدد انگلیسی باشد.');
         }
-        return Database::atomic($this->pdo, function () use ($actor,$id,$reference) {
+        return Database::atomic($this->pdo, function () use ($actor, $id, $reference) {
             $booking = Database::run($this->pdo, 'SELECT * FROM Bookings WHERE id=?', [$id])->fetch(PDO::FETCH_ASSOC);
             if (!$booking) {
                 throw new RuleViolation('رزرو پیدا نشد.');
             }
-            if (!Database::run($this->pdo, 'SELECT * FROM Tours WHERE id=? FOR UPDATE',
-                [(int)$booking['tour_id']])->fetch(PDO::FETCH_ASSOC)) {
+            if (
+                !Database::run(
+                    $this->pdo,
+                    'SELECT * FROM Tours WHERE id=? FOR UPDATE',
+                    [(int)$booking['tour_id']]
+                )->fetch(PDO::FETCH_ASSOC)
+            ) {
                 throw new RuleViolation('تور موردنظر پیدا نشد.');
             }
             $booking = Database::run($this->pdo, 'SELECT * FROM Bookings WHERE id=? FOR UPDATE', [$id])->fetch(PDO::FETCH_ASSOC);
@@ -31,8 +39,7 @@ final class PaymentReviewService
             }
             try {
                 Database::run($this->pdo, "UPDATE Payments SET status='paid',method='manual',provider_tx=? WHERE booking_id=?", ['manual:' . hash('sha256', $reference),$id]);
-            }
-            catch (PDOException $error) {
+            } catch (PDOException $error) {
                 if (($error->errorInfo[1] ?? null) === 1062) {
                     throw new RuleViolation('این شناسه پرداخت قبلاً استفاده شده است.');
                 }
@@ -43,7 +50,6 @@ final class PaymentReviewService
                 $this->outbox->message((int)$booking['user_id'], "پرداخت رزرو شماره $id توسط مدیر تأیید شد. وضعیت رزرو جداگانه بررسی می‌شود.", "payment:$id:paid");
             }
             return true;
-        }
-        );
+        });
     }
 }

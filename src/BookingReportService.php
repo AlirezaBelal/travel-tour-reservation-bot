@@ -12,7 +12,8 @@ final class BookingReportService
         private PDO $pdo,
         private BookingService $bookings,
         private AccessControl $access
-    ) {}
+    ) {
+    }
 
     public function summary(int $actor, int $tourId): array
     {
@@ -63,7 +64,9 @@ final class BookingReportService
                 fputcsv(
                     $stream,
                     array_map(static fn ($value) => BookingRules::csv((string)$value), $row),
-                    ',', '"', ''
+                    ',',
+                    '"',
+                    ''
                 );
             }
             rewind($stream);
