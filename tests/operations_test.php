@@ -35,6 +35,8 @@ $pdo->exec('DELETE FROM NotificationOutbox');
 $outbox->message(400,'Synthetic notification','same-key');$outbox->message(400,'Synthetic notification','same-key');opCheck((int)$pdo->query('SELECT COUNT(*) FROM NotificationOutbox')->fetchColumn()===1,'outbox enqueue idempotency');
 $worker->tick(fn()=>['ok'=>false,'code'=>429,'retry_after'=>45],1,false);
 $row=$pdo->query('SELECT * FROM NotificationOutbox')->fetch(PDO::FETCH_ASSOC);opCheck($row['status']==='pending'&&(int)$row['attempts']===1&&strtotime($row['available_at'].' UTC')>=time()+43,'429 retry-after honored');
+// Advance the shared test deadline as well as the individual retry timestamp.
+$pdo->exec('UPDATE NotificationDeliveryState SET blocked_until=UTC_TIMESTAMP()-INTERVAL 1 SECOND');
 $pdo->exec('UPDATE NotificationOutbox SET available_at=UTC_TIMESTAMP()');$worker->tick(fn()=>['ok'=>false,'code'=>503],1,false);
 $row=$pdo->query('SELECT * FROM NotificationOutbox')->fetch(PDO::FETCH_ASSOC);opCheck((int)$row['attempts']===2&&$row['error_code']==='telegram_503','temporary API failure retried');
 $pdo->exec('UPDATE NotificationOutbox SET available_at=UTC_TIMESTAMP()');$worker->tick(fn()=>['ok'=>true,'code'=>200],1,false);

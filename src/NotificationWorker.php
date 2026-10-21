@@ -18,6 +18,9 @@ final class NotificationWorker
         }
         $processed = 0;
         try {
+            if (Database::run($this->pdo, 'SELECT id FROM NotificationDeliveryState WHERE id=1 AND blocked_until>UTC_TIMESTAMP()')->fetchColumn() !== false) {
+                return 0;
+            }
             $this->pdo->exec("UPDATE NotificationOutbox SET status='pending',locked_at=NULL WHERE status='processing' AND locked_at < UTC_TIMESTAMP()-INTERVAL 5 MINUTE");
             for ($i = 0; $i < $limit; $i++) {
                 $row = Database::atomic($this->pdo, function () use ($throttle) {
@@ -31,7 +34,15 @@ final class NotificationWorker
                 if (!$row) {
                     break;
                 }
-                $payload = json_decode($row['payload'], true, 512, JSON_THROW_ON_ERROR);
+                try {
+                    $payload = json_decode($row['payload'], true, 512, JSON_THROW_ON_ERROR);
+                    if (!is_array($payload)) {
+                        throw new UnexpectedValueException('Outbox payload must be an object.');
+                    }
+                } catch (JsonException | UnexpectedValueException) {
+                    Database::run($this->pdo, "UPDATE NotificationOutbox SET status='failed',error_code='invalid_payload',locked_at=NULL WHERE id=?", [$row['id']]);
+                    continue;
+                }
                 $obsolete = isset($payload['_expires_at']) && $payload['_expires_at'] <= gmdate('Y-m-d H:i:s');
                 $authorized = true;
                 foreach ((array)($payload['_required_permissions'] ?? []) as $permission) {
@@ -69,9 +80,14 @@ final class NotificationWorker
                     $attempt = (int)$row['attempts'] + 1;
                     $retry = ($code === 0 || $code === 429 || $code >= 500) && $attempt < 8;
                     $delay = self::delay($attempt, max(0, min(86400, (int)($result['retry_after'] ?? 0))));
-                    Database::run($this->pdo, 'UPDATE NotificationOutbox SET status=?,available_at=?,locked_at=NULL,error_code=? WHERE id=?', [$retry ? 'pending' : 'failed',gmdate('Y-m-d H:i:s', time() + $delay),$code === 0 ? 'transport' : "telegram_$code",$row['id']]);
+                    $available = gmdate('Y-m-d H:i:s', time() + $delay);
+                    Database::atomic($this->pdo, function () use ($retry, $available, $code, $row) {
+                        Database::run($this->pdo, 'UPDATE NotificationOutbox SET status=?,available_at=?,locked_at=NULL,error_code=? WHERE id=?', [$retry ? 'pending' : 'failed', $available, $code === 0 ? 'transport' : "telegram_$code", $row['id']]);
+                        if ($code === 429) {
+                            Database::run($this->pdo, 'INSERT INTO NotificationDeliveryState(id,blocked_until) VALUES (1,?) ON DUPLICATE KEY UPDATE blocked_until=GREATEST(blocked_until,VALUES(blocked_until))', [$available]);
+                        }
+                    });
                     if ($code === 429) {
-                        Database::run($this->pdo, "UPDATE NotificationOutbox SET available_at=GREATEST(available_at,?) WHERE status='pending'", [gmdate('Y-m-d H:i:s', time() + $delay)]);
                         break;
                     }
                 }

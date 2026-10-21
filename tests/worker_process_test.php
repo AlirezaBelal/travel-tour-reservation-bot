@@ -9,7 +9,7 @@ if(($argv[1]??'')==='child') {
     $mode=$argv[2]??'';
     $worker->tick(function()use($mode){
         if($mode==='crash')while(true)usleep(10000); // Parent kills us during external send.
-        return $mode==='temporary'?['ok'=>false,'code'=>503]:['ok'=>true,'code'=>200];
+        return $mode==='rate'?['ok'=>false,'code'=>429,'retry_after'=>45]:($mode==='temporary'?['ok'=>false,'code'=>503]:['ok'=>true,'code'=>200]);
     },1,false);
     exit;
 }
@@ -58,4 +58,15 @@ finishWorker(launchWorker('success'));
 processCheck((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE status='pending'")->fetchColumn()===1,'restart respects persisted backoff');
 $pdo->exec("UPDATE NotificationOutbox SET available_at=UTC_TIMESTAMP() WHERE status='pending'");finishWorker(launchWorker('success'));
 processCheck((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE status='sent'")->fetchColumn()===2,'retry delivered after service recovery');
+$pdo->exec('DELETE FROM NotificationOutbox');
+$outbox->message(880,'Synthetic process cooldown','process-cooldown');finishWorker(launchWorker('rate'));
+$outbox->message(881,'Synthetic arrival after worker exit','process-cooldown-late');finishWorker(launchWorker('success'));
+processCheck((int)$pdo->query("SELECT attempts FROM NotificationOutbox WHERE chat_id=881")->fetchColumn()===0,
+    'new worker process respects shared cooldown for a new recipient');
+$pdo->exec('UPDATE NotificationDeliveryState SET blocked_until=UTC_TIMESTAMP()-INTERVAL 1 SECOND');
+$pdo->exec('UPDATE NotificationOutbox SET available_at=UTC_TIMESTAMP()');
+finishWorker(launchWorker('success'));finishWorker(launchWorker('success'));
+processCheck((int)$pdo->query("SELECT COUNT(*) FROM NotificationOutbox WHERE status='sent'")->fetchColumn()===2,
+    'process restart resumes deliveries after shared cooldown');
+$pdo->exec('DELETE FROM NotificationDeliveryState');
 echo "Worker process recovery tests passed ($checks checks).\n";

@@ -42,3 +42,21 @@ function migrateTravelerIdentity(PDO $pdo): void
         $pdo->query("SELECT RELEASE_LOCK('travel_tour_identity_migrations')");
     }
 }
+
+/** Persist Telegram cooldown across new arrivals, account erasure and worker restarts. */
+function migrateNotificationDeliveryState(PDO $pdo): void
+{
+    if ((int)$pdo->query("SELECT GET_LOCK('travel_tour_delivery_migrations',10)")->fetchColumn() !== 1) {
+        throw new RuntimeException('Notification delivery migration lock unavailable.');
+    }
+    try {
+        $version = '004_notification_delivery_state';
+        $check = $pdo->prepare('SELECT version FROM SchemaMigrations WHERE version=?');
+        $check->execute([$version]);
+        if ($check->fetchColumn() !== false) return;
+        $pdo->exec(file_get_contents(__DIR__ . '/migrations/004_notification_delivery_state.sql'));
+        $pdo->prepare('INSERT INTO SchemaMigrations(version) VALUES (?)')->execute([$version]);
+    } finally {
+        $pdo->query("SELECT RELEASE_LOCK('travel_tour_delivery_migrations')");
+    }
+}

@@ -42,6 +42,17 @@ try {
 }
 $id = $tours->saveTour(999, $values);
 $check($inventory->tour($id)['title'] === $values['title'], 'tour service independent of booking creation');
+$boundary = $tours->saveTour(999, array_replace($values, [
+    'title' => str_repeat('ش', 200), 'destination' => str_repeat('🌍', 200),
+]));
+$check($inventory->tour($boundary)['title'] === str_repeat('ش', 200)
+    && $inventory->tour($boundary)['destination'] === str_repeat('🌍', 200), 'database preserves 200 Unicode characters');
+try {
+    $tours->saveTour(999, array_replace($values, ['title' => str_repeat('x', 201)]), $boundary);
+    throw new RuntimeException('Oversized title reached persistence.');
+} catch (RuleViolation $error) {
+    $check((int)$inventory->tour($boundary)['version'] === 1, 'oversized title fails validation without changing the tour');
+}
 $bookings->ensureUser(850);
 Database::run($pdo, 'UPDATE Data SET Name=? WHERE UserId=850', ['Synthetic lifecycle traveler']);
 putenv('REQUIRE_VERIFIED_PROFILE=false');

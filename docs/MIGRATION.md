@@ -1,4 +1,4 @@
-# Database upgrades: migrations 001, 002 and 003
+# Database upgrades: migrations 001–004
 
 Migration 001 replaces `Data.topic<id>` reads and writes with `TopicMemberships`.
 It preserves pending (`check`) and approved (`verify`) values. Null/empty values
@@ -54,8 +54,8 @@ installation remain separate external acceptance gates.
 
 ## Migration 002: independent tours and bookings
 
-`php bin/migrate.php` applies versions 001, 002 and 003. `php bin/install.php` initializes
-a fresh baseline and applies all three. Version 002 creates Tours, Bookings, participant
+`php bin/migrate.php` applies versions 001–004. `php bin/install.php` initializes
+a fresh baseline and applies all four. Version 002 creates Tours, Bookings, participant
 ordinals, status history, separate Payments, roles/audit, outbox, receipts, sessions
 and rate limits. No legacy data/columns are deleted, and no capacity/date/price
 is guessed from a TopicMembership. Create real tours through `/admin`.
@@ -89,3 +89,11 @@ otherwise an old process can still write plaintext. Keep backups encrypted and
 access limited. Any conversion or deletion of historical personal data requires a
 separate operator-approved retention/migration plan and restore rehearsal with
 synthetic data. Never export those values into issues or support logs.
+
+## Migration 004: shared notification cooldown
+
+Run `php bin/migrate.php` with the maintenance account before restarting the upgraded
+worker. Version 004 adds only `NotificationDeliveryState`, a single bot-wide
+`blocked_until` deadline. This preserves Telegram 429 retry-after across new
+messages, account erasure and worker restarts; no traveler or booking data changes.
+The migration is additive and repeatable. Standard database backups include it.
