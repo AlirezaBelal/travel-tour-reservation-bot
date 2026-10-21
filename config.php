@@ -69,7 +69,7 @@ Database::configure($db->pdo);
 $outbox = new Outbox($db->pdo);
 $access = new AccessControl($db->pdo, ADMINS);
 $paymentReview = new PaymentReviewService($db->pdo, $access, $outbox);
-$bookings = BookingServiceFactory::create($db->pdo, $access, $outbox, $paymentReview);
+$bookings = BookingServiceFactory::create($db->pdo, $access, $outbox, $paymentReview, environmentValue('REQUIRE_VERIFIED_PROFILE', 'false') === 'true');
 $productBot = ProductBotFactory::create($db->pdo, $bookings, $access, $outbox, $paymentReview, environmentValue('APP_TIMEZONE','Asia/Tehran'));
 $processor = new WebhookProcessor($db->pdo, $bookings, $productBot, $outbox);
 

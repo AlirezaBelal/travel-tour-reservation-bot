@@ -43,6 +43,7 @@
       "@php tests/manual_payment_test.php",
       "@php tests/product_query_test.php",
       "@php tests/tour_service_test.php",
+      "@php tests/booking_use_case_test.php",
       "@php tests/worker_process_test.php"
     ],
     "analyse": "@php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --no-progress",
