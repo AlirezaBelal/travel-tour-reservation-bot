@@ -7,7 +7,7 @@ require __DIR__.'/../src/product_bootstrap.php';
 require_once __DIR__.'/../database/product.php';
 putenv('PROFILE_ENCRYPTION_KEY='.base64_encode(str_repeat('k',32)));
 $dsn=getenv('TEST_MYSQL_DSN');if(!$dsn||preg_match('/(?:^|;)dbname=travel_tour_test(?:;|$)/D',$dsn)!==1)throw new RuntimeException('Isolated test database required.');
-$pdo=new PDO($dsn,getenv('TEST_MYSQL_USER')?:'root',getenv('TEST_MYSQL_PASSWORD')?:'');Database::configure($pdo);migrateTravelerIdentity($pdo);migrateTravelerIdentity($pdo);$access=new AccessControl($pdo,[999]);$outbox=new Outbox($pdo);$service=new BookingService($pdo,$access,$outbox);$bot=new ProductBot($pdo,$service,$access,$outbox,new TourCatalogService($pdo,$service,$access),new PaymentReviewService($pdo,$access,$outbox));$processor=new WebhookProcessor($pdo,$service,$bot,$outbox);
+$pdo=new PDO($dsn,getenv('TEST_MYSQL_USER')?:'root',getenv('TEST_MYSQL_PASSWORD')?:'');Database::configure($pdo);migrateTravelerIdentity($pdo);migrateTravelerIdentity($pdo);$access=new AccessControl($pdo,[999]);$outbox=new Outbox($pdo);$service=new BookingService($pdo,$access,$outbox);$bot=ProductBotFactory::create($pdo,$service,$access,$outbox,new PaymentReviewService($pdo,$access,$outbox));$processor=new WebhookProcessor($pdo,$service,$bot,$outbox);
 $checks=0;$next=10000;
 function wfCheck(bool $condition,string $label):void{global$checks;$checks++;if(!$condition)throw new RuntimeException($label);}
 function sendUpdate(int $actor,?string $text=null,?string $data=null,?int $id=null,?array $contact=null):int{global$processor,$next;$id??=++$next;$processor->handle($id,$actor,$text,$data,null,null,$contact);return$id;}

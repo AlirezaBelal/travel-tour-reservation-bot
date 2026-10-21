@@ -4,25 +4,20 @@ final class ProductBot
     private int $sequence=0;
     private int $actor=0;
     private int $update=0;
-    private BookingReportService $reports;
-    private BotSessionStore $sessions;
-    private NotificationAdminService $notificationAdmin;
     public function __construct(
-        private PDO $pdo,
+        private TravelerProfileService $profiles,
         private BookingService $bookings,
         private AccessControl $access,
         private Outbox $outbox,
         private TourCatalogService $catalogue,
         private PaymentReviewService $paymentReview,
-        private string $timezone = 'Asia/Tehran',
-        ?BookingReportService $reports = null,
-        ?BotSessionStore $sessions = null,
-        ?NotificationAdminService $notificationAdmin = null
-    ) {
-        $this->reports = $reports ?? new BookingReportService($pdo, $bookings, $access);
-        $this->sessions = $sessions ?? new BotSessionStore($pdo);
-        $this->notificationAdmin = $notificationAdmin ?? new NotificationAdminService($pdo, $access, $outbox);
-    }
+        private BookingReportService $reports,
+        private BotSessionStore $sessions,
+        private NotificationAdminService $notificationAdmin,
+        private BookingQueryService $queries,
+        private TopicCatalogue $topics,
+        private string $timezone = 'Asia/Tehran'
+    ) {}
 
     public function dispatch(int $actor,?string $text,?string $callback,int $update,?array $contact=null):bool
     {
@@ -30,7 +25,7 @@ final class ProductBot
         $this->update=$update;
         $this->sequence=0;
         $session=$this->session();
-        $legacyStep=Database::run($this->pdo,'SELECT step FROM Data WHERE UserId=?',[$actor])->fetchColumn();
+        $legacyStep=$this->profiles->legacyStep($actor);
         if ($this->dispatchCommand($actor, $text, $legacyStep)) return true;
         if(isLegacyProfileStep($legacyStep)){
             $this->retireLegacyProfile();
@@ -42,7 +37,7 @@ final class ProductBot
             return false;
         }
         if($session!==null&&$session['state']==='phone'&&$contact!==null){
-            (new TravelerIdentity($this->pdo))->saveMobile($actor,$contact);
+            $this->profiles->saveMobile($actor,$contact);
             $this->state('national',[]);
             $this->outbox->enqueue($actor,'sendMessage',['text'=>'شماره همراه شما به‌صورت رمزگذاری‌شده ثبت شد. اکنون کد ملی ۱۰ رقمی سرپرست را وارد کنید؛ فقط ساختار و رقم کنترل بررسی می‌شود.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
             return true;
@@ -64,7 +59,7 @@ final class ProductBot
         if($text!==null&&preg_match('/^\/(start|help|tours|bookings|profile|setprofile|admin|cancel|privacy|search)(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u',$text,$match)) {
             $command=$match[1]==='setprofile'?'profile':$match[1];
             $this->clear();
-            Database::run($this->pdo,"UPDATE Data SET step='defult' WHERE UserId=?",[$actor]);
+            $this->profiles->resetLegacyState($actor);
             if(isLegacyProfileStep($legacyStep))$this->retireLegacyProfile();
             if($command==='start'||$command==='help'||$command==='cancel') {
                 $this->reply($command==='cancel'?'عملیات جاری متوقف شد. از منوی زیر ادامه دهید.':($command==='help'?$this->helpText():"به ربات رزرو و مدیریت تور خوش آمدید! 🌍\n\nاز معرفی تور تا پیگیری رزرو، مستقیم در تلگرام.\nتورهای منتشرشده را ببینید، مقصد دلخواهتان را پیدا کنید و برای ۱ تا ۲۰ نفر درخواست رزرو ثبت کنید.\n\nاز منوی زیر شروع کنید. وضعیت درخواست‌ها در «رزروهای من» دیده می‌شود؛ ثبت درخواست به معنی تأیید نهایی نیست. /cancel فرم جاری را متوقف می‌کند."),$this->menu());
@@ -128,13 +123,13 @@ final class ProductBot
                 $this->reply('نام سرپرست گروه را وارد کنید (حداکثر ۵۰ حرف).');
                 break;
             case 'phone':
-                $name=Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$actor])->fetchColumn();
+                $name=$this->profiles->name($actor);
                 if(!is_string($name)||trim($name)==='')throw new RuleViolation('ابتدا نام سرپرست را در پروفایل ثبت کنید.');
                 $this->state('phone',[]);
                 $this->contactPrompt();
                 break;
             case 'national':
-                if(!(new TravelerIdentity($this->pdo))->status($actor)['mobile'])throw new RuleViolation('ابتدا شماره خود را با دکمه اشتراک مخاطب تلگرام ثبت کنید.');
+                if(!$this->profiles->status($actor)['mobile'])throw new RuleViolation('ابتدا شماره خود را با دکمه اشتراک مخاطب تلگرام ثبت کنید.');
                 $this->state('national',[]);
                 $this->reply('کد ملی ۱۰ رقمی سرپرست را وارد کنید. کد ملی فقط برای هماهنگی هویت ذخیره می‌شود و در پیام‌ها یا خروجی عمومی نمایش داده نمی‌شود.');
                 break;
@@ -147,7 +142,7 @@ final class ProductBot
                 break;
             case 'erase_yes':
                 $this->requireSession('erase_confirm');
-                (new PrivacyService($this->pdo))->erase($actor);
+                $this->profiles->erase($actor);
                 $this->reply('حساب و اطلاعات قابل حذف پاک شد. با /start می‌توانید دوباره شروع کنید.');
                 break;
             default:
@@ -278,7 +273,7 @@ final class ProductBot
                 $this->clear();
                 $this->access->require($actor,'tours');
                 try {
-                    $count=(new TopicCatalogue($this->pdo))->deleteTree($id);
+                    $count=$this->topics->deleteTree($id);
                 }
                 catch(PDOException $error) {
                     if(($error->errorInfo[1]??null)===1451)throw new RuleViolation('دسته به تور مرتبط است؛ ابتدا دسته تور را تغییر دهید.');
@@ -387,7 +382,7 @@ final class ProductBot
 
     private function retireLegacyProfile():void {
         $this->clear();
-        Database::run($this->pdo,"UPDATE Data SET step='defult' WHERE UserId=?",[$this->actor]);
+        $this->profiles->resetLegacyState($this->actor);
         $this->outbox->enqueue($this->actor,'sendMessage',['text'=>'فرم قدیمی پروفایل بسته شد؛ اطلاعات این پیام ذخیره نشد. برای ثبت امن اطلاعات، /profile را بفرستید.','reply_markup'=>json_encode(['remove_keyboard'=>true],JSON_THROW_ON_ERROR)],"update:{$this->update}:reply:".($this->sequence++));
     }
 
@@ -447,8 +442,8 @@ final class ProductBot
     }
 
     private function profile():void {
-        $name=Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$this->actor])->fetchColumn();
-        $status=(new TravelerIdentity($this->pdo))->status($this->actor);
+        $name=$this->profiles->name($this->actor);
+        $status=$this->profiles->status($this->actor);
         $mobile=$status['mobile']?'ثبت شد':'ثبت نشده';
         $national=$status['national']?'ثبت شد':'ثبت نشده';
         $this->reply('نام سرپرست: '.($name?:'ثبت نشده')."\nشماره تلگرام: $mobile\nکد ملی: $national\nشناسه حساب: {$this->actor}\nشماره و کد ملی در این صفحه نمایش داده نمی‌شوند.",[[['text'=>'ثبت یا ویرایش نام','callback_data'=>'p:name:0']],[['text'=>'اشتراک شماره خودم','callback_data'=>'p:phone:0']],[['text'=>'ثبت یا ویرایش کد ملی','callback_data'=>'p:national:0']],[['text'=>'حریم خصوصی و حذف حساب','callback_data'=>'p:privacy:0']],[['text'=>'بازگشت','callback_data'=>'p:home:0']]]);
@@ -497,8 +492,7 @@ final class ProductBot
     }
 
     private function mine(int $offset):void {
-        if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
-        $rows=Database::run($this->pdo,"SELECT id,status FROM Bookings WHERE user_id=? ORDER BY id DESC LIMIT 10 OFFSET $offset",[$this->actor])->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->queries->mine($this->actor, $offset);
         $buttons=[];
         foreach($rows as$row)$buttons[]=[['text'=>'رزرو #'.$row['id'].' — '.$this->status($row['status']),'callback_data'=>'p:booking:'.$row['id']]];
         if(count($rows)===10)$buttons[]=[['text'=>'بعدی','callback_data'=>'p:mine:'.($offset+10)]];
@@ -516,9 +510,8 @@ final class ProductBot
         if($booking['payment_status']==='pending'&&(int)$booking['amount']>0)$text.="\nپرداخت آنلاین فعال نیست. پس از هماهنگی با مدیر، واریز دستی بررسی می‌شود. پیش از هماهنگی، مبلغی واریز نکنید. مهلت بررسی اولیه پرداخت ۲۴ ساعت است.";
         $buttons=[];
         if($admin && $booking['user_id'] !== null && $this->access->allows($this->actor,'profiles')) {
-            $leader = Database::run($this->pdo,'SELECT Name FROM Data WHERE UserId=?',[$booking['user_id']])->fetchColumn();
+            $leader = $this->profiles->leaderForReview($this->actor, (int)$booking['user_id']);
             $text .= "\nنام سرپرست: " . ($leader ?: 'ثبت نشده');
-            $this->access->audit($this->actor,'profile.view','user',(int)$booking['user_id']);
         }
         if($admin){
             if($booking['status']==='pending')$buttons[]=[['text'=>'تأیید رزرو','callback_data'=>"p:confirm:$id"],['text'=>'رد با دلیل اختیاری','callback_data'=>"p:reject:$id"]];
@@ -535,8 +528,7 @@ final class ProductBot
     }
 
     private function history(int $id,bool $admin):void {
-        $this->bookings->booking($this->actor,$id,$admin);
-        $rows=Database::run($this->pdo,'SELECT new_status,created_at FROM BookingStatusHistory WHERE booking_id=? ORDER BY id DESC LIMIT 20',[$id])->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->queries->history($this->actor, $id, $admin);
         $lines=array_map(fn($row)=>$this->local($row['created_at']).' — '.$this->status($row['new_status']),$rows);
         $this->reply(implode("\n",$lines));
     }
@@ -554,9 +546,7 @@ final class ProductBot
     }
 
     private function pending(int $offset):void {
-        $this->access->require($this->actor,'review');
-        if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
-        $rows=Database::run($this->pdo,"SELECT id,tour_id,quantity FROM Bookings WHERE status='pending' ORDER BY id LIMIT 10 OFFSET $offset")->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->queries->pending($this->actor, $offset);
         $buttons=[];
         foreach($rows as$row)$buttons[]=[['text'=>"رزرو {$row['id']} / تور {$row['tour_id']} / {$row['quantity']} نفر",'callback_data'=>'p:review:'.$row['id']]];
         if(count($rows)===10)$buttons[]=[['text'=>'بعدی','callback_data'=>'p:pending:'.($offset+10)]];
@@ -565,11 +555,7 @@ final class ProductBot
     }
 
     private function allBookings(int $offset,?int $tour=null):void {
-        $this->access->require($this->actor,'review');
-        if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
-        $where=$tour===null?'1=1':'tour_id=?';
-        $args=$tour===null?[]:[$tour];
-        $rows=Database::run($this->pdo,"SELECT id,status,quantity FROM Bookings WHERE $where ORDER BY id DESC LIMIT 10 OFFSET $offset",$args)->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->queries->all($this->actor, $offset, $tour);
         $buttons=[];
         foreach($rows as$row)$buttons[]=[['text'=>'رزرو #'.$row['id'].' / '.$this->status($row['status']).' / '.$row['quantity'].' نفر','callback_data'=>'p:review:'.$row['id']]];
         if(count($rows)===10)$buttons[]=[['text'=>'صفحه بعد','callback_data'=>$tour===null?'p:all_bookings:'.($offset+10):"p:tour_bookings:$tour:".($offset+10)]];
@@ -663,14 +649,13 @@ final class ProductBot
     {
         if($state==='phone')throw new RuleViolation('برای امنیت فقط دکمه «اشتراک شماره خودم» را بزنید. شماره تایپی پذیرفته نمی‌شود.');
         if($state==='national'){
-            (new TravelerIdentity($this->pdo))->saveNational($this->actor,$text);
+            $this->profiles->saveNational($this->actor,$text);
             $this->clear();
             $this->reply('کد ملی به‌صورت رمزگذاری‌شده ثبت شد. پروفایل شما تکمیل است.',$this->menu());
             return true;
         }
         if($state==='name'){
-            if($text===''||strlen($text)>150)throw new RuleViolation('نام باید کوتاه و غیرخالی باشد.');
-            Database::run($this->pdo,"UPDATE Data SET Name=?,profile='true' WHERE UserId=?",[$text,$this->actor]);
+            $this->profiles->saveName($this->actor, $text);
             $this->state('phone',[]);
             $this->contactPrompt();
             return true;
@@ -790,7 +775,7 @@ final class ProductBot
         }
         if($state==='category_name'){
             $this->access->require($this->actor,'tours');
-            $id=(new TopicCatalogue($this->pdo))->create($text,(int)$payload['parent']);
+            $id=$this->topics->create($text,(int)$payload['parent']);
             $this->access->audit($this->actor,'category.create','category',$id);
             $this->clear();
             $this->reply("دسته شماره $id ایجاد شد.");

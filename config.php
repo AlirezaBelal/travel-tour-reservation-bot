@@ -191,8 +191,7 @@ $outbox = new Outbox($db->pdo);
 $access = new AccessControl($db->pdo, ADMINS);
 $paymentReview = new PaymentReviewService($db->pdo, $access, $outbox);
 $bookings = new BookingService($db->pdo, $access, $outbox, $paymentReview);
-$tourCatalog = new TourCatalogService($db->pdo, $bookings, $access);
-$productBot = new ProductBot($db->pdo, $bookings, $access, $outbox, $tourCatalog, $paymentReview, environmentValue('APP_TIMEZONE','Asia/Tehran'));
+$productBot = ProductBotFactory::create($db->pdo, $bookings, $access, $outbox, $paymentReview, environmentValue('APP_TIMEZONE','Asia/Tehran'));
 $processor = new WebhookProcessor($db->pdo, $bookings, $productBot, $outbox);
 
 $memberships = new TopicMemberships($db->pdo);

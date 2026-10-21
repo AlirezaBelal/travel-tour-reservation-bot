@@ -1,5 +1,12 @@
 # Changelog
 
+## SQL-free product presentation — 2026-10-21
+
+- Extracted profile and booking-list/history operations with direct service
+  authorization; ProductBot no longer queries PDO or constructs its services.
+- Added an explicit product composition factory, direct integration coverage and
+  mutation-tested architecture guards over real source.
+
 ## Independent manual payment review — 2026-10-21
 
 - Extracted payment review from BookingService, keeping its public compatibility
