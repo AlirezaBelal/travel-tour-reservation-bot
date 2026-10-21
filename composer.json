@@ -32,7 +32,8 @@
       "@php tests/http_ingress_test.php",
       "@php tests/legacy_responder_test.php",
       "@php tests/transaction_cleanup_test.php",
-      "@php tests/compatibility_loaders_test.php"
+      "@php tests/compatibility_loaders_test.php",
+      "@php tests/transaction_retry_test.php"
     ],
     "test:integration": [
       "@php tests/mysql_test.php",

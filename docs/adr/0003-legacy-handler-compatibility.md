@@ -23,3 +23,11 @@ forcing new public APIs. The legacy handler is still effectful and has global
 helper dependencies; migration may proceed command-by-command only when
 behavioral tests cover it. The architecture test does not replace PHPStan or
 comprehensive dependency analysis.
+
+## Subsequent evolution
+
+The accepted include boundary is retained, but the renderer now receives an
+explicit `LegacyUpdate`, authorized application services and an injected
+`LegacyResponder`; global output/database helpers have been removed. This is
+implemented incrementally under [ADR 0005](0005-explicit-use-cases.md), with the
+same one-include and real behavior regression contracts.

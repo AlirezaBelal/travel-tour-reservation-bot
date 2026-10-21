@@ -32,3 +32,8 @@ No real payment gateway or automatic refund is included.
 
 Development transcripts and superseded status reports are kept in Git/PR history.
 These guides describe the source consumers install, not the original authoring session.
+
+The [engineering quality review](QUALITY_REVIEW.md) records measured before/after
+boundaries, validation evidence, scoring criteria and remaining debt. The current
+[architecture](ARCHITECTURE.md) describes the actual composed runtime and transaction
+contracts, including the deliberately retained compatibility paths.

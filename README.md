@@ -175,6 +175,7 @@ composer audit
 # Optional development-only tools (separate locked toolchain):
 composer install --working-dir=tools/quality
 composer analyse
+composer lint:style
 ```
 
 Integration tests rebuild **only disposable fixtures** and must never target a real
