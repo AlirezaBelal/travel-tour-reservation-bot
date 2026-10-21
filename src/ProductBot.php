@@ -13,6 +13,7 @@ final class ProductBot
         private AccessControl $access,
         private Outbox $outbox,
         private TourCatalogService $catalogue,
+        private PaymentReviewService $paymentReview,
         private string $timezone = 'Asia/Tehran',
         ?BookingReportService $reports = null,
         ?BotSessionStore $sessions = null,
@@ -333,7 +334,7 @@ final class ProductBot
             case 'pay_yes':
                 $payload=$this->requireSession('pay_confirm');
                 if((int)$payload['booking']!==$id)throw new RuleViolation('فرم منقضی شده است.');
-                $this->bookings->manualPayment($actor,$id,$payload['reference']);
+                $this->paymentReview->record($actor,$id,$payload['reference']);
                 $this->clear();
                 $this->showBooking($id,true);
                 break;
@@ -769,7 +770,7 @@ final class ProductBot
         }
         if($state==='pay_reference'){
             $this->access->require($this->actor,'payments');
-            if(!preg_match('/^[A-Za-z0-9_-]{3,80}$/D',$text))throw new RuleViolation('شناسه پرداخت معتبر نیست.');
+            if(!PaymentRules::isManualReference($text))throw new RuleViolation('شناسه پرداخت معتبر نیست.');
             $payload['reference']=$text;
             $this->state('pay_confirm',$payload);
             $booking=$this->bookings->booking($this->actor,(int)$payload['booking'],true);

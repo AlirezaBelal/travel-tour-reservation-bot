@@ -11,7 +11,7 @@ Database::configure($pdo);
 $access = new AccessControl($pdo, [999]);
 $outbox = new Outbox($pdo);
 $bookings = new BookingService($pdo, $access, $outbox);
-$bot = new ProductBot($pdo, $bookings, $access, $outbox, new TourCatalogService($pdo, $bookings, $access));
+$bot = new ProductBot($pdo, $bookings, $access, $outbox, new TourCatalogService($pdo, $bookings, $access), new PaymentReviewService($pdo, $access, $outbox));
 $processor = new WebhookProcessor($pdo, $bookings, $bot, $outbox);
 $checks = 0;
 $update = 900000;

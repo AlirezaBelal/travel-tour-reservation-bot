@@ -25,8 +25,9 @@ changing booking, payment or notification rules.
 | Component | Responsibility |
 |---|---|
 | Database | UTC connections, prepared queries, transaction boundaries and bounded deadlock retry |
-| BookingService | Tour validation, price snapshots, capacity, authorization, state transitions, history and payment review |
+| BookingService | Tour validation, price snapshots, capacity, authorization, state transitions and history; compatibility delegation for manual payment review |
 | TourCatalogService | Authorized tour list/search, categories and visibility/capacity read model; no Telegram or session dependency |
+| PaymentReviewService / PaymentRules | Manual review authorization, reference validation, tour→booking→payment lock order, audit and notification; pure reference format rule |
 | BookingReportService | Role-checked booking summary and allowlisted, formula-neutralized CSV; Telegram UI retains delivery and audit ordering |
 | LegacyTopicService | Configured-owner category creation/caption forms, explicit PDO/catalogue dependencies; no Telegram helpers or globals |
 | ProductBot | Guided Persian Telegram UI; callback actions are grouped by profile, traveler, tour admin, and booking admin with explicit default denial; forms are grouped by purpose |
@@ -269,3 +270,46 @@ caption state share one transaction; they join the webhook transaction when
 present. Synthetic workflow tests exercise routing, direct authorization,
 malformed/missing form targets and a forced state-write failure proving rollback.
 The architecture guard rejects globals and Telegram helper calls in this service.
+
+## Manual payment review boundary
+
+`PaymentReviewService::record()` owns manual review independently of tour editing
+and reservation creation. HTTP and CLI composition roots inject the shared PDO,
+access control and outbox. `ProductBot` calls this service directly;
+`BookingService::manualPayment()` remains a compatibility delegate, including its
+existing three-argument constructor for external callers. No new gateway exists.
+`PaymentRules` is a persistence-free reference format rule used by both the form
+and the application service.
+
+The review transaction retains the existing lock order: tour, booking, payment.
+It preserves reference hashing/uniqueness, the paid-state idempotency check,
+closed-booking rejection, audit and the outbox event. `Database::atomic()` owns
+commit/retry only when there is no outer transaction; webhook transactions retain
+ownership. Direct integration tests prove rollback of payment/audit/outbox,
+rollback after injected outbox failure and a single payment/audit/event across
+four competing reviewer processes. Existing booking/manual-payment UI and
+concurrency tests remain unchanged. The source architecture guard rejects
+infrastructure dependencies in `PaymentRules` and routing payments through the
+legacy booking facade from Telegram presentation.
+
+```mermaid
+flowchart TB
+    HTTP["HTTP composition root"] --> Bot["ProductBot presentation"]
+    Bot --> Catalog["TourCatalogService"]
+    Bot --> Payment["PaymentReviewService"]
+    Bot --> Booking["BookingService"]
+    HTTP --> Legacy["Legacy adapter / handler"]
+    Legacy --> Topics["LegacyTopicService"]
+    Catalog --> Booking
+    Payment --> Rules["PaymentRules"]
+    Payment --> Store["Shared PDO transaction + audit/outbox"]
+    Booking --> Store
+    Topics --> Store
+```
+
+Remaining debt: `ProductBot` still owns several unrelated conversation flows and
+some profile/booking SQL. The legacy handler still uses lexical variables and
+helper functions for membership, deletion and broadcast. `BookingService` still
+combines tour editing with reservation lifecycle operations. These extractions
+establish enforceable boundaries incrementally, not a completed Clean Architecture
+migration or evidence of a 9/10 code-quality score.

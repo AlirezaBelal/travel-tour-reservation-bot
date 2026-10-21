@@ -80,3 +80,20 @@ foreach (token_get_all($serviceSource) as $token) {
     }
 }
 fwrite(STDOUT, "Legacy application boundary passed: no globals or Telegram helpers.\n");
+
+$ruleSource = file_get_contents($root . '/src/PaymentRules.php');
+if ($ruleSource === false || !str_contains($ruleSource, 'final class PaymentRules')) {
+    throw new RuntimeException('Payment domain rule source is missing.');
+}
+foreach (token_get_all($ruleSource) as $token) {
+    if (is_array($token) && ($token[0] === T_GLOBAL
+        || ($token[0] === T_STRING && in_array(strtolower($token[1]),
+            ['pdo', 'database', 'outbox', 'productbot', 'getenv', 'bot'], true)))) {
+        throw new RuntimeException('Payment domain rules depend on infrastructure.');
+    }
+}
+$botSource = file_get_contents($root . '/src/ProductBot.php');
+if ($botSource === false || str_contains($botSource, '->manualPayment(')) {
+    throw new RuntimeException('Telegram payment review must use its explicit application service.');
+}
+fwrite(STDOUT, "Payment architecture passed: pure reference rule, explicit review service.\n");

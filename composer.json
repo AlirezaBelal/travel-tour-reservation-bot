@@ -25,7 +25,8 @@
       "@php tests/incoming_update_test.php",
       "@php tests/booking_unit_test.php",
       "@php tests/architecture_test.php",
-      "@php tests/catalogue_architecture_test.php"
+      "@php tests/catalogue_architecture_test.php",
+      "@php tests/payment_rules_test.php"
     ],
     "test:integration": [
       "@php tests/mysql_test.php",
@@ -34,6 +35,7 @@
       "@php tests/operations_test.php",
       "@php tests/product_workflow_test.php",
       "@php tests/catalogue_characterization_test.php",
+      "@php tests/manual_payment_test.php",
       "@php tests/worker_process_test.php"
     ]
   }
