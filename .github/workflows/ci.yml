@@ -45,6 +45,7 @@ jobs:
         run: |
           php tests/webhook_test.php
           php tests/booking_unit_test.php
+          php tests/architecture_test.php
 
       - name: Reject Telegram tokens in tracked files
         run: |

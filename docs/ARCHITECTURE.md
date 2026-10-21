@@ -3,7 +3,24 @@
 `public/index.php` → authenticated/private-update validation in `config.php` →
 `WebhookProcessor` → `ProductBot` → domain services → MySQL + outbox.
 `bin/worker.php` separately schedules reminders/retention and dispatches the outbox.
-The established handler remains available for legacy commands.
+The established handler remains available for legacy commands through
+`LegacyHandlerAdapter`. The adapter is the sole production include site for
+`src/handler.php`; it scopes the legacy variables and message strings to a
+single call while preserving the enclosing `WebhookProcessor` transaction.
+`tests/workflow_test.php` exercises that exact production boundary against
+disposable MySQL/MariaDB databases. The adapter does **not** claim to make
+the old handler pure or remove its legacy helper functions and global database
+context. Any subsequent refactor must first preserve these integration cases.
+
+### Architecture decision: contain legacy code before migrating it
+
+Keep the existing modular monolith. Use a narrow adapter around the
+side-effecting include instead of rewriting membership/announcement commands
+in one step. The preferred direction for new work is
+Telegram presentation → application services → transactional persistence/outbox.
+New booking logic belongs in services, not in the compatibility handler.
+This isolates the old execution contract for incremental removal without
+changing booking, payment or notification rules.
 
 | Component | Responsibility |
 |---|---|
@@ -94,3 +111,12 @@ permission metadata. Staff replies are authorized against the staff sender, not
 the traveler recipient, and are audited. Account erasure purges queued personal
 correspondence by subject. This enables manual payment coordination inside the bot
 without disclosing traveler Telegram IDs or collecting banking/card data.
+
+## Architecture fitness check
+
+`tests/architecture_test.php` scans the **actual production PHP tree** with the
+PHP tokenizer. It fails if fewer than 15 files are scanned or if the legacy
+handler is included from anywhere other than `LegacyHandlerAdapter`. It runs
+on PHP 8.0–8.4 in CI and via `composer test:unit`. This narrow regression
+guard is intentionally not described as full layering/static-analysis coverage;
+additional rules should follow only when real layer boundaries exist.

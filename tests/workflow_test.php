@@ -5,6 +5,7 @@ require __DIR__ . '/../src/validators.php';
 require __DIR__ . '/../src/profiles.php';
 require __DIR__ . '/../src/TopicMemberships.php';
 require __DIR__ . '/../src/TopicCatalogue.php';
+require __DIR__ . '/../src/LegacyHandlerAdapter.php';
 
 define('ADMINS', [999]);
 $dsn = getenv('TEST_MYSQL_DSN');
@@ -25,7 +26,8 @@ function expectFlow(bool $condition, string $label): void
         throw new RuntimeException($label);
     }
 }
-// Only the external Telegram boundary is faked. The production handler, validators,
+// Only the external Telegram boundary is faked. The production legacy adapter,
+// handler, validators,
 // catalogue, repositories, Medoo queries and real MySQL transactions run unchanged.
 function bot(string $method, array $payload = []): array
 {
@@ -66,8 +68,11 @@ function dispatchFlow(int $actor, ?string $input = null, ?string $callback = nul
     $userName = 'synthetic_fixture';
     $message = $contactPayload === [] ? [] : ['contact' => $contactPayload];
     $photo = $document = $video = null;
-    require __DIR__ . '/../txt.php';
-    require __DIR__ . '/../src/handler.php';
+    LegacyHandlerAdapter::dispatch(
+        $db, $memberships, $catalogue, $fromId, $chatId,
+        $text, $data, $messageId, $callbackId, $text2, $userName,
+        $message, $photo, $document, $video
+    );
     return $calls;
 }
 
