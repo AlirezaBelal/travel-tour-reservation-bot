@@ -6,7 +6,7 @@ require __DIR__ . '/../src/profiles.php';
 require __DIR__ . '/../src/TopicMemberships.php';
 require __DIR__ . '/../src/TopicCatalogue.php';
 require __DIR__ . '/../src/LegacyHandlerAdapter.php';
-require __DIR__ . '/../src/Database.php';
+require_once __DIR__ . '/../src/Database.php';
 require __DIR__ . '/../src/LegacyTopicService.php';
 require __DIR__ . '/../src/LegacyMembershipService.php';
 require __DIR__ . '/../src/LegacyBroadcastService.php';

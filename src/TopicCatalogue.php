@@ -1,6 +1,6 @@
 <?php
 
-require_once __DIR__ . '/TransactionCleanup.php';
+require_once __DIR__ . '/Database.php';
 
 final class TopicCatalogue
 {
@@ -34,11 +34,7 @@ final class TopicCatalogue
         if (trim($name) === '' || strlen($name) > 300 || $parentId < 0) {
             throw new InvalidArgumentException('Invalid topic.');
         }
-        $ownTransaction = !$this->pdo->inTransaction();
-        if ($ownTransaction) {
-            $this->pdo->beginTransaction();
-        }
-        try {
+        return Database::atomic($this->pdo, function () use ($name, $parentId): int {
             if ($parentId !== 0) {
                 $parent = $this->pdo->prepare('SELECT id FROM Topics WHERE id = ? FOR UPDATE');
                 $parent->execute([$parentId]);
@@ -48,27 +44,14 @@ final class TopicCatalogue
             }
             $insert = $this->pdo->prepare('INSERT INTO Topics (Name, `Groups`) VALUES (?, ?)');
             $insert->execute([trim($name), $parentId]);
-            $id = (int)$this->pdo->lastInsertId();
-            if ($ownTransaction) {
-                $this->pdo->commit();
-            }
-            return $id;
-        } catch (Throwable $error) {
-            if ($ownTransaction) {
-                TransactionCleanup::rollbackIfActive($this->pdo);
-            }
-            throw $error;
-        }
+            return (int)$this->pdo->lastInsertId();
+        });
     }
 
     /** Deletes arbitrary-depth descendants atomically; never executes ALTER TABLE. */
     public function deleteTree(int $topicId): int
     {
-        $ownTransaction = !$this->pdo->inTransaction();
-        if ($ownTransaction) {
-            $this->pdo->beginTransaction();
-        }
-        try {
+        return Database::atomic($this->pdo, function () use ($topicId): int {
             $topics = $this->pdo->query('SELECT id, `Groups` FROM Topics ORDER BY id FOR UPDATE')->fetchAll(PDO::FETCH_ASSOC);
             $children = [];
             $exists = false;
@@ -92,15 +75,7 @@ final class TopicCatalogue
             foreach (array_keys($visited) as $id) {
                 $delete->execute([$id]);
             }
-            if ($ownTransaction) {
-                $this->pdo->commit();
-            }
             return count($visited);
-        } catch (Throwable $error) {
-            if ($ownTransaction) {
-                TransactionCleanup::rollbackIfActive($this->pdo);
-            }
-            throw $error;
-        }
+        });
     }
 }
