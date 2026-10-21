@@ -39,10 +39,10 @@ See [migrations and rollback](MIGRATION.md) before altering a deployed schema.
 
 The authenticated private-chat sender determines the actor; callback data never grants authority. Domain services enforce ownership/RBAC independently of UI visibility. Contacts must originate from the account's own Telegram share; mobile/national code are encrypted with libsodium and an operator-held key. Reports exclude personal identity columns. Account erasure retains only allowed anonymized records; offline backups and previous Telegram messages require separate operator policy.
 
-Legacy memberships, commands and the old include-based renderer are deliberately retained. The renderer performs no direct SQL, but remains outside PHPStan/PHPCS; tests cover its known behavior. New services must not take dependencies on the legacy renderer.
+Legacy memberships, commands and the old include-based renderer are deliberately retained. The scoped renderer performs no direct SQL and shares pure keyboard builders. PHPStan/PHPCS include it; characterization tests preserve its command/callback payloads. New services must not take dependencies on the legacy renderer.
 
 ## Quality gates and debt
 
-CI runs PHP 8.0–8.4, MySQL, MariaDB, rollback/concurrency tests, Docker install/recovery/restore and PHPStan level 5 plus PHPCS (excluding the legacy template). Architecture tests inject synthetic violations. These checks reduce risk, not prove production readiness. Remaining debt: legacy rendering, array-shaped service contracts, limited static-analysis depth and incomplete numeric coverage measurement.
+CI runs PHP 8.0–8.4, MySQL, MariaDB, rollback/concurrency tests, Docker install/recovery/restore and PHPStan level 5 plus PHPCS across all `src/`, including the legacy template. Architecture tests inject synthetic violations. These checks reduce risk, not prove production readiness. Remaining debt: legacy rendering, array-shaped service contracts, limited static-analysis depth and incomplete numeric coverage measurement.
 
 Further rationale: [ADR 1](adr/0001-modular-monolith.md) · [ADR 2](adr/0002-transactional-outbox.md) · [ADR 3](adr/0003-legacy-handler-compatibility.md) · [ADR 4](adr/0004-encrypted-traveler-identity.md) · [ADR 5](adr/0005-explicit-use-cases.md). [Security](../SECURITY.md) · [Acceptance](ACCEPTANCE.md).

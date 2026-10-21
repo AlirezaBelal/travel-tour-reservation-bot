@@ -71,6 +71,14 @@ try {
         [['text' => 'ایجاد دسته', 'callback_data' => "AddTopic-$child"]],
         [['text' => 'بازگشت', 'callback_data' => 'BackHome']],
     ], 'empty child menu still offers create/back');
+    $memberChildren = $keyboard($send(97101, null, 'join-' . $roots[0]));
+    $check($memberChildren === [
+        [['text' => 'Synthetic child', 'callback_data' => "join-$child"], ['text' => '❌', 'callback_data' => "join-$child"]],
+        [['text' => 'بازگشت', 'callback_data' => 'BackToHome']],
+    ], 'nested membership leaf status and back callback');
+    $catalogue->create('Synthetic grandchild', $child);
+    $check($keyboard($send(97101, null, 'join-' . $roots[0]))[0][1]['text'] === '↗️',
+        'nested membership branch uses navigation icon');
     $all = $catalogue->all();
     $broadcast = $keyboard($send(999, '/send'));
     $check(count($broadcast) === count($all) + 1, 'broadcast offers each category and all recipients');

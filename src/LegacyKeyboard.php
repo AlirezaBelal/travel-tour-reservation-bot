@@ -8,7 +8,10 @@ declare(strict_types=1);
  */
 final class LegacyKeyboard
 {
-    /** @param list<Topic> $topics @return Rows */
+    /**
+     * @param list<Topic> $topics
+     * @return Rows
+     */
     public static function administration(array $topics, int|string $parent): array
     {
         $rows = [];
@@ -24,7 +27,11 @@ final class LegacyKeyboard
         return $rows;
     }
 
-    /** @param list<Topic> $topics @param Closure(int|string): string $icon @return Rows */
+    /**
+     * @param list<Topic> $topics
+     * @param Closure(int|string): string $icon
+     * @return Rows
+     */
     public static function membership(array $topics, Closure $icon): array
     {
         $rows = [];
@@ -38,7 +45,10 @@ final class LegacyKeyboard
         return $rows;
     }
 
-    /** @param list<Topic> $topics @return Rows */
+    /**
+     * @param list<Topic> $topics
+     * @return Rows
+     */
     public static function broadcast(array $topics): array
     {
         $rows = [];

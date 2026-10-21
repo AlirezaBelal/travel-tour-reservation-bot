@@ -27,8 +27,10 @@
  */
 // Retired profile forms must never receive new sensitive values, even when this
 // compatibility handler is invoked directly instead of through ProductBot.
-if ((is_string($text) && preg_match('/^\/setprofile(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u', $text))
-    || isLegacyProfileStep(($membershipFlow->user((int)$chatId)['step'] ?? null))) {
+if (
+    (is_string($text) && preg_match('/^\/setprofile(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u', $text))
+    || isLegacyProfileStep(($membershipFlow->user((int)$chatId)['step'] ?? null))
+) {
     $topicForms->reset((int)$chatId);
     return $responder->bot('sendMessage', [
         'chat_id' => $chatId,
@@ -38,36 +40,28 @@ if ((is_string($text) && preg_match('/^\/setprofile(?:@[A-Za-z0-9_]+)?(?:\s.*)?$
 }
 
 if (in_array((int)$fromId, $owners, true)) {
-
-    if (is_string($text) && preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text)) {
-        preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text, $match);
+    if (is_string($text) && preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text, $match)) {
         $query = $match[2];
 
         $topicForms->createRoot((int)$fromId, (int)$chatId, $query);
         $T = 'دسته ایجاد شد.';
 
         return $responder->sendMessage($chatId, "$T");
-
     } elseif ($text === 'Topics') {
         $topics = array_filter($catalogue->all(), static fn (array $row): bool => (int)$row['Groups'] === 0);
         $keyboard = LegacyKeyboard::administration(array_values($topics), 0);
         return $responder->sendkeyboard($chatId, $list, LegacyKeyboard::encode($keyboard));
-
     } elseif ($text === '/send') {
         $keyboard = LegacyKeyboard::broadcast($catalogue->all());
         $responder->sendkeyboard($chatId, $selectSend, LegacyKeyboard::encode($keyboard));
-
     } elseif ($text === 'ping') {
         $responder->sendMessage($chatId, "Bot is reachable.");
-
     } elseif ($text === 'usage') {
         $memory = memory_get_usage(true) / 1024 / 1024;
         $responder->sendMessage($chatId, "Memory usage is " . round($memory, 2) . " MB");
-
     } elseif (is_string($data) && str_starts_with($data, 'send')) {
         $broadcasts->begin((int)$fromId, (int)$chatId, $data);
         return $responder->sendMessage($chatId, "$reqForward");
-
     } elseif (is_string($data) && str_starts_with($data, 'sub-')) {
         $id = substr($data, strlen('sub-'));
         if (!ctype_digit($id)) {
@@ -80,7 +74,6 @@ if (in_array((int)$fromId, $owners, true)) {
         }
         $keyboard = LegacyKeyboard::administration($topics, $id);
         return $responder->editMessageKeyboard($chatId, $messageId, $caption, LegacyKeyboard::encode($keyboard), null);
-
     } elseif (is_string($data) && str_starts_with($data, 'AddTopic-')) {
         $parentId = substr($data, strlen('AddTopic-'));
         if (!ctype_digit((string)$parentId)) {
@@ -92,14 +85,11 @@ if (in_array((int)$fromId, $owners, true)) {
 }
 
 if ($hasContent) {
-
     if (is_string($text) && preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?: [A-Za-z0-9_-]{1,64})?$/D', $text)) {
         $membershipFlow->ensureUser((int)$chatId);
         return $responder->sendMessage($chatId, "$start");
-
     } elseif ($text === '/list') {
         LegacyHandlerAdapter::membershipMenu($catalogue, $membershipFlow, $responder, $chatId, null, $list, $start, $profileFalse);
-
     } else {
         if ($membershipFlow->user((int)$chatId) !== null) {
             $broadcast = $broadcasts->consume((int)$fromId, (int)$chatId);
@@ -122,8 +112,6 @@ if ($hasContent) {
                 ][$topicResult] ?? null;
                 return $response === null ? null : $responder->sendMessage($chatId, $response);
             }
-
-
         }
     }
 }
@@ -181,7 +169,6 @@ if ($data === "BackHome") {
 
 if ($data === "BackToHome") {
     LegacyHandlerAdapter::membershipMenu($catalogue, $membershipFlow, $responder, $chatId, $messageId, $list, $start, $profileFalse);
-
 } elseif (is_string($data) && (str_starts_with($data, 'approve:') || str_starts_with($data, 'taeed'))) {
     if (!in_array((int)$fromId, $owners, true)) {
         return null;
@@ -209,7 +196,6 @@ if ($data === "BackToHome") {
     $responder->editMessageText($chatId, $messageId, "تایید شده ✅\n\n$Names");
     $acceptTopic = "مدیریت ربات با عضویت شما در گروه $Names موافقت کرد✅";
     $responder->sendMessage($chatid, "$acceptTopic");
-
 } elseif (is_string($data) && preg_match('/^(delete|confirmDelete)-([1-9][0-9]*)$/D', $data, $match)) {
     if (!in_array((int)$fromId, $owners, true)) {
         return null;
