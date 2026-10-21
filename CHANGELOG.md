@@ -1,5 +1,11 @@
 # Changelog
 
+## Explicit payment and transport source boundaries — 2026-10-21
+
+- Moved payment types and Telegram transport into individually named source files,
+  preserving the existing Payments.php and NotificationWorker.php include contracts.
+- Added a no-network compatibility-loader check; production behavior is unchanged.
+
 ## Focused tour conversation — 2026-10-21
 
 - Extracted tour/catalogue/category UI from the product router and separated
