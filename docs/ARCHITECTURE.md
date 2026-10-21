@@ -307,9 +307,29 @@ flowchart TB
     Topics --> Store
 ```
 
-Remaining debt: `ProductBot` still owns several unrelated conversation flows and
-some profile/booking SQL. The legacy handler still uses lexical variables and
+Remaining debt: `ProductBot` still owns several unrelated conversation flows.
+Its profile and booking SQL has since moved behind explicit application boundaries. The legacy handler still uses lexical variables and
 helper functions for membership, deletion and broadcast. `BookingService` still
 combines tour editing with reservation lifecycle operations. These extractions
 establish enforceable boundaries incrementally, not a completed Clean Architecture
 migration or evidence of a 9/10 code-quality score.
+
+## SQL-free product presentation
+
+`ProductBot` receives all collaborators through its constructor and contains no
+PDO dependency, direct SQL or operational service construction. `ProductBotFactory`
+is a composition root only: it builds a fixed object graph from explicitly passed
+PDO, booking, permission and delivery services, without runtime lookup or globals.
+`TravelerProfileService` owns self-service profile operations, legacy state resets,
+encrypted identity delegation and separately authorized/audited leader views.
+`BookingQueryService` owns per-user lists, reviewer lists and ownership-checked
+history. Neither service renders Telegram messages. Existing UI workflows are the
+characterization gate; direct service tests independently verify authorization,
+projection, legacy-data preservation and erasure.
+
+The application architecture test token-scans real source for presentation
+persistence/construction, pure payment-rule dependencies, global state in extracted
+services and source-level dependency cycles. Five source mutations prove detection
+without executing injected code. The cycle scope is references between classes
+with matching `src/*.php` filenames; dynamic includes and runtime-created edges
+are outside this narrow check.
