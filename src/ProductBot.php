@@ -5,7 +5,18 @@ final class ProductBot
     private int $sequence=0;
     private int $actor=0;
     private int $update=0;
-    public function __construct(private PDO $pdo,private BookingService $bookings,private AccessControl $access,private Outbox $outbox,private string $timezone='Asia/Tehran') {}
+    private BookingReportService $reports;
+
+    public function __construct(
+        private PDO $pdo,
+        private BookingService $bookings,
+        private AccessControl $access,
+        private Outbox $outbox,
+        private string $timezone = 'Asia/Tehran',
+        ?BookingReportService $reports = null
+    ) {
+        $this->reports = $reports ?? new BookingReportService($pdo, $bookings, $access);
+    }
 
     public function dispatch(int $actor,?string $text,?string $callback,int $update,?array $contact=null):bool
     {
@@ -268,20 +279,41 @@ final class ProductBot
         if(count($rows)===10)$buttons[]=[['text'=>'صفحه بعد','callback_data'=>$tour===null?'p:all_bookings:'.($offset+10):"p:tour_bookings:$tour:".($offset+10)]];
         $buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply('رزروها با وضعیت جاری و قبلی:',$buttons);
     }
-    private function report(int $id):void {
-        $this->access->require($this->actor,'reports');$tour=$this->bookings->tour($id);
-        $rows=Database::run($this->pdo,'SELECT status,COUNT(*) requests,SUM(quantity) seats FROM Bookings WHERE tour_id=? GROUP BY status',[$id])->fetchAll(PDO::FETCH_ASSOC);
-        $text="گزارش تور #$id\nظرفیت: {$tour['capacity']}\nباقی‌مانده: ".($tour['capacity']-$this->bookings->used($id));
-        foreach($rows as$row)$text.="\n".$this->status($row['status']).": {$row['requests']} درخواست / {$row['seats']} نفر";
-        $buttons=[];if($this->access->allows($this->actor,'review'))$buttons[]=[['text'=>'رزروهای این تور','callback_data'=>"p:tour_bookings:$id:0"]];if($this->access->allows($this->actor,'export'))$buttons[]=[['text'=>'خروجی CSV بدون اطلاعات هویتی','callback_data'=>"p:export:$id"]];$buttons[]=[['text'=>'مدیریت','callback_data'=>'p:admin:0']];$this->reply($text,$buttons,null,['reports']);
+    private function report(int $id): void
+    {
+        $summary = $this->reports->summary($this->actor, $id);
+        $text = "گزارش تور #$id\nظرفیت: {$summary['capacity']}\nباقی‌مانده: {$summary['remaining']}";
+        foreach ($summary['statuses'] as $row) {
+            $text .= "\n" . $this->status($row['status']) .
+                ": {$row['requests']} درخواست / {$row['seats']} نفر";
+        }
+
+        $buttons = [];
+        if ($this->access->allows($this->actor, 'review')) {
+            $buttons[] = [['text' => 'رزروهای این تور', 'callback_data' => "p:tour_bookings:$id:0"]];
+        }
+        if ($this->access->allows($this->actor, 'export')) {
+            $buttons[] = [['text' => 'خروجی CSV بدون اطلاعات هویتی', 'callback_data' => "p:export:$id"]];
+        }
+        $buttons[] = [['text' => 'مدیریت', 'callback_data' => 'p:admin:0']];
+        $this->reply($text, $buttons, null, ['reports']);
     }
-    private function export(int $id):void {
-        $this->access->require($this->actor,'export');$this->bookings->tour($id);
-        $rows=Database::run($this->pdo,'SELECT b.id,t.title,b.quantity,b.status,p.amount,p.status AS payment_status FROM Bookings b JOIN Tours t ON t.id=b.tour_id JOIN Payments p ON p.booking_id=b.id WHERE b.tour_id=? ORDER BY b.id LIMIT 5001',[$id])->fetchAll(PDO::FETCH_NUM);
-        if(count($rows)>5000)throw new RuleViolation('گزارش بیش از ۵۰۰۰ ردیف دارد؛ با اپراتور برای خروجی محدود هماهنگ کنید.');
-        $stream=fopen('php://temp','w+');fwrite($stream,"\xEF\xBB\xBF");fputcsv($stream,['booking_id','tour','quantity','status','amount_IRR','payment_status'], ',', '"', '');
-        foreach($rows as$row)fputcsv($stream,array_map(fn($value)=>BookingRules::csv((string)$value),$row), ',', '"', '');rewind($stream);$csv=stream_get_contents($stream);fclose($stream);
-        $this->outbox->enqueue($this->actor,'sendDocument',['caption'=>'گزارش رزرو بدون نام، موبایل یا کد ملی','_csv'=>$csv,'_export_actor'=>$this->actor],"export:{$this->update}:$id");$this->access->audit($this->actor,'booking.export','tour',$id);$this->reply('فایل در صف ارسال امن قرار گرفت.');
+
+    private function export(int $id): void
+    {
+        $csv = $this->reports->csv($this->actor, $id);
+        $this->outbox->enqueue(
+            $this->actor,
+            'sendDocument',
+            [
+                'caption' => 'گزارش رزرو بدون نام، موبایل یا کد ملی',
+                '_csv' => $csv,
+                '_export_actor' => $this->actor,
+            ],
+            "export:{$this->update}:$id"
+        );
+        $this->access->audit($this->actor, 'booking.export', 'tour', $id);
+        $this->reply('فایل در صف ارسال امن قرار گرفت.');
     }
     private function notifications():void {
         $rows=Database::run($this->pdo,'SELECT status,COUNT(*) total FROM NotificationOutbox GROUP BY status')->fetchAll(PDO::FETCH_ASSOC);
