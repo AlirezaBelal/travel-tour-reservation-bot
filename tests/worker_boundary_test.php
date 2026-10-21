@@ -38,18 +38,20 @@ $check($sent === 1, 'invalid payloads are not retried automatically');
 $pdo->exec('DELETE FROM NotificationOutbox');
 $outbox->message(880, 'Synthetic rate-limited delivery', 'boundary-429');
 (new NotificationWorker($pdo, $access))->tick(static fn () => ['ok' => false, 'code' => 429, 'retry_after' => 45], 1, false);
+// Removing the recipient's queued data must not remove the shared cooldown.
+(new PrivacyService($pdo))->erase(880);
 // These messages did not exist when Telegram requested the pause.
 $outbox->message(881, 'Synthetic arrival during cooldown', 'boundary-late');
 $outbox->enqueue(881, 'answerCallbackQuery', ['callback_query_id' => 'synthetic-callback'], 'boundary-callback');
 $sent = 0;
 (new NotificationWorker($pdo, $access))->tick($transport, 10, false);
 $check($sent === 0, 'a fresh worker respects cooldown for newly queued messages and callbacks');
-$check((int)$pdo->query('SELECT SUM(attempts) FROM NotificationOutbox')->fetchColumn() === 1,
+$check((int)$pdo->query('SELECT SUM(attempts) FROM NotificationOutbox')->fetchColumn() === 0,
     'cooldown does not claim new work or consume retry attempts');
 // Advancing only synthetic timestamps avoids a slow wall-clock sleep in CI.
 $pdo->exec('UPDATE NotificationDeliveryState SET blocked_until=UTC_TIMESTAMP()-INTERVAL 1 SECOND');
 $pdo->exec('UPDATE NotificationOutbox SET available_at=UTC_TIMESTAMP()');
 (new NotificationWorker($pdo, $access))->tick($transport, 10, false);
-$check($sent === 3, 'all deliveries resume after the persisted cooldown expires');
+$check($sent === 2, 'all remaining deliveries resume after the persisted cooldown expires');
 $pdo->exec('DELETE FROM NotificationDeliveryState');
 fwrite(STDOUT, "Worker boundary tests passed ($checks checks).\n");

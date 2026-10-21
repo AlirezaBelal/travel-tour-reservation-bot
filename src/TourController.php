@@ -256,9 +256,7 @@ final class TourController
                     $payload[$field] = null;
                 }
             } else {
-                if ($text === '' || strlen($text) > ($field === 'description' ? 4000 : 600)) {
-                    throw new RuleViolation('متن خالی یا بیش از حد طولانی است.');
-                }
+                TourRules::validateText($field, $text);
                 $payload[$field] = $text;
             }
             if ($field === 'capacity') {

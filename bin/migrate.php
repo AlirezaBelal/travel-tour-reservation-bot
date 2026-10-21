@@ -24,7 +24,8 @@ try {
     require_once __DIR__ . '/../database/product.php';
     migrateProduct($pdo);
     migrateTravelerIdentity($pdo);
-    fwrite(STDOUT, "Migrations 001, 002 and 003 applied or already current.\n");
+    migrateNotificationDeliveryState($pdo);
+    fwrite(STDOUT, "Migrations 001 through 004 applied or already current.\n");
 } catch (Throwable $error) {
     // Driver messages can include data. Do not print them to shared CI logs.
     fwrite(STDERR, "Migration failed. Legacy columns are retained; inspect configuration and data privately.\n");

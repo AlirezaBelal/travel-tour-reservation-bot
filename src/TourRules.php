@@ -19,9 +19,7 @@ final class TourRules
             }
         }
         foreach (['title','destination','description'] as $field) {
-            if (!is_string($values[$field]) || trim($values[$field]) === '' || strlen($values[$field]) > ($field === 'description' ? 4000 : 600)) {
-                throw new RuleViolation('عنوان، مقصد و توضیحات تور را به‌درستی وارد کنید.');
-            }
+            self::validateText($field, $values[$field]);
         }
         foreach (['starts_at','ends_at'] as $field) {
             $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', (string)$values[$field], new DateTimeZone('UTC'));
@@ -38,6 +36,19 @@ final class TourRules
             || !in_array($values['publication'], ['draft','published','inactive','archived'], true)
         ) {
             throw new RuleViolation('قیمت، ظرفیت، تاریخ یا وضعیت تور معتبر نیست.');
+        }
+    }
+
+    /** Shared by the form and application boundary; VARCHAR limits count Unicode characters. */
+    public static function validateText(string $field, mixed $value): void
+    {
+        $valid = is_string($value) && trim($value) !== '' && (
+            $field === 'description'
+                ? strlen($value) <= 4000 && preg_match('//u', $value) === 1
+                : in_array($field, ['title', 'destination'], true) && preg_match('/\A.{1,200}\z/us', $value) === 1
+        );
+        if (!$valid) {
+            throw new RuleViolation('عنوان و مقصد باید ۱ تا ۲۰۰ نویسه باشند؛ توضیحات را کوتاه و غیرخالی وارد کنید.');
         }
     }
 }

@@ -84,6 +84,13 @@ foreach(['=Synthetic CSV title','Synthetic Destination','Synthetic description',
 $tour=(int)Database::run($pdo,'SELECT id FROM Tours WHERE title=?',['=Synthetic CSV title'])->fetchColumn();wfCheck($tour>0&&$service->tour($tour)['publication']==='draft','guided admin tour creation');
 // End time must be later than the start; reject immediately without advancing the persisted form.
 $access->assign(999,998,'manager');sendUpdate(998,null,'p:new:0');
+sendUpdate(998, str_repeat('x', 201));
+wfCheck(Database::run($pdo, 'SELECT state FROM BotSessions WHERE user_id=998')->fetchColumn() === 'tour_title',
+    'oversized title is rejected at the title prompt');
+sendUpdate(998, str_repeat('ش', 200));
+wfCheck(Database::run($pdo, 'SELECT state FROM BotSessions WHERE user_id=998')->fetchColumn() === 'tour_destination',
+    '200-character Persian title advances the form');
+sendUpdate(998, '/cancel');sendUpdate(998, null, 'p:new:0');
 $testStart=gmdate('Y-m-d H:i',time()+172800);
 foreach(['Synthetic time-order validation','Synthetic destination','Synthetic date-check description','0',$testStart]as$input)sendUpdate(998,$input);
 wfCheck(Database::run($pdo,'SELECT state FROM BotSessions WHERE user_id=998')->fetchColumn()==='tour_ends_at','end-date prompt reached');

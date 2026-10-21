@@ -32,6 +32,7 @@ MySQL/MariaDB → NotificationWorker → Telegram transport
 - **Manual payment:** tour → booking → payment lock; unique hashed reference, audit and outbox within the same transaction.
 - **Edit tour:** enforce version and held-capacity invariants under locks. Outbox intents join the owning transaction.
 - **Worker:** short database claims under a single-worker advisory lock; external Telegram calls happen outside the claiming transaction. Delivery is **at least once**, never guaranteed exactly once.
+- Telegram 429 pauses persist in `NotificationDeliveryState` and apply to new arrivals after restart. Invalid stored JSON payloads fail with `invalid_payload` without logging their contents.
 
 See [migrations and rollback](MIGRATION.md) before altering a deployed schema.
 

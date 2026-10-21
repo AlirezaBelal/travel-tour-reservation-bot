@@ -28,6 +28,8 @@ $checks=0;
 function productCheck(bool $condition,string $label):void { global $checks; $checks++; if(!$condition) throw new RuntimeException($label); }
 function denied(callable $call):void { try{$call();throw new RuntimeException('Expected rule rejection.');}catch(RuleViolation){productCheck(true,'rule rejection');} }
 migrateProduct($pdo); migrateProduct($pdo);
+migrateNotificationDeliveryState($pdo); migrateNotificationDeliveryState($pdo);
+productCheck((int)$pdo->query("SELECT COUNT(*) FROM SchemaMigrations WHERE version='004_notification_delivery_state'")->fetchColumn()===1,'repeatable notification delivery migration');
 productCheck((int)$pdo->query("SELECT COUNT(*) FROM SchemaMigrations WHERE version='002_product'")->fetchColumn()===1,'repeatable additive migration');
 productCheck((int)$pdo->query('SELECT COUNT(*) FROM Tours')->fetchColumn()===0,'no invented legacy tours');
 for($i=300;$i<330;$i++) { $service->ensureUser($i); Database::run($pdo,'UPDATE Data SET Name=? WHERE UserId=?',['Synthetic traveler',$i]); }

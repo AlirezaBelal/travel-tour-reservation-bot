@@ -20,6 +20,7 @@ foreach (['title', 'destination'] as $field) {
     }
 }
 foreach ([['title' => ' '], ['description' => str_repeat('x', 4001)], ['starts_at' => '2028-02-30 08:00:00'],
+    ['title' => "\xFF"], ['destination' => "\xFF"],
     ['ends_at' => $values['starts_at']], ['price' => -1], ['price' => '100'], ['price' => 1000000000001],
     ['capacity' => 0], ['capacity' => 100001], ['publication' => 'unknown']] as $invalid) {
     try {
