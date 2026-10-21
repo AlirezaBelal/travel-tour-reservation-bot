@@ -172,6 +172,9 @@ export TEST_MYSQL_USER=your_test_user
 # Set TEST_MYSQL_PASSWORD privately.
 composer test:integration
 composer audit
+# Optional development-only tools (separate locked toolchain):
+composer install --working-dir=tools/quality
+composer analyse
 ```
 
 Integration tests rebuild **only disposable fixtures** and must never target a real

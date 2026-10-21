@@ -1,0 +1,12 @@
+parameters:
+    level: 5
+    phpVersion: 80030
+    bootstrapFiles:
+        - tools/quality/phpstan-bootstrap.php
+    paths:
+        - src
+    excludePaths:
+        analyseAndScan:
+            # Scoped compatibility template: validated by architecture/real DB/HTTP tests.
+            - src/handler.php
+    tmpDir: tools/quality/cache/phpstan

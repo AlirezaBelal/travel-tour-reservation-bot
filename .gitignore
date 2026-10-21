@@ -22,3 +22,8 @@ Thumbs.db
 # Personal-data backups stay outside source control
 /backups/
 backup*.sql*
+
+# Isolated development tool dependencies and generated CI proposals
+/tools/quality/vendor/
+/tools/quality/cache/
+/quality-generated/

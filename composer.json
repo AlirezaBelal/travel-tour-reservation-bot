@@ -30,7 +30,8 @@
       "@php tests/application_architecture_test.php",
       "@php tests/tour_rules_test.php",
       "@php tests/http_ingress_test.php",
-      "@php tests/legacy_responder_test.php"
+      "@php tests/legacy_responder_test.php",
+      "@php tests/transaction_cleanup_test.php"
     ],
     "test:integration": [
       "@php tests/mysql_test.php",
@@ -43,6 +44,8 @@
       "@php tests/product_query_test.php",
       "@php tests/tour_service_test.php",
       "@php tests/worker_process_test.php"
-    ]
+    ],
+    "analyse": "@php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --no-progress",
+    "lint:style": "@php tools/quality/vendor/bin/phpcs --standard=.phpcs.xml"
   }
 }
