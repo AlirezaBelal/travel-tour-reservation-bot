@@ -31,12 +31,12 @@ foreach ([830, 831] as $actor) {
 }
 $denied(static fn () => $profiles->saveName(830, str_repeat('x', 151)));
 $check($profiles->name(830) === 'Synthetic query traveler 830', 'invalid name leaves existing profile intact');
-Database::run($pdo, 'UPDATE Data SET step=?,Mobile=?,N_Code=? WHERE UserId=830', ['contact', 'synthetic historical mobile', 'synthetic historical code']);
+Database::run($pdo, 'UPDATE Data SET step=?,Mobile=?,N_Code=? WHERE UserId=830', ['contact', 'old-mobile', 'old-code']);
 $check($profiles->legacyStep(830) === 'contact', 'legacy state read');
 $profiles->resetLegacyState(830);
 $legacy = Database::run($pdo, 'SELECT Mobile,N_Code FROM Data WHERE UserId=830')->fetch(PDO::FETCH_ASSOC);
-$check($profiles->legacyStep(830) === 'defult' && $legacy['Mobile'] === 'synthetic historical mobile'
-    && $legacy['N_Code'] === 'synthetic historical code', 'state retirement preserves historical data');
+$check($profiles->legacyStep(830) === 'defult' && $legacy['Mobile'] === 'old-mobile'
+    && $legacy['N_Code'] === 'old-code', 'state retirement preserves historical data');
 $denied(static fn () => $profiles->leaderForReview(831, 830));
 $access->assign(999, 832, 'reviewer');
 $denied(static fn () => $profiles->leaderForReview(832, 830));
