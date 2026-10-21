@@ -111,3 +111,12 @@ permission metadata. Staff replies are authorized against the staff sender, not
 the traveler recipient, and are audited. Account erasure purges queued personal
 correspondence by subject. This enables manual payment coordination inside the bot
 without disclosing traveler Telegram IDs or collecting banking/card data.
+
+## Architecture fitness check
+
+`tests/architecture_test.php` scans the **actual production PHP tree** with the
+PHP tokenizer. It fails if fewer than 15 files are scanned or if the legacy
+handler is included from anywhere other than `LegacyHandlerAdapter`. It runs
+on PHP 8.0–8.4 in CI and via `composer test:unit`. This narrow regression
+guard is intentionally not described as full layering/static-analysis coverage;
+additional rules should follow only when real layer boundaries exist.
