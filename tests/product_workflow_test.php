@@ -89,6 +89,22 @@ sendUpdate(500,'/bookings');sendUpdate(500,null,"p:history:$booking");wfCheck(st
 // RBAC and CSV formula neutralization, with no profile data columns.
 sendUpdate(999,null,'p:roles:0');sendUpdate(999,'502');sendUpdate(999,'مدیر');wfCheck($access->role(502)===null,'role change awaits confirmation');sendUpdate(999,null,'p:role_yes:502');wfCheck($access->role(502)==='manager','owner role assignment');sendUpdate(502,null,"p:export:$tour");$document=json_decode(Database::run($pdo,"SELECT payload FROM NotificationOutbox WHERE chat_id=502 AND method='sendDocument' ORDER BY id DESC LIMIT 1")->fetchColumn(),true);wfCheck(str_contains($document['_csv'],"'=Synthetic CSV title")&&!str_contains($document['_csv'],'Synthetic New Traveler'),'CSV safe and contains no traveler name');
 $access->assign(999,503,'reporter');sendUpdate(503,null,"p:export:$tour");wfCheck(str_contains(lastReply(503)['text'],'اجازه'),'reporter cannot export');
+// Report queries and CSV projection are authorized independently of Telegram routing.
+$reporting = new BookingReportService($pdo, $service, $access);
+$summary = $reporting->summary(999, $tour);
+wfCheck($summary['capacity'] === 5 && $summary['remaining'] === 5 && is_array($summary['statuses']), 'reports expose expected capacity and grouped statuses');
+$csvDirect = $reporting->csv(999, $tour);
+wfCheck(str_starts_with($csvDirect, "\xEF\xBB\xBFbooking_id,tour,quantity,status,amount_IRR,payment_status"), 'CSV has stable allowlisted header');
+wfCheck(str_contains($csvDirect, "'=Synthetic CSV title")
+    && !str_contains($csvDirect, 'Synthetic New Traveler')
+    && !str_contains($csvDirect, '0000000019'), 'CSV neutralizes formulas and excludes traveler identity');
+try {
+    $reporting->csv(503, $tour);
+    throw new RuntimeException('Reporter was allowed to export a CSV.');
+} catch (RuleViolation $error) {
+    wfCheck(true, 'report-only role cannot export through the service');
+}
+
 // Rejection with optional reason and expired/stale confirmation protection.
 $tourVersion=(int)$service->tour($tour)['version'];
 foreach([504,505]as$user){sendUpdate($user,null,'p:name:0');sendUpdate($user,'Synthetic Companion');sendUpdate($user,null,"p:reserve_yes:$tour:1:$tourVersion");}

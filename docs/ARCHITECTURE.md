@@ -26,6 +26,7 @@ changing booking, payment or notification rules.
 |---|---|
 | Database | UTC connections, prepared queries, transaction boundaries and bounded deadlock retry |
 | BookingService | Tour validation, price snapshots, capacity, authorization, state transitions, history and payment review |
+| BookingReportService | Role-checked booking summary and allowlisted, formula-neutralized CSV; Telegram UI retains delivery and audit ordering |
 | ProductBot | Persian guided forms, menus, pagination, ownership-safe views, reports and input errors |
 | AccessControl | Owner configuration, DB roles, least-privilege checks, audit events |
 | Outbox / NotificationWorker | Idempotent enqueue, durable dispatch state, retries/leases and delivery permissions |
