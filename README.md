@@ -195,7 +195,8 @@ backup storage or merchant account works. External gates remain explicitly open.
 
 [Documentation index](docs/README.md) · [Product scope](docs/PRODUCT.md) ·
 [Report a bug](https://github.com/AlirezaBelal/travel-tour-reservation-bot/issues) ·
-[Contribute](CONTRIBUTING.md) · [Security policy](SECURITY.md).
+[Contribute](CONTRIBUTING.md) · [Security policy](SECURITY.md) ·
+[Repository maintenance](docs/REPOSITORY_MAINTENANCE.md) · [Source notes](docs/RELEASE_NOTES.md).
 
 Use `master` for installation and start focused contribution branches from it.
 There is no required development branch, category subscription or hosted service.

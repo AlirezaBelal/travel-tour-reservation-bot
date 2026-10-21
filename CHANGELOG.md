@@ -1,5 +1,17 @@
 # Changelog
 
+## Repository maintenance readiness — 2026-10-21
+
+- Replaced stale source snapshot notes with verified post-refactor baseline
+  and the explicit limits of synthetic CI evidence.
+- Added administrator guidance for branch cleanup, master rulesets, dependency
+  review, security settings and optional tagged source releases.
+- Added pull request checklist and weekly reviewable Dependabot update PRs
+  for app Composer, isolated quality tools and GitHub Actions.
+- Clarified the engineering quality score's scope and referenced exact CI.
+  GitHub administrative settings and historical credential rotation remain
+  owner actions; this documentation does not claim they were performed.
+
 ## Final engineering verification — 2026-10-21
 
 - Added deterministic transaction retry/auto-abort/exhaustion/ownership coverage.

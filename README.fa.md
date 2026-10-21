@@ -154,6 +154,9 @@ docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.ph
 Commit، روش نصب، رفتار مورد انتظار و مراحل بازتولید با داده ساختگی را بنویسید؛
 فایل `.env`، Backup دیتابیس، شماره و کد ملی واقعی را پیوست نکنید.
 
+برای حفاظت از شاخه اصلی، بررسی شاخه‌های ادغام‌شده و انتشار سورس،
+[راهنمای نگهداری مخزن](docs/REPOSITORY_MAINTENANCE.md) را ببینید.
+
 برای نصب جدید، پس از تولید و نگهداری امن `PROFILE_ENCRYPTION_KEY`، مقدار
 `REQUIRE_VERIFIED_PROFILE=true` را تنظیم کنید. پیش‌فرض `false` برای سازگاری
 ارتقای نصب‌های قبلی حفظ شده است. شماره فقط از مخاطب منتسب به حساب خود فرد
