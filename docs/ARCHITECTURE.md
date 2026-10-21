@@ -307,8 +307,8 @@ flowchart TB
     Topics --> Store
 ```
 
-Remaining debt: `ProductBot` still owns several unrelated conversation flows and
-some profile/booking SQL. The legacy handler still uses lexical variables and
+Remaining debt: `ProductBot` still owns several unrelated conversation flows.
+Its profile and booking SQL has since moved behind explicit application boundaries. The legacy handler still uses lexical variables and
 helper functions for membership, deletion and broadcast. `BookingService` still
 combines tour editing with reservation lifecycle operations. These extractions
 establish enforceable boundaries incrementally, not a completed Clean Architecture
