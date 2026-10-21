@@ -26,6 +26,7 @@ changing booking, payment or notification rules.
 |---|---|
 | Database | UTC connections, prepared queries, transaction boundaries and bounded deadlock retry |
 | BookingService | Tour validation, price snapshots, capacity, authorization, state transitions, history and payment review |
+| TourCatalogService | Authorized tour list/search, categories and visibility/capacity read model; no Telegram or session dependency |
 | BookingReportService | Role-checked booking summary and allowlisted, formula-neutralized CSV; Telegram UI retains delivery and audit ordering |
 | ProductBot | Guided Persian Telegram UI; callback actions are grouped by profile, traveler, tour admin, and booking admin with explicit default denial; forms are grouped by purpose |
 | BotSessionStore | Persistent per-user forms, 30-minute expiration, required-state verification, clearing |
@@ -225,3 +226,28 @@ handler is included from anywhere other than `LegacyHandlerAdapter`. It runs
 on PHP 8.0–8.4 in CI and via `composer test:unit`. This narrow regression
 guard is intentionally not described as full layering/static-analysis coverage;
 additional rules should follow only when real layer boundaries exist.
+
+## Catalogue extraction boundary
+
+`config.php` constructs `TourCatalogService` using the same PDO, booking and access
+services as `WebhookProcessor`. `ProductBot` requires this collaborator explicitly;
+it only reads the search term from its session and renders returned rows. The
+application service owns publication/time filtering, literal search, bounded
+pagination and the rule allowing existing booking owners to inspect unpublished
+tours. Administrator listings check `tours` permission inside the service, even
+when called without the bot. Existing booking owners retain their established
+access after unpublication, including historical bookings.
+
+The service opens no transaction and does not commit, enqueue or send messages.
+The capacity read continues to use `BookingService::used()` on the existing
+connection, preserving its row locking and the webhook's outer transaction.
+Reservation writes still recheck capacity in `BookingService`; displayed capacity
+is informational. The bootstrap is the composition root; no new container or
+repository interface is needed for this concrete read model.
+
+`catalogue_characterization_test.php` records the original Telegram catalogue
+contract before extraction and then exercises the service directly with synthetic
+MySQL/MariaDB data. `catalogue_architecture_test.php` checks required injection,
+forbids persistence/booking shortcuts in all three catalogue UI methods and
+rejects delivery dependencies in the read model. These checks cover this boundary,
+not every remaining responsibility in `ProductBot` or the legacy handler.
