@@ -602,21 +602,47 @@ final class ProductBot
         $this->reply("برای $count حساب در صف قرار گرفت؛ نتیجه ارسال را از وضعیت اعلان‌ها پیگیری کنید.");
     }
 
-    private function input(string $state,array $payload,string $text):void {
+    /**
+     * Dispatch stored form input by responsibility; unknown states fail closed.
+     */
+    private function input(string $state, array $payload, string $text): void
+    {
+        if ($this->handleIdentityInput($state, $payload, $text)) {
+            return;
+        }
+        if ($this->handleConversationInput($state, $payload, $text)) {
+            return;
+        }
+        if ($this->handleSearchAndQuantityInput($state, $payload, $text)) {
+            return;
+        }
+        if ($this->handleTourFormInput($state, $payload, $text)) {
+            return;
+        }
+        $this->handleAdministrativeInput($state, $payload, $text);
+    }
+
+    private function handleIdentityInput(string $state, array $payload, string $text): bool
+    {
         if($state==='phone')throw new RuleViolation('برای امنیت فقط دکمه «اشتراک شماره خودم» را بزنید. شماره تایپی پذیرفته نمی‌شود.');
         if($state==='national'){
             (new TravelerIdentity($this->pdo))->saveNational($this->actor,$text);
             $this->clear();
             $this->reply('کد ملی به‌صورت رمزگذاری‌شده ثبت شد. پروفایل شما تکمیل است.',$this->menu());
-            return;
+            return true;
         }
         if($state==='name'){
             if($text===''||strlen($text)>150)throw new RuleViolation('نام باید کوتاه و غیرخالی باشد.');
             Database::run($this->pdo,"UPDATE Data SET Name=?,profile='true' WHERE UserId=?",[$text,$this->actor]);
             $this->state('phone',[]);
             $this->contactPrompt();
-            return;
+            return true;
         }
+        return false;
+    }
+
+    private function handleConversationInput(string $state, array $payload, string $text): bool
+    {
         if($state==='support_message'||$state==='admin_message'){
             if($text===''||strlen($text)>2000)throw new RuleViolation('پیام را کوتاه‌تر وارد کنید.');
             $id=(int)$payload['booking'];
@@ -636,21 +662,31 @@ final class ProductBot
             }
             $this->clear();
             $this->reply('پیام در صف ارسال قرار گرفت. پاسخ از طریق همین ربات به شما می‌رسد.');
-            return;
+            return true;
         }
+        return false;
+    }
+
+    private function handleSearchAndQuantityInput(string $state, array $payload, string $text): bool
+    {
         if($state==='search'){
             if($text===''||strlen($text)>200)throw new RuleViolation('عبارت جست‌وجو را کوتاه وارد کنید.');
             $this->state('filter',['query'=>$text]);
             $this->listing(0);
-            return;
+            return true;
         }
         if($state==='quantity'){
             $qty=$this->number($text,20);
             BookingRules::quantity($qty);
             $tour=$this->bookings->tour((int)$payload['tour']);
             $this->reply("درخواست {$tour['title']} برای $qty نفر؛ مبلغ کل: ".($qty*(int)$tour['price']).' ریال. ثبت می‌کنید؟',[[['text'=>'تأیید درخواست','callback_data'=>"p:reserve_yes:{$tour['id']}:$qty:{$tour['version']}"]],[['text'=>'انصراف','callback_data'=>'p:home:0']]]);
-            return;
+            return true;
         }
+        return false;
+    }
+
+    private function handleTourFormInput(string $state, array $payload, string $text): bool
+    {
         if(str_starts_with($state,'tour_')){
             $this->access->require($this->actor,'tours');
             $field=substr($state,5);
@@ -681,8 +717,13 @@ final class ProductBot
                 $this->state('tour_'.$next[$field],$payload);
                 $this->reply($prompts[$next[$field]]);
             }
-            return;
+            return true;
         }
+        return false;
+    }
+
+    private function handleAdministrativeInput(string $state, array $payload, string $text): void
+    {
         if($state==='reject'){
             $this->access->require($this->actor,'review');
             $this->bookings->transition($this->actor,(int)$payload['booking'],'rejected',$text==='-'?null:$text,true);
@@ -758,4 +799,5 @@ final class ProductBot
         }
         throw new RuleViolation('برای ادامه از دکمه تأیید استفاده کنید یا /cancel بفرستید.');
     }
+
 }
