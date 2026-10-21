@@ -309,8 +309,8 @@ flowchart TB
 
 Remaining debt: `ProductBot` still owns several unrelated conversation flows.
 Its profile and booking SQL has since moved behind explicit application boundaries. The legacy handler still uses lexical variables and
-helper functions for membership, deletion and broadcast. `BookingService` still
-combines tour editing with reservation lifecycle operations. These extractions
+helper functions for membership, deletion and broadcast. `TourService` now owns tour editing and publication; `BookingService` retains
+reservation creation and lifecycle changes within the same booking aggregate. These extractions
 establish enforceable boundaries incrementally, not a completed Clean Architecture
 migration or evidence of a 9/10 code-quality score.
 
@@ -333,3 +333,22 @@ services and source-level dependency cycles. Five source mutations prove detecti
 without executing injected code. The cycle scope is references between classes
 with matching `src/*.php` filenames; dynamic includes and runtime-created edges
 are outside this narrow check.
+
+## Tour management boundary and transaction ownership
+
+`TourRules` validates tour values without infrastructure; `TourService` owns
+editing and publication. `TourInventory` is the shared tour/capacity row-locking
+boundary. The HTTP/CLI composition roots construct these explicitly using
+`BookingServiceFactory`. Existing `BookingService` tour APIs delegate for backward
+compatibility; reserve/transition remain together because they operate on the same
+booking aggregate and capacity invariant, not separate independent transactions.
+`BookingRules` and `RuleViolation` now have infrastructure-free source files;
+`Database.php` preserves its historical inclusion contract.
+
+No transaction or lock ordering changes: the same PDO is reused, tour edits lock
+the category then tour, reservation/lifecycle operations retain their existing
+user/tour/booking/payment ordering, and nested operations join `Database::atomic`.
+Tests cover pure tour validation, direct service permission/capacity checks,
+outer rollback, outbox-induced edit rollback and two-process confirmation versus
+cancellation against an old snapshot. Existing eight-process capacity and
+four-process payment tests remain mandatory on both database engines.

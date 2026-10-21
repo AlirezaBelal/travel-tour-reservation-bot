@@ -2,11 +2,15 @@
 final class BookingService
 {
     private PaymentReviewService $paymentReview;
+    private TourInventory $inventory;
+    private TourService $tours;
 
     public function __construct(private PDO $pdo, private AccessControl $access, private Outbox $outbox,
-        ?PaymentReviewService $paymentReview = null) {
+        ?PaymentReviewService $paymentReview = null, ?TourInventory $inventory = null, ?TourService $tours = null) {
         // Keep the public three-argument constructor compatible for existing integrations.
         $this->paymentReview = $paymentReview ?? new PaymentReviewService($pdo, $access, $outbox);
+        $this->inventory = $inventory ?? new TourInventory($pdo);
+        $this->tours = $tours ?? new TourService($pdo, $this->inventory, $access, $outbox);
     }
     public function ensureUser(int $id): void
     {
@@ -14,86 +18,20 @@ final class BookingService
     }
     public function used(int $tour): int
     {
-        return array_sum(array_map('intval', Database::run($this->pdo, "SELECT quantity FROM Bookings WHERE tour_id=? AND status IN ('pending','confirmed','completed') FOR UPDATE", [$tour])->fetchAll(PDO::FETCH_COLUMN)));
+        return $this->inventory->used($tour);
     }
     public function tour(int $id, bool $lock = false): array
     {
-        $tour = Database::run($this->pdo, 'SELECT * FROM Tours WHERE id=?' . ($lock ? ' FOR UPDATE' : ''), [$id])->fetch(PDO::FETCH_ASSOC);
-        if (!$tour) {
-            throw new RuleViolation('تور موردنظر پیدا نشد.');
-        }
-        return $tour;
+        return $this->inventory->tour($id, $lock);
     }
+    /** Compatibility methods; tour use cases live in TourService. */
     public function saveTour(int $actor, array $values, ?int $id = null): int
     {
-        $this->access->require($actor, 'tours');
-        $fields = ['category_id','title','destination','description','starts_at','ends_at','price','capacity','publication'];
-        foreach ($fields as $field) {
-            if (!array_key_exists($field, $values)) {
-                throw new RuleViolation('مشخصات تور کامل نیست.');
-            }
-        }
-        foreach (['title','destination','description'] as $field) {
-            if (!is_string($values[$field]) || trim($values[$field]) === '' || strlen($values[$field]) > ($field === 'description' ? 4000 : 600)) {
-                throw new RuleViolation('عنوان، مقصد و توضیحات تور را به‌درستی وارد کنید.');
-            }
-        }
-        foreach (['starts_at','ends_at'] as $field) {
-            $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', (string)$values[$field], new DateTimeZone('UTC'));
-            if (!$date || $date->format('Y-m-d H:i:s') !== $values[$field]) {
-                throw new RuleViolation('تاریخ یا ساعت معتبر نیست.');
-            }
-        }
-        if ($values['ends_at'] <= $values['starts_at']) {
-            throw new RuleViolation('زمان پایان تور باید بعد از زمان شروع باشد.');
-        }
-        if (!is_int($values['price']) || $values['price'] < 0 || $values['price'] > 1000000000000
-        || !is_int($values['capacity']) || $values['capacity'] < 1 || $values['capacity'] > 100000
-        || !in_array($values['publication'], ['draft','published','inactive','archived'], true)) {
-            throw new RuleViolation('قیمت، ظرفیت، تاریخ یا وضعیت تور معتبر نیست.');
-        }
-        return Database::atomic($this->pdo, function () use ($actor, $values, $id, $fields) {
-            if ($values['category_id'] !== null && !Database::run($this->pdo, 'SELECT id FROM Topics WHERE id=? FOR UPDATE', [$values['category_id']])->fetchColumn()) {
-                throw new RuleViolation('دسته انتخاب‌شده وجود ندارد.');
-            }
-            if ($id !== null) {
-                $previous = $this->tour($id, true);
-                if (isset($values['expected_version']) && (int)$values['expected_version'] !== (int)$previous['version']) {
-                    throw new RuleViolation('تور توسط مدیر دیگری تغییر کرده است؛ ویرایش را از ابتدا باز کنید.');
-                }
-                if ($values['capacity'] < $this->used($id)) {
-                    throw new RuleViolation('ظرفیت جدید از تعداد صندلی‌های رزروشده کمتر است.');
-                }
-                Database::run($this->pdo, 'UPDATE Tours SET ' . implode(',', array_map(fn($f) => "$f=?", $fields)) . ',version=version+1 WHERE id=?', array_merge(array_map(fn($f) => $values[$f], $fields), [$id]));
-                $users = Database::run($this->pdo, "SELECT user_id FROM Bookings WHERE tour_id=? AND user_id IS NOT NULL AND status IN ('pending','confirmed')", [$id])->fetchAll(PDO::FETCH_COLUMN);
-                foreach ($users as $user) {
-                    $this->outbox->message((int)$user, "مشخصات تور شماره $id تغییر کرد. لطفاً جزئیات جدید را از فهرست تورها ببینید.", "tour:$id:version:" . ($previous['version'] + 1) . ":user:$user");
-                }
-            }
-            else {
-                Database::run($this->pdo, 'INSERT INTO Tours(' . implode(',', $fields) . ') VALUES (?,?,?,?,?,?,?,?,?)', array_map(fn($f) => $values[$f], $fields));
-                $id = (int)$this->pdo->lastInsertId();
-            }
-            $this->access->audit($actor, 'tour.save', 'tour', $id);
-            return $id;
-        }
-        );
+        return $this->tours->saveTour($actor, $values, $id);
     }
-    public function publication(int $actor,int $id,string $publication):int
+    public function publication(int $actor, int $id, string $publication): int
     {
-        $this->access->require($actor,'tours');
-        if(!in_array($publication,['draft','published','inactive','archived'],true))throw new RuleViolation('وضعیت انتشار معتبر نیست.');
-        return Database::atomic($this->pdo,function()use($actor,$id,$publication){
-            // Read current locked values; a stale UI snapshot must not undo another edit.
-            $tour=$this->tour($id,true);
-            if($tour['publication']===$publication)return$id;
-            $tour['price']=(int)$tour['price'];$tour['capacity']=(int)$tour['capacity'];
-            $tour['publication']=$publication;$tour['expected_version']=(int)$tour['version'];
-            $this->saveTour($actor,$tour,$id);
-            $this->access->audit($actor,'tour.publication.'.$publication,'tour',$id);
-            return$id;
-        }
-        );
+        return $this->tours->publication($actor, $id, $publication);
     }
     public function reserve(int $actor, int $tourId, int $quantity, string $requestKey, ?int $expectedVersion = null): int
     {
