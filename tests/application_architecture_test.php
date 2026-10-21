@@ -19,6 +19,7 @@ if ($errors !== []) {
 $mutations = [
     ['ProductBot.php', "\nDatabase::run(\$pdo, 'SELECT 1');", 'presentation.persistence'],
     ['ProductBot.php', "\nnew PrivacyService(\$pdo);", 'presentation.construction'],
+    ['handler.php', "\n\$db->select('Data', '*');", 'presentation.persistence'],
     ['TravelerProfileService.php', "\nglobal \$pdo;", 'application.global'],
     ['PaymentRules.php', "\nPDO::class;", 'domain.infrastructure'],
 ];
@@ -35,4 +36,4 @@ $mutated['BookingQueryService.php'] .= "\nTravelerProfileService::class;";
 if (!in_array('dependency.cycle', ArchitectureRules::violations($mutated), true)) {
     throw new RuntimeException('Synthetic dependency cycle escaped detection.');
 }
-fwrite(STDOUT, 'Application architecture passed: ' . count($sources) . " production files, five detected mutations.\n");
+fwrite(STDOUT, 'Application architecture passed: ' . count($sources) . " production files, six detected mutations.\n");

@@ -22,8 +22,11 @@ final class ArchitectureRules
                 if ($type === T_STRING && $value !== $name && in_array($value, $names, true)) {
                     $dependencies[$name][] = $value;
                 }
-                if ($name === 'ProductBot' && $type === T_STRING
+                if (in_array($name, ['ProductBot', 'handler'], true) && $type === T_STRING
                     && in_array(strtolower($value), ['database', 'pdo', 'mysqli'], true)) {
+                    $errors[] = 'presentation.persistence';
+                }
+                if ($name === 'handler' && $type === T_VARIABLE && $value === '$db') {
                     $errors[] = 'presentation.persistence';
                 }
                 if ($name === 'ProductBot' && $type === T_NEW) {
@@ -43,7 +46,7 @@ final class ArchitectureRules
                     $errors[] = 'domain.infrastructure';
                 }
                 if (in_array($name, ['TravelerProfileService', 'BookingQueryService', 'LegacyTopicService',
-                    'PaymentReviewService', 'TourCatalogService', 'TourService'], true)
+                    'PaymentReviewService', 'TourCatalogService', 'TourService', 'LegacyMembershipService', 'LegacyBroadcastService'], true)
                     && ($type === T_GLOBAL || ($type === T_VARIABLE
                         && in_array($value, ['$GLOBALS', '$_ENV', '$_SERVER', '$_POST'], true)))) {
                     $errors[] = 'application.global';

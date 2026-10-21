@@ -8,6 +8,9 @@ require __DIR__ . '/../src/TopicCatalogue.php';
 require __DIR__ . '/../src/LegacyHandlerAdapter.php';
 require __DIR__ . '/../src/Database.php';
 require __DIR__ . '/../src/LegacyTopicService.php';
+require __DIR__ . '/../src/LegacyMembershipService.php';
+require __DIR__ . '/../src/LegacyBroadcastService.php';
+require __DIR__ . '/../src/LegacyUpdate.php';
 
 define('ADMINS', [999]);
 $dsn = getenv('TEST_MYSQL_DSN');
@@ -19,6 +22,8 @@ $db = new Medoo\Medoo(['pdo' => $pdo, 'database_type' => 'mysql']);
 $memberships = new TopicMemberships($pdo);
 $catalogue = new TopicCatalogue($pdo);
 $topicForms = new LegacyTopicService($pdo, $catalogue, ADMINS);
+$membershipFlow = new LegacyMembershipService($pdo, $memberships, $catalogue, ADMINS);
+$broadcasts = new LegacyBroadcastService($pdo, $memberships, ADMINS);
 $calls = [];
 $checks = 0;
 function expectFlow(bool $condition, string $label): void
@@ -60,7 +65,7 @@ function copymessage(int|string $chatId, int|string $fromChatId, int|string $mes
 }
 function dispatchFlow(int $actor, ?string $input = null, ?string $callback = null, array $contactPayload = []): array
 {
-    global $db, $memberships, $catalogue, $topicForms, $calls;
+    global $db, $memberships, $catalogue, $topicForms, $membershipFlow, $broadcasts, $calls;
     $calls = [];
     $fromId = $chatId = $actor;
     $text = $input;
@@ -71,11 +76,9 @@ function dispatchFlow(int $actor, ?string $input = null, ?string $callback = nul
     $userName = 'synthetic_fixture';
     $message = $contactPayload === [] ? [] : ['contact' => $contactPayload];
     $photo = $document = $video = null;
-    LegacyHandlerAdapter::dispatch(
-        $db, $memberships, $catalogue, $fromId, $chatId,
-        $text, $data, $messageId, $callbackId, $text2, $userName,
-        $message, $photo, $document, $video, $topicForms
-    );
+    LegacyHandlerAdapter::dispatch($catalogue, $topicForms, $membershipFlow, $broadcasts, ADMINS,
+        new LegacyUpdate($actor, $actor, $input, $callback, 1, 'synthetic-query',
+            (bool)$input || $contactPayload !== []));
     return $calls;
 }
 
@@ -129,6 +132,24 @@ $calls = dispatchFlow(999, null, $approval);
 expectFlow($memberships->status(201, $leaf) === 'verify', 'administrator approves');
 expectFlow(count(array_filter($calls, fn($call) => (string)($call['payload']['chat_id'] ?? '') === '201')) === 1, 'traveler receives approval notification');
 expectFlow(dispatchFlow(999, null, $approval) === [], 'duplicate approval sends no duplicate notification');
+// Characterize legacy send forms before replacing their data-selection implementation.
+dispatchFlow(999, null, "send$leaf");
+expectFlow($db->get('Data', 'step', ['UserId' => 999]) === "send$leaf", 'legacy broadcast selection persists');
+$broadcastCalls = dispatchFlow(999, 'Synthetic legacy topic broadcast');
+$copies = array_values(array_filter($broadcastCalls, static fn ($call) => $call['method'] === 'copyMessage'));
+expectFlow(count($copies) === 1 && (int)$copies[0]['payload']['chat_id'] === 201,
+    'legacy category broadcast selects approved members only');
+expectFlow((int)$copies[0]['payload']['from_chat_id'] === 999 && (int)$copies[0]['payload']['message_id'] === 1,
+    'legacy broadcast preserves source message');
+dispatchFlow(999, null, 'sendAll');
+$broadcastCalls = dispatchFlow(999, 'Synthetic legacy all-profile broadcast');
+$recipients = array_map(static fn ($call) => (int)$call['payload']['chat_id'],
+    array_values(array_filter($broadcastCalls, static fn ($call) => $call['method'] === 'copyMessage')));
+expectFlow(in_array(201, $recipients, true) && in_array(999, $recipients, true)
+    && !in_array(202, $recipients, true), 'legacy all broadcast requires completed profile');
+$db->update('Data', ['step' => 'sendAll'], ['UserId' => 202]);
+expectFlow(dispatchFlow(202, 'Synthetic forged legacy broadcast') === []
+    && $db->get('Data', 'step', ['UserId' => 202]) === 'defult', 'forged non-owner broadcast state is retired');
 dispatchFlow(999, null, "delete-$root");
 expectFlow($db->has('Topics', ['id' => $leaf]), 'first delete click does not delete');
 dispatchFlow(202, null, "confirmDelete-$root");
@@ -179,4 +200,31 @@ try {
 }
 $db->update('Data', ['step' => 'defult'], ['UserId' => 999]);
 expectFlow($topicForms->submit(999, 999, 'Synthetic unrelated input') === null, 'unrelated legacy input remains unhandled');
+// Extracted legacy services enforce their own authority without UI or helper functions.
+try {
+    $membershipFlow->approve(201, 201, $directTopic);
+    throw new RuntimeException('Direct non-owner membership approval accepted.');
+} catch (RuleViolation $error) {
+    expectFlow(true, 'membership service denies non-owner approval');
+}
+expectFlow($membershipFlow->request(201, $directTopic), 'membership service creates eligible leaf request');
+expectFlow(!$membershipFlow->request(201, $directTopic), 'membership service suppresses duplicate request');
+expectFlow($membershipFlow->approve(999, 201, $directTopic) === 'Synthetic direct legacy category',
+    'membership service returns authorized approval name');
+expectFlow($membershipFlow->approve(999, 201, $directTopic) === null, 'duplicate direct approval remains silent');
+try {
+    $broadcasts->begin(202, 202, 'sendAll');
+    throw new RuntimeException('Direct non-owner broadcast selection accepted.');
+} catch (RuleViolation $error) {
+    expectFlow(true, 'broadcast service denies non-owner selection');
+}
+$broadcasts->begin(999, 999, "send$directTopic");
+expectFlow($broadcasts->consume(999, 999) === ['authorized' => true, 'recipients' => [201]],
+    'broadcast service returns only approved target members');
+expectFlow($broadcasts->consume(999, 999) === null, 'consumed form cannot be reused');
+$db->update('Data', ['step' => 'sendAll'], ['UserId' => 202]);
+expectFlow($broadcasts->consume(202, 202) === ['authorized' => false, 'recipients' => []],
+    'forged stored broadcast has no recipients');
+expectFlow($db->get('Data', 'step', ['UserId' => 202]) === 'defult', 'forged broadcast state clears');
+expectFlow(!$membershipFlow->request(202, $directTopic), 'incomplete profile denied at application boundary');
 fwrite(STDOUT, "Telegram workflow regression tests passed ({$checks} checks).\n");

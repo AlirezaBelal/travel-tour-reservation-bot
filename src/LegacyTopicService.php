@@ -50,6 +50,35 @@ final class LegacyTopicService
         });
     }
 
+    public function reset(int $chat): void
+    {
+        $this->step($chat, 'defult');
+    }
+
+    public function beginDelete(int $actor, int $chat, int $topic): void
+    {
+        $this->requireOwner($actor);
+        $this->step($chat, "deleteConfirm-$topic");
+    }
+
+    public function confirmDelete(int $actor, int $chat, int $topic): ?int
+    {
+        $this->requireOwner($actor);
+        return Database::atomic($this->pdo, function () use ($chat, $topic): ?int {
+            $step = Database::run($this->pdo, 'SELECT step FROM Data WHERE UserId=? FOR UPDATE', [$chat])->fetchColumn();
+            if ($step !== "deleteConfirm-$topic") return null;
+            $this->reset($chat);
+            try {
+                return $this->catalogue->deleteTree($topic);
+            } catch (PDOException $error) {
+                if (($error->errorInfo[1] ?? null) === 1451) {
+                    throw new RuleViolation('این دسته یا زیرمجموعه آن به تور مرتبط است؛ ابتدا دسته تور را تغییر دهید.');
+                }
+                throw $error;
+            }
+        });
+    }
+
     private function createChild(int $chat, string $step, string $text): string
     {
         if (trim($text) === '') {

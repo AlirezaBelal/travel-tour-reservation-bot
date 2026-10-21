@@ -1,12 +1,11 @@
 <?php
 
-date_default_timezone_set('Asia/Tehran');
 
 // Retired profile forms must never receive new sensitive values, even when this
 // compatibility handler is invoked directly instead of through ProductBot.
 if ((is_string($text) && preg_match('/^\/setprofile(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u', $text))
-    || isLegacyProfileStep($db->get('Data', 'step', ['UserId' => $chatId]))) {
-    $db->update('Data', ['step' => 'defult'], ['UserId' => $chatId]);
+    || isLegacyProfileStep(($membershipFlow->user((int)$chatId)['step'] ?? null))) {
+    $topicForms->reset((int)$chatId);
     return bot('sendMessage', [
         'chat_id' => $chatId,
         'text' => 'فرم قدیمی پروفایل بسته شد؛ اطلاعات این پیام ذخیره نشد. برای ثبت امن اطلاعات، /profile را بفرستید.',
@@ -14,7 +13,7 @@ if ((is_string($text) && preg_match('/^\/setprofile(?:@[A-Za-z0-9_]+)?(?:\s.*)?$
     ]);
 }
 
-if (isAdmin($fromId)) {
+if (in_array((int)$fromId, $owners, true)) {
 
     if (is_string($text) && preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text)) {
         preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text, $text);
@@ -26,7 +25,7 @@ if (isAdmin($fromId)) {
         return sendMessage($chatId, "$T");
 
     } elseif ($text === 'Topics') {
-        $Topics = $db->select('Topics', '*');
+        $Topics = $catalogue->all();
 
         $keyboard = array();
         $n = $m = 0;
@@ -59,7 +58,7 @@ if (isAdmin($fromId)) {
         return sendkeyboard($chatId, $list, $keyboard);
 
     } elseif ($text === '/send') {
-        $Topics = $db->select('Topics', '*');
+        $Topics = $catalogue->all();
 
         $keyboard = array();
         $n = $m = 0;
@@ -87,7 +86,7 @@ if (isAdmin($fromId)) {
         sendMessage($chatId, "Memory usage is " . round($memory, 2) . " MB");
 
     } elseif (is_string($data) && str_starts_with($data, 'send')) {
-        $db->update('Data', ['step' => $data], ["UserId" => $chatId]);
+        $broadcasts->begin((int)$fromId, (int)$chatId, $data);
         return sendMessage($chatId, "$reqForward");
 
     } elseif (is_string($data) && str_starts_with($data, 'sub-')) {
@@ -101,9 +100,7 @@ if (isAdmin($fromId)) {
             return null;
         }
 
-        $topics = $db->select('Topics', ['Name', 'id', 'caption'], [
-            'Groups' => $id
-        ]);
+        $topics = $catalogue->children((int)$id);
         $caption = "";
 
         if (count($topics) < 1) {
@@ -142,32 +139,26 @@ if (isAdmin($fromId)) {
     }
 }
 
-if ($text || isset($photo) || isset($document) || isset($video) || isset($message['contact'])) {
+if ($hasContent) {
 
     if (is_string($text) && preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?: [A-Za-z0-9_-]{1,64})?$/D', $text)) {
-        hasdb($chatId);
+        $membershipFlow->ensureUser((int)$chatId);
         return sendMessage($chatId, "$start");
 
     } elseif ($text === '/list') {
-        if ($db->has('Data', ['UserId' => "$chatId"])) {
-            $checker = $db->get('Data', 'profile', ['UserId' => $chatId]);
+        if ($membershipFlow->user((int)$chatId) !== null) {
+            $checker = ($membershipFlow->user((int)$chatId)['profile'] ?? null);
             if ($checker == "true") {
                 $perline = 2;
                 $keyboard = array();
                 $n = $m = 0;
 
-                $Topics = $db->select('Topics', [
-                    'id',
-                    'Name',
-                    'Groups'
-                ], [
-                    'Groups' => 0
-                ]);
+                $Topics = $catalogue->children(0);
 
                 foreach ($Topics as $button) {
                     $id = $button['id'];
                     $Name = $button['Name'];
-                    $check = $memberships->status($chatId, $id);
+                    $check = $membershipFlow->status((int)$chatId, $id);
 
                     if ($check == "verify") {
                         $check = "✅";
@@ -193,36 +184,18 @@ if ($text || isset($photo) || isset($document) || isset($video) || isset($messag
                 sendMessage($chatId, "$profileFalse");
             }
         } else {
-            $db->insert('Data', ['UserId' => "$chatId", 'step' => 'defult']);
+            $membershipFlow->ensureUser((int)$chatId);
             sendMessage($chatId, "$start");
         }
 
     } else {
-        if ($db->has('Data', ['UserId' => "$chatId"])) {
-            $step = (string)$db->get('Data', 'step', ['UserId' => $chatId]);
-
-            if (str_starts_with($step, 'send')) {
-                if (!isAdmin($fromId)) {
-                    $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-                    return null;
+        if ($membershipFlow->user((int)$chatId) !== null) {
+            $broadcast = $broadcasts->consume((int)$fromId, (int)$chatId);
+            if ($broadcast !== null) {
+                if (!$broadcast['authorized']) return null;
+                foreach ($broadcast['recipients'] as $recipient) {
+                    copymessage($recipient, $chatId, $messageId);
                 }
-
-                $target = substr($step, strlen('send'));
-                $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-
-                if ($target === "All") {
-                    $profiles = $db->select('Data', ['profile', 'UserId']);
-                    foreach ($profiles as $profile) {
-                        if (($profile['profile'] ?? null) === "true") {
-                            copymessage($profile['UserId'], $chatId, $messageId);
-                        }
-                    }
-                } elseif (ctype_digit($target)) {
-                    foreach ($memberships->approvedUsers($target) as $userId) {
-                        copymessage($userId, $chatId, $messageId);
-                    }
-                }
-
                 return sendMessage($chatId, "$forwardTrue");
             }
 
@@ -252,41 +225,19 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
         return null;
     }
 
-    if ($db->has('Data', ['UserId' => "$chatId", 'profile' => 'true']) && $db->has('Topics', ['id' => $topicId])) {
-        $Topics = $db->select('Topics', ['Name', 'id', 'caption'], ['Groups' => $topicId]);
+    if ($membershipFlow->eligible((int)$chatId, $topicId)) {
+        $Topics = $catalogue->children((int)$topicId);
         if (count($Topics) < 1) {
-            if ($memberships->request($chatId, $topicId)) {
-                $id = (string)$topicId;
-                $TName = "";
-                $ids = "$topicId|";
-                $guard = 0;
-
-                while ($guard++ < 100) {
-                    $Topic_Group = $db->get('Topics', 'Groups', ['id' => $id]);
-                    $Topic_Name = $db->get('Topics', 'Name', ['id' => $id]);
-                    if ($Topic_Group === null || $Topic_Name === null) {
-                        break;
-                    }
-
-                    if ((string)$Topic_Group === '0') {
-                        $TName .= $Topic_Name;
-                        $ids .= "0";
-                        break;
-                    }
-
-                    $id = (string)$Topic_Group;
-                    $ids .= "$Topic_Group|";
-                    $TName .= $Topic_Name . " 👉 ";
-                }
-
+            if ($membershipFlow->request((int)$chatId, $topicId)) {
+                $TName = $membershipFlow->path($topicId);
                 $TXT = "درخواست عضویت در دسته قدیمی: $TName";
 
                 $keyboard = [[['text' => 'تایید ✅', 'callback_data' => "approve:$chatId:$topicId"]]];
                 $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
 
-                bot('sendMessage', ['chat_id' => ADMINS[0], 'text' => $TXT, 'reply_markup' => $keyboard, '_subject_user' => (int)$chatId]);
-                foreach (ADMINS as $admin) {
-                    if ((int)$admin !== (int)ADMINS[0]) {
+                bot('sendMessage', ['chat_id' => $owners[0], 'text' => $TXT, 'reply_markup' => $keyboard, '_subject_user' => (int)$chatId]);
+                foreach ($owners as $admin) {
+                    if ((int)$admin !== (int)$owners[0]) {
                         bot('sendMessage', ['chat_id' => $admin, 'text' => $TXT, '_subject_user' => (int)$chatId]);
                     }
                 }
@@ -301,12 +252,12 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
                 }
 
                 $TopicId = $Topic['id'];
-                $subsettopics = $db->select('Topics', ['Name', 'id', 'caption'], ['Groups' => $TopicId]);
+                $subsettopics = $catalogue->children((int)$TopicId);
                 $Name = $Topic['Name'];
                 $caption .= "\n$Name : " . ($Topic['caption'] ?? '');
 
                 if (count($subsettopics) < 1) {
-                    $check = $memberships->status($chatId, $TopicId);
+                    $check = $membershipFlow->status((int)$chatId, $TopicId);
                     if ($check == "verify") {
                         $check = "✅";
                     } elseif ($check == "check") {
@@ -334,11 +285,11 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
 }
 
 if ($data === "BackHome") {
-    if (!isAdmin($fromId)) {
+    if (!in_array((int)$fromId, $owners, true)) {
         return null;
     }
 
-    $Topics = $db->select('Topics', ['id', 'Name', 'Groups'], ['Groups' => 0]);
+    $Topics = $catalogue->children(0);
     $keyboard = [];
     $n = $m = 0;
     foreach ($Topics as $button) {
@@ -362,18 +313,18 @@ if ($data === "BackHome") {
 }
 
 if ($data === "BackToHome") {
-    if ($db->has('Data', ['UserId' => "$chatId"])) {
-        $checker = $db->get('Data', 'profile', ['UserId' => $chatId]);
+    if ($membershipFlow->user((int)$chatId) !== null) {
+        $checker = ($membershipFlow->user((int)$chatId)['profile'] ?? null);
         if ($checker == "true") {
             $perline = 2;
             $keyboard = array();
             $n = $m = 0;
-            $Topics = $db->select('Topics', ['id', 'Name', 'Groups'], ['Groups' => 0]);
+            $Topics = $catalogue->children(0);
 
             foreach ($Topics as $button) {
                 $id = $button['id'];
                 $Name = $button['Name'];
-                $check = $memberships->status($chatId, $id);
+                $check = $membershipFlow->status((int)$chatId, $id);
 
                 if ($check == "verify") {
                     $check = "✅";
@@ -399,12 +350,12 @@ if ($data === "BackToHome") {
 
         sendMessage($chatId, "$profileFalse");
     } else {
-        $db->insert('Data', ['UserId' => "$chatId", 'step' => 'defult']);
+        $membershipFlow->ensureUser((int)$chatId);
         sendMessage($chatId, "$start");
     }
 
 } elseif (is_string($data) && (str_starts_with($data, 'approve:') || str_starts_with($data, 'taeed'))) {
-    if (!isAdmin($fromId)) {
+    if (!in_array((int)$fromId, $owners, true)) {
         return null;
     }
     // Accept short new callbacks and existing legacy approval buttons.
@@ -415,10 +366,10 @@ if ($data === "BackToHome") {
     } else {
         return null;
     }
-    if (!$memberships->approve($chatid, $topicId)) {
+    $Names = $membershipFlow->approve((int)$fromId, $chatid, $topicId);
+    if ($Names === null) {
         return null;
     }
-    $Names = (string)$db->get('Topics', 'Name', ['id' => $topicId]);
     if (is_string($callbackId) && $callbackId !== '') {
         bot('answerCallbackQuery', [
             'callback_query_id' => $callbackId,
@@ -432,29 +383,21 @@ if ($data === "BackToHome") {
     sendMessage($chatid, "$acceptTopic");
 
 } elseif (is_string($data) && preg_match('/^(delete|confirmDelete)-([1-9][0-9]*)$/D', $data, $match)) {
-    if (!isAdmin($fromId)) {
+    if (!in_array((int)$fromId, $owners, true)) {
         return null;
     }
     $topicId = (int)$match[2];
     if ($match[1] === 'delete') {
-        $db->update('Data', ['step' => "deleteConfirm-$topicId"], ['UserId' => $chatId]);
+        $topicForms->beginDelete((int)$fromId, (int)$chatId, $topicId);
         $keyboard = json_encode(['inline_keyboard' => [
             [['text' => 'تأیید حذف دسته و تمام زیرمجموعه‌ها', 'callback_data' => "confirmDelete-$topicId"]],
             [['text' => 'انصراف', 'callback_data' => 'BackHome']],
         ]], JSON_UNESCAPED_UNICODE);
         return sendkeyboard($chatId, 'این کار دسته، تمام زیرمجموعه‌ها و درخواست‌های مرتبط را حذف می‌کند. تأیید می‌کنید؟', $keyboard);
     }
-    if ($db->get('Data', 'step', ['UserId' => $chatId]) !== "deleteConfirm-$topicId") {
+    $deleted = $topicForms->confirmDelete((int)$fromId, (int)$chatId, $topicId);
+    if ($deleted === null) {
         return sendMessage($chatId, 'ابتدا حذف دسته را از منو انتخاب و تأیید کنید.');
-    }
-    $db->update('Data', ['step' => 'defult'], ['UserId' => $chatId]);
-    try {
-        $deleted = $catalogue->deleteTree($topicId);
-    } catch (PDOException $error) {
-        if (($error->errorInfo[1] ?? null) === 1451 && class_exists('RuleViolation')) {
-            throw new RuleViolation('این دسته یا زیرمجموعه آن به تور مرتبط است؛ ابتدا دسته تور را تغییر دهید.');
-        }
-        throw $error;
     }
     return sendMessage($chatId, "تعداد دسته‌های حذف‌شده: $deleted");
 }
