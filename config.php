@@ -196,6 +196,7 @@ $processor = new WebhookProcessor($db->pdo, $bookings, $productBot, $outbox);
 
 $memberships = new TopicMemberships($db->pdo);
 $catalogue = new TopicCatalogue($db->pdo);
+$topicForms = new LegacyTopicService($db->pdo, $catalogue, ADMINS);
 
 // The pure ingress mapper preserves the lexical variables needed by the
 // compatibility adapter, without mixing JSON shape parsing with PDO bootstrap.

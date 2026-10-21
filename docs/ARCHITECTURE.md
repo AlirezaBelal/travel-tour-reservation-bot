@@ -28,6 +28,7 @@ changing booking, payment or notification rules.
 | BookingService | Tour validation, price snapshots, capacity, authorization, state transitions, history and payment review |
 | TourCatalogService | Authorized tour list/search, categories and visibility/capacity read model; no Telegram or session dependency |
 | BookingReportService | Role-checked booking summary and allowlisted, formula-neutralized CSV; Telegram UI retains delivery and audit ordering |
+| LegacyTopicService | Configured-owner category creation/caption forms, explicit PDO/catalogue dependencies; no Telegram helpers or globals |
 | ProductBot | Guided Persian Telegram UI; callback actions are grouped by profile, traveler, tour admin, and booking admin with explicit default denial; forms are grouped by purpose |
 | BotSessionStore | Persistent per-user forms, 30-minute expiration, required-state verification, clearing |
 | AccessControl | Owner configuration, DB roles, least-privilege checks, audit events |
@@ -251,3 +252,20 @@ MySQL/MariaDB data. `catalogue_architecture_test.php` checks required injection,
 forbids persistence/booking shortcuts in all three catalogue UI methods and
 rejects delivery dependencies in the read model. These checks cover this boundary,
 not every remaining responsibility in `ProductBot` or the legacy handler.
+
+## Legacy category form boundary
+
+`LegacyTopicService` now owns category creation, caption persistence and the
+corresponding `Data.step` transitions. The composition root passes PDO,
+`TopicCatalogue` and the configured owner IDs; `LegacyHandlerAdapter` receives
+this service explicitly. The historical handler only routes these commands and
+maps outcomes to the existing Persian responses. Configured owners remain the
+legacy authority; application DB roles do not silently gain legacy permissions.
+Other legacy membership, deletion and broadcast paths remain behind the adapter.
+
+Direct calls enforce owner authority independently of callback routing. Form
+submission locks the user's state row. Category creation and advancement to the
+caption state share one transaction; they join the webhook transaction when
+present. Synthetic workflow tests exercise routing, direct authorization,
+malformed/missing form targets and a forced state-write failure proving rollback.
+The architecture guard rejects globals and Telegram helper calls in this service.

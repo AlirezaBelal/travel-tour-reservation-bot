@@ -59,3 +59,24 @@ if ($legacySites !== ['src/LegacyHandlerAdapter.php']) {
     throw new RuntimeException('Legacy handler include boundary changed: ' . json_encode($legacySites));
 }
 fwrite(STDOUT, "Architecture check passed: $scanned PHP files, one legacy adapter include.\n");
+
+// The extracted legacy application flow must not regain globals or Telegram helpers.
+$servicePath = $root . '/src/LegacyTopicService.php';
+$serviceSource = file_get_contents($servicePath);
+if ($serviceSource === false || !str_contains($serviceSource, 'final class LegacyTopicService')) {
+    throw new RuntimeException('Legacy application boundary source is missing.');
+}
+foreach (token_get_all($serviceSource) as $token) {
+    if (!is_array($token)) {
+        continue;
+    }
+    if ($token[0] === T_GLOBAL || ($token[0] === T_VARIABLE && in_array($token[1],
+        ['$GLOBALS', '$_ENV', '$_SERVER', '$_POST'], true))) {
+        throw new RuntimeException('Legacy application service uses implicit global state.');
+    }
+    if ($token[0] === T_STRING && in_array(strtolower($token[1]),
+        ['bot', 'sendmessage', 'sendkeyboard', 'isadmin', 'legacyhandleradapter'], true)) {
+        throw new RuntimeException('Legacy application service depends on presentation helpers.');
+    }
+}
+fwrite(STDOUT, "Legacy application boundary passed: no globals or Telegram helpers.\n");

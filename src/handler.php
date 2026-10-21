@@ -20,8 +20,7 @@ if (isAdmin($fromId)) {
         preg_match("/^[\/\#\!]?(AddTopic) (.*)$/i", $text, $text);
         $query = $text[2];
 
-        $catalogue->create($query, 0);
-        $db->update('Data', ['step' => 'defult'], ['UserId' => $chatId]);
+        $topicForms->createRoot((int)$fromId, (int)$chatId, $query);
         $T = 'دسته ایجاد شد.';
 
         return sendMessage($chatId, "$T");
@@ -138,7 +137,7 @@ if (isAdmin($fromId)) {
         if (!ctype_digit((string)$parentId)) {
             return null;
         }
-        $db->update('Data', ['step' => $data], ["UserId" => $chatId]);
+        $topicForms->begin((int)$fromId, (int)$chatId, (int)$parentId);
         return sendMessage($chatId, "$getTopic");
     }
 }
@@ -227,37 +226,14 @@ if ($text || isset($photo) || isset($document) || isset($video) || isset($messag
                 return sendMessage($chatId, "$forwardTrue");
             }
 
-            if (str_starts_with($step, "AddTopic-")) {
-                if (!isAdmin($fromId) || !is_string($text) || trim($text) === '') {
-                    return null;
-                }
-
-                $Groupsid = substr($step, strlen("AddTopic-"));
-                if (!ctype_digit((string)$Groupsid)) {
-                    $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-                    return null;
-                }
-
-                $columnCount = $catalogue->create(trim($text), (int)$Groupsid);
-                $db->update('Data', ['step' => "caption-$columnCount"], ["UserId" => $chatId]);
-                return sendMessage($chatId, "$captionTopic");
-            }
-
-            if (str_starts_with($step, "caption-")) {
-                if (!isAdmin($fromId) || !is_string($text)) {
-                    return null;
-                }
-
-                $captionid = substr($step, strlen("caption-"));
-                if (ctype_digit((string)$captionid) && $db->has('Topics', ['id' => $captionid])) {
-                    $db->update('Data', ['step' => "defult"], ["UserId" => $chatId]);
-                    $db->update('Topics', ['caption' => $text], ['id' => $captionid]);
-                    $T = "توضیحات دسته ذخیره شد.";
-                } else {
-                    $T = "دسته پیدا نشد؛ از منو دوباره انتخاب کنید.";
-                }
-
-                return sendMessage($chatId, "$T");
+            $topicResult = $topicForms->submit((int)$fromId, (int)$chatId, is_string($text) ? $text : null);
+            if ($topicResult !== null) {
+                $response = [
+                    'caption' => $captionTopic,
+                    'saved' => 'توضیحات دسته ذخیره شد.',
+                    'missing' => 'دسته پیدا نشد؛ از منو دوباره انتخاب کنید.',
+                ][$topicResult] ?? null;
+                return $response === null ? null : sendMessage($chatId, $response);
             }
 
 

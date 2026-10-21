@@ -27,7 +27,8 @@ final class LegacyHandlerAdapter
         array $message,
         mixed $photo,
         mixed $document,
-        mixed $video
+        mixed $video,
+        LegacyTopicService $topicForms
     ): void {
         require dirname(__DIR__) . '/txt.php';
         require __DIR__ . '/handler.php';
