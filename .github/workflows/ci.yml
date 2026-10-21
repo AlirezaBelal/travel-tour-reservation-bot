@@ -47,7 +47,7 @@ jobs:
           git show 2c10ee733ae1a4a8639895a03d12e5f45815b483:src/ProductBot.php > quality-generated/ProductBot-before.php
           php tools/quality/vendor/bin/phpcs --standard=tools/quality/complexity.xml --report=json quality-generated/ProductBot-before.php > quality-generated/complexity-before.json || true
           php tools/quality/vendor/bin/phpcs --standard=tools/quality/complexity.xml --report=json src/ProductBot.php src/TourController.php src/TravelerProfileController.php src/BookingController.php > quality-generated/complexity-after.json || true
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: quality-diagnostics
@@ -117,7 +117,7 @@ jobs:
 
       - name: Retain resolved dependency lockfile
         if: matrix.php-version == '8.4'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: composer-lock
           path: composer.lock
