@@ -12,7 +12,19 @@ $checks=0;$next=10000;
 function wfCheck(bool $condition,string $label):void{global$checks;$checks++;if(!$condition)throw new RuntimeException($label);}
 function sendUpdate(int $actor,?string $text=null,?string $data=null,?int $id=null,?array $contact=null):int{global$processor,$next;$id??=++$next;$processor->handle($id,$actor,$text,$data,null,null,$contact);return$id;}
 function lastReply(int $actor):array{global$pdo;return json_decode(Database::run($pdo,'SELECT payload FROM NotificationOutbox WHERE chat_id=? ORDER BY id DESC LIMIT 1',[$actor])->fetchColumn(),true,512,JSON_THROW_ON_ERROR);}
-sendUpdate(500,'/start');sendUpdate(500,null,'p:profile:0');sendUpdate(500,null,'p:name:0');sendUpdate(500,'Synthetic New Traveler');wfCheck(Database::run($pdo,'SELECT Name FROM Data WHERE UserId=500')->fetchColumn()==='Synthetic New Traveler','minimal profile onboarding');wfCheck(Database::run($pdo,'SELECT N_Code FROM Data WHERE UserId=500')->fetchColumn()===null,'national code not collected');
+sendUpdate(500,'/start');
+$sessionStore = new BotSessionStore($pdo);
+$sessionStore->put(500, 'synthetic_session', ['source' => 'test']);
+wfCheck($sessionStore->require(500, 'synthetic_session')['source'] === 'test', 'session storage round trip');
+try {
+    $sessionStore->require(500, 'other_session');
+    throw new RuntimeException('Unrelated form was accepted.');
+} catch (RuleViolation $error) {
+    wfCheck(true, 'session state boundary enforced');
+}
+$sessionStore->clear(500);
+wfCheck($sessionStore->get(500) === null, 'session clear removes form state');
+sendUpdate(500,null,'p:profile:0');sendUpdate(500,null,'p:name:0');sendUpdate(500,'Synthetic New Traveler');wfCheck(Database::run($pdo,'SELECT Name FROM Data WHERE UserId=500')->fetchColumn()==='Synthetic New Traveler','minimal profile onboarding');wfCheck(Database::run($pdo,'SELECT N_Code FROM Data WHERE UserId=500')->fetchColumn()===null,'national code not collected');
 // Verify own-contact keyboard and encrypted identity storage without using any real personal data.
 sendUpdate(510,'/start');sendUpdate(510,null,'p:name:0');sendUpdate(510,'Synthetic Consent');
 $share=lastReply(510);$keyboard=json_decode($share['reply_markup'],true);
