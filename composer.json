@@ -46,7 +46,8 @@
       "@php tests/product_query_test.php",
       "@php tests/tour_service_test.php",
       "@php tests/booking_use_case_test.php",
-      "@php tests/worker_process_test.php"
+      "@php tests/worker_process_test.php",
+      "@php tests/legacy_rendering_test.php"
     ],
     "analyse": "@php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --no-progress",
     "lint:style": "@php tools/quality/vendor/bin/phpcs --standard=.phpcs.xml"
