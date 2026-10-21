@@ -46,6 +46,94 @@ legacy false/null defaults and unsupported update rejection without MySQL.
 The end-to-end HTTP, legacy compatibility, and MySQL/MariaDB tests remain the
 authoritative regression gates for the whole pipeline.
 
+## Runtime view (self-hosted reference deployment)
+
+These diagrams describe the source an **operator** may install. The repository
+does not host a running bot, database, or webhook.
+
+### C4-style system context
+
+```mermaid
+flowchart LR
+    Traveler[Traveler] --> Telegram[Telegram Bot API]
+    Operator[Tour operator / admin] --> Telegram
+    Telegram --> Webhook[Operator-hosted PHP webhook]
+    Webhook --> MySQL[(Operator MySQL)]
+    Worker[Operator-hosted PHP worker] --> MySQL
+    Worker --> Telegram
+```
+
+### Containers and key components
+
+```mermaid
+flowchart TB
+    subgraph App["PHP application process"]
+        Entry["public/index.php"] --> Bootstrap["config.php: secret, request and wiring"]
+        Bootstrap --> Mapper["IncomingUpdate: pure message/callback mapping"]
+        Mapper --> Processor["WebhookProcessor: receipt and transaction"]
+        Processor --> Product["ProductBot: guided Telegram UI"]
+        Processor --> Legacy["LegacyHandlerAdapter: compatibility"]
+        Legacy --> Handler["handler.php: historical commands"]
+        Product --> Booking["BookingService: tours and bookings"]
+        Product --> Identity["TravelerIdentity / PrivacyService"]
+        Product --> Access["AccessControl"]
+        Booking --> Outbox["Transactional Outbox"]
+    end
+    subgraph Data["MySQL"]
+        Tables[(Tour, booking, profile, receipt, outbox and audit tables)]
+    end
+    Booking --> Tables
+    Identity --> Tables
+    Access --> Tables
+    Outbox --> Tables
+    Processor --> Tables
+    subgraph Background["Separate PHP worker process"]
+        Runner["bin/worker.php"] --> Delivery["NotificationWorker"]
+        Runner --> Scheduler["Scheduler / retention"]
+    end
+    Delivery --> Tables
+    Scheduler --> Tables
+    Delivery --> Telegram["Telegram Bot API"]
+```
+
+### Reservation and notification sequence
+
+```mermaid
+sequenceDiagram
+    participant T as Telegram update
+    participant H as HTTP/bootstrap
+    participant P as WebhookProcessor
+    participant B as BookingService
+    participant DB as MySQL
+    participant W as NotificationWorker
+    participant API as Telegram Bot API
+
+    T->>H: POST with webhook secret
+    H->>H: Validate private update and map context
+    H->>P: Dispatch update
+    P->>DB: BEGIN / receipt uniqueness
+    P->>B: Reserve seats
+    B->>DB: Lock user and tour; check capacity
+    B->>DB: Store booking, history, outbox event
+    P->>DB: COMMIT
+    P-->>T: HTTP acknowledgement
+    W->>DB: Claim queued outbox event
+    W->>API: Send notification
+    W->>DB: Mark sent or schedule retry
+```
+
+The sequence is simplified: a duplicate update can short-circuit on its stored
+receipt, and `Database::atomic` retries eligible deadlocks. No Telegram API call
+occurs inside the booking transaction. Notifications are **at least once**;
+an acknowledgement crash can produce a duplicate external message.
+
+## Architectural decision records
+
+- [ADR 0001 — Keep a modular monolith](adr/0001-modular-monolith.md)
+- [ADR 0002 — Transactional outbox](adr/0002-transactional-outbox.md)
+- [ADR 0003 — Contain the legacy handler](adr/0003-legacy-handler-compatibility.md)
+- [ADR 0004 — Separate encrypted traveler identity](adr/0004-encrypted-traveler-identity.md)
+
 ## Additive migration lineage
 
 001 retains old Data/Topics and copies `topic<id>` statuses into TopicMemberships.

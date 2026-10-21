@@ -1,5 +1,18 @@
 # Changelog
 
+## Architecture and CI hardening — 2026-10-21
+
+- Isolated legacy handler execution behind a typed compatibility adapter; real
+  MySQL/MariaDB legacy workflow tests now exercise the same adapter.
+- Extracted pure Telegram update-context mapping from the HTTP bootstrap and
+  added synthetic unit tests across PHP 8.0–8.4.
+- Added a non-vacuous architecture fitness check that enforces the adapter as
+  the sole production legacy include site (not a general PHP static analyzer).
+- Documented C4-style context/components, the reservation/outbox sequence,
+  and four architectural decisions with trade-offs.
+- Updated GitHub-hosted checkout and artifact Actions to Node.js 24 releases.
+  No runtime bot/server, payment provider, database schema, or public API changes.
+
 ## Source distribution — 2026-10-20
 
 This dated source handoff is not a semantic-versioned release or production certification.
