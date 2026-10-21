@@ -23,7 +23,8 @@ final class PrivacyService
             Database::run($this->pdo, 'UPDATE AuditLog SET actor_id=NULL WHERE actor_id=?', [$actor]);
             Database::run($this->pdo, "UPDATE AuditLog SET target_id=NULL WHERE target_type='user' AND target_id=?", [$actor]);
             Database::run($this->pdo, 'DELETE FROM AdminRoles WHERE user_id=?', [$actor]);
-            Database::run($this->pdo, "DELETE FROM NotificationOutbox WHERE chat_id=? OR JSON_UNQUOTE(JSON_EXTRACT(payload,'$._subject_user'))=?", [$actor,(string)$actor]);
+            // Failed outbox rows can retain malformed JSON; always extract from a valid document.
+            Database::run($this->pdo, "DELETE FROM NotificationOutbox WHERE chat_id=? OR JSON_UNQUOTE(JSON_EXTRACT(IF(JSON_VALID(payload),payload,'{}'),'$._subject_user'))=?", [$actor,(string)$actor]);
             // Keep the short-lived ingress counter so account erasure cannot reset spam limits.
             Database::run($this->pdo, 'DELETE FROM Data WHERE UserId=?', [$actor]);
         });
