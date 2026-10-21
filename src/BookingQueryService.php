@@ -1,10 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 /** Identity-free booking lists/history with authorization independent of Telegram. */
 final class BookingQueryService
 {
-    public function __construct(private PDO $pdo, private BookingReader $bookings, private AccessControl $access, private TravelerProfileService $profiles) {}
+    public function __construct(private PDO $pdo, private BookingReader $bookings, private AccessControl $access, private TravelerProfileService $profiles)
+    {
+    }
 
     public function detail(int $actor, int $id, bool $admin = false): array
     {
@@ -19,24 +22,29 @@ final class BookingQueryService
     public function mine(int $actor, int $offset): array
     {
         $this->page($offset);
-        return Database::run($this->pdo,
+        return Database::run(
+            $this->pdo,
             "SELECT id,status FROM Bookings WHERE user_id=? ORDER BY id DESC LIMIT 10 OFFSET $offset",
-            [$actor])->fetchAll(PDO::FETCH_ASSOC);
+            [$actor]
+        )->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function history(int $actor, int $id, bool $admin = false): array
     {
         $this->bookings->booking($actor, $id, $admin);
-        return Database::run($this->pdo,
+        return Database::run(
+            $this->pdo,
             'SELECT new_status,created_at FROM BookingStatusHistory WHERE booking_id=? ORDER BY id DESC LIMIT 20',
-            [$id])->fetchAll(PDO::FETCH_ASSOC);
+            [$id]
+        )->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public function pending(int $actor, int $offset): array
     {
         $this->access->require($actor, 'review');
         $this->page($offset);
-        return Database::run($this->pdo,
+        return Database::run(
+            $this->pdo,
             "SELECT id,tour_id,quantity FROM Bookings WHERE status='pending' ORDER BY id LIMIT 10 OFFSET $offset"
         )->fetchAll(PDO::FETCH_ASSOC);
     }
@@ -46,9 +54,11 @@ final class BookingQueryService
         $this->access->require($actor, 'review');
         $this->page($offset);
         $where = $tour === null ? '1=1' : 'tour_id=?';
-        return Database::run($this->pdo,
+        return Database::run(
+            $this->pdo,
             "SELECT id,status,quantity FROM Bookings WHERE $where ORDER BY id DESC LIMIT 10 OFFSET $offset",
-            $tour === null ? [] : [$tour])->fetchAll(PDO::FETCH_ASSOC);
+            $tour === null ? [] : [$tour]
+        )->fetchAll(PDO::FETCH_ASSOC);
     }
 
     private function page(int $offset): void

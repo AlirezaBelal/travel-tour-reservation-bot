@@ -1,10 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 /** Legacy category forms with explicit persistence and configured-owner authority. */
 final class LegacyTopicService
 {
-    public function __construct(private PDO $pdo, private TopicCatalogue $catalogue, private array $owners) {}
+    public function __construct(private PDO $pdo, private TopicCatalogue $catalogue, private array $owners)
+    {
+    }
 
     public function createRoot(int $actor, int $chat, string $name): void
     {
@@ -28,8 +31,11 @@ final class LegacyTopicService
     public function submit(int $actor, int $chat, ?string $text): ?string
     {
         return Database::atomic($this->pdo, function () use ($actor, $chat, $text): ?string {
-            $step = (string)Database::run($this->pdo,
-                'SELECT step FROM Data WHERE UserId=? FOR UPDATE', [$chat])->fetchColumn();
+            $step = (string)Database::run(
+                $this->pdo,
+                'SELECT step FROM Data WHERE UserId=? FOR UPDATE',
+                [$chat]
+            )->fetchColumn();
             if (!str_starts_with($step, 'AddTopic-') && !str_starts_with($step, 'caption-')) {
                 return null;
             }
@@ -40,8 +46,13 @@ final class LegacyTopicService
                 return $this->createChild($chat, $step, $text);
             }
             $id = substr($step, strlen('caption-'));
-            if (!ctype_digit($id) || !Database::run($this->pdo,
-                'SELECT id FROM Topics WHERE id=?', [$id])->fetchColumn()) {
+            if (
+                !ctype_digit($id) || !Database::run(
+                    $this->pdo,
+                    'SELECT id FROM Topics WHERE id=?',
+                    [$id]
+                )->fetchColumn()
+            ) {
                 return 'missing';
             }
             $this->step($chat, 'defult');
@@ -66,7 +77,9 @@ final class LegacyTopicService
         $this->requireOwner($actor);
         return Database::atomic($this->pdo, function () use ($chat, $topic): ?int {
             $step = Database::run($this->pdo, 'SELECT step FROM Data WHERE UserId=? FOR UPDATE', [$chat])->fetchColumn();
-            if ($step !== "deleteConfirm-$topic") return null;
+            if ($step !== "deleteConfirm-$topic") {
+                return null;
+            }
             $this->reset($chat);
             try {
                 return $this->catalogue->deleteTree($topic);

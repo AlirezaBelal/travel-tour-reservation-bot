@@ -1,10 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 /** Ownership/role checked booking snapshot, independent of write use cases. */
 final class BookingReader
 {
-    public function __construct(private PDO $pdo, private AccessControl $access) {}
+    public function __construct(private PDO $pdo, private AccessControl $access)
+    {
+    }
     public function booking(int $actor, int $id, bool $administrative = false): array
     {
         if ($administrative) {

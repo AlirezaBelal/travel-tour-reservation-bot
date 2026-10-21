@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /** Compatibility only for the pre-DI BookingService constructor; runtime factories never use it. */

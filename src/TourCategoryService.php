@@ -1,10 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 /** Current product category mutations, authorized/audited independently of the UI. */
 final class TourCategoryService
 {
-    public function __construct(private PDO $pdo, private TopicCatalogue $catalogue, private AccessControl $access) {}
+    public function __construct(private PDO $pdo, private TopicCatalogue $catalogue, private AccessControl $access)
+    {
+    }
 
     public function create(int $actor, string $name, int $parent): int
     {

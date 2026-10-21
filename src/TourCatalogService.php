@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /**
@@ -11,7 +12,8 @@ final class TourCatalogService
         private PDO $pdo,
         private BookingService $bookings,
         private AccessControl $access
-    ) {}
+    ) {
+    }
 
     /** @return list<array{id: mixed, title: string}> */
     public function tours(int $actor, int $offset, ?int $category = null, bool $admin = false, ?string $query = null): array
@@ -31,18 +33,22 @@ final class TourCatalogService
             $args[] = $query;
             $args[] = $query;
         }
-        return Database::run($this->pdo,
+        return Database::run(
+            $this->pdo,
             "SELECT id,title FROM Tours WHERE $where ORDER BY starts_at,id LIMIT 10 OFFSET $offset",
-            $args)->fetchAll(PDO::FETCH_ASSOC);
+            $args
+        )->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /** @return list<array{id: mixed, Name: string}> */
     public function categories(int $parent, int $offset): array
     {
         $this->page($offset, 'صفحه معتبر نیست.');
-        return Database::run($this->pdo,
+        return Database::run(
+            $this->pdo,
             "SELECT id,Name FROM Topics WHERE `Groups`=? ORDER BY id LIMIT 20 OFFSET $offset",
-            [$parent])->fetchAll(PDO::FETCH_ASSOC);
+            [$parent]
+        )->fetchAll(PDO::FETCH_ASSOC);
     }
 
     /** @return array{tour: array, remaining: int} */
@@ -50,8 +56,11 @@ final class TourCatalogService
     {
         $tour = $this->bookings->tour($id);
         if ($tour['publication'] !== 'published' && !$this->access->allows($actor, 'tours')) {
-            $ownsBooking = Database::run($this->pdo,
-                'SELECT id FROM Bookings WHERE user_id=? AND tour_id=?', [$actor, $id])->fetchColumn();
+            $ownsBooking = Database::run(
+                $this->pdo,
+                'SELECT id FROM Bookings WHERE user_id=? AND tour_id=?',
+                [$actor, $id]
+            )->fetchColumn();
             if (!$ownsBooking) {
                 throw new RuleViolation('این تور منتشر نشده است.');
             }

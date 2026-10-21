@@ -1,11 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 /** Per-update legacy delivery context; no process-global actor, update or sequence. */
 final class LegacyOutboxTransport
 {
     private int $sequence = 0;
-    public function __construct(private Outbox $outbox, private int $actor, private int $update) {}
+    public function __construct(private Outbox $outbox, private int $actor, private int $update)
+    {
+    }
 
     public function send(string $method, array $payload = []): array
     {

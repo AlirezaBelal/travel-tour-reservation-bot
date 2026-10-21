@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 /** Payment input rules without persistence, Telegram or configuration dependencies. */

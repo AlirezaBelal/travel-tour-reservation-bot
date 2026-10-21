@@ -2,7 +2,9 @@
 
 final class AccessControl
 {
-    public function __construct(private PDO $pdo, private array $owners) {}
+    public function __construct(private PDO $pdo, private array $owners)
+    {
+    }
 
     public function role(int $actor): ?string
     {

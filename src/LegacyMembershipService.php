@@ -1,11 +1,17 @@
 <?php
+
 declare(strict_types=1);
 
 /** Legacy membership/profile eligibility and owner approvals without Telegram helpers. */
 final class LegacyMembershipService
 {
-    public function __construct(private PDO $pdo, private TopicMemberships $memberships,
-        private TopicCatalogue $catalogue, private array $owners) {}
+    public function __construct(
+        private PDO $pdo,
+        private TopicMemberships $memberships,
+        private TopicCatalogue $catalogue,
+        private array $owners
+    ) {
+    }
 
     public function user(int $actor): ?array
     {
@@ -41,10 +47,14 @@ final class LegacyMembershipService
         $names = [];
         for ($guard = 0; $guard < 100; $guard++) {
             $row = $this->catalogue->topic((int)$topic);
-            if ($row === null) break;
+            if ($row === null) {
+                break;
+            }
             $names[] = $row['Name'];
             $topic = $row['Groups'];
-            if ((int)$topic === 0) break;
+            if ((int)$topic === 0) {
+                break;
+            }
         }
         return implode(' 👉 ', $names);
     }
@@ -54,7 +64,9 @@ final class LegacyMembershipService
         if (!in_array($actor, $this->owners, true)) {
             throw new RuleViolation('اجازه انجام این عملیات را ندارید.');
         }
-        if (!$this->memberships->approve($target, $topic)) return null;
+        if (!$this->memberships->approve($target, $topic)) {
+            return null;
+        }
         return (string)($this->catalogue->topic((int)$topic)['Name'] ?? '');
     }
 }

@@ -30,6 +30,15 @@ jobs:
       - name: Analyze application classes at PHPStan level 5
         run: |
           php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --no-progress --error-format=json > quality-generated/phpstan-report.json
+      - name: Enforce source coding standard
+        run: composer lint:style
+      - name: Verify formatting-only source tokens
+        if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'style/')
+        env:
+          FORMAT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$FORMAT_BASE_SHA"
+          php tools/quality/verify-format.php "$FORMAT_BASE_SHA"
       - name: Collect real diagnostics and formatting proposal
         if: always()
         run: |
