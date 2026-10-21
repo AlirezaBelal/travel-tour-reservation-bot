@@ -137,7 +137,7 @@ docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.ph
 
 `composer test:unit` و `composer test:integration` تست‌ها را اجرا می‌کنند.
 برای تحلیل ایستا، ابزار توسعه را با `composer install --working-dir=tools/quality`
-نصب کنید و `composer analyse` را اجرا کنید. این ابزارها وابستگی Production نیستند.
+نصب کنید و `composer analyse` و `composer lint:style` را اجرا کنید. این ابزارها وابستگی Production نیستند.
 تست دیتابیس فقط باید روی دیتابیس دورریختنی با نام دقیق `travel_tour_test` اجرا
 شود. [معیارهای پذیرش](docs/ACCEPTANCE.md)، [معماری](docs/ARCHITECTURE.md)،
 [مشارکت](CONTRIBUTING.md) و [امنیت](SECURITY.md) را ببینید.

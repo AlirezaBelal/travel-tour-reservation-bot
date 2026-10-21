@@ -1,5 +1,13 @@
 # Changelog
 
+## Final engineering verification — 2026-10-21
+
+- Added deterministic transaction retry/auto-abort/exhaustion/ownership coverage.
+- Made architecture scanning recursive, generalized service/global and pure-rule
+  checks, and proved nine injected violations are detected.
+- Pinned existing Actions versions to resolved SHAs with read-only repository
+  permissions; consolidated actual architecture, measurements and review limits.
+
 ## Booking conversation boundary — 2026-10-21
 
 - Isolated booking/review/payment/report UI into a focused controller, reducing

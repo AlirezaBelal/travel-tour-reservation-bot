@@ -41,14 +41,21 @@ final class ArchitectureRules
                         break;
                     }
                 }
-                if (in_array($name, ['PaymentRules', 'BookingRules', 'TourRules'], true) && $type === T_STRING
-                    && in_array(strtolower($value), ['pdo', 'database', 'outbox', 'productbot', 'curl_init', 'getenv'], true)) {
+                if (str_ends_with($name, 'Rules') && (
+                    $type === T_GLOBAL
+                    || ($type === T_VARIABLE && in_array($value, ['$GLOBALS', '$_ENV', '$_SERVER', '$_POST', '$_GET'], true))
+                    || ($type === T_STRING && (in_array(strtolower($value),
+                        ['pdo', 'database', 'outbox', 'productbot', 'telegramtransport', 'legacyresponder', 'httpingress', 'getenv'], true)
+                        || str_starts_with(strtolower($value), 'curl_')))
+                )) {
                     $errors[] = 'domain.infrastructure';
                 }
-                if (in_array($name, ['TravelerProfileService', 'BookingQueryService', 'LegacyTopicService',
-                    'PaymentReviewService', 'TourCatalogService', 'TourService', 'LegacyMembershipService', 'LegacyBroadcastService', 'ReservationService', 'BookingLifecycleService', 'BookingReader', 'BookingHistoryStore', 'TourCategoryService'], true)
-                    && ($type === T_GLOBAL || ($type === T_VARIABLE
-                        && in_array($value, ['$GLOBALS', '$_ENV', '$_SERVER', '$_POST'], true)))) {
+                $environmentBoundary = in_array($name, ['TravelerIdentity', 'LegacyProfileRequirement'], true);
+                if ($type === T_GLOBAL
+                    || ($type === T_VARIABLE && in_array($value,
+                        ['$GLOBALS', '$_SERVER', '$_POST', '$_GET', '$_REQUEST', '$_FILES', '$_COOKIE', '$_SESSION'], true))
+                    || (!$environmentBoundary && (($type === T_STRING && strtolower($value) === 'getenv')
+                        || ($type === T_VARIABLE && $value === '$_ENV')))) {
                     $errors[] = 'application.global';
                 }
             }

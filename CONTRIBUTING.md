@@ -5,7 +5,9 @@ existing safe workflows and Persian user-facing messages. Never add real travele
 records, tokens, bank references or private logs to fixtures/issues/screenshots.
 
 1. Install a maintained PHP version, Composer, cURL/PDO MySQL, libsodium for encrypted profiles, and a disposable MySQL 8 database.
-2. Run `composer install` and `composer test:unit`.
+2. Run `composer install` and `composer test:unit`. Install the locked development
+   tools with `composer install --working-dir=tools/quality`, then run
+   `composer analyse` and `composer lint:style`.
 3. Create a database named **travel_tour_test** with a dedicated test user.
 4. Set TEST_MYSQL_DSN, TEST_MYSQL_USER and TEST_MYSQL_PASSWORD privately and run
    `composer test:integration`. These tests rebuild disposable fixtures.
