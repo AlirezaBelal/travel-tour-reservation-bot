@@ -308,7 +308,7 @@ flowchart TB
 ```
 
 Remaining debt: `ProductBot` still owns several unrelated conversation flows.
-Its profile and booking SQL has since moved behind explicit application boundaries. The legacy renderer still uses scoped variables and response helpers, while
+Its profile and booking SQL has since moved behind explicit application boundaries. The legacy renderer still uses scoped variables and an injected response adapter, while
 membership, deletion and broadcast operations live in services. `TourService` now owns tour editing and publication; `BookingService` retains
 reservation creation and lifecycle changes within the same booking aggregate. These extractions
 establish enforceable boundaries incrementally, not a completed Clean Architecture
@@ -368,7 +368,26 @@ by `LegacyTopicService`. Topic read projections live in `TopicCatalogue`.
 
 The renderer is retained because its nested keyboard/edit-message contracts have
 real compatibility consumers. Removing it is not needed to enforce these service
-boundaries. Its remaining debt is response-helper coupling and repetitive keyboard
-layout, not hidden database operations. Characterization and direct-service tests
+boundaries. Its remaining debt is repetitive keyboard layout and a scoped compatibility
+include, not global helpers or hidden database operations. Characterization and direct-service tests
 cover category/all-profile broadcasts, original source messages, forged states,
 complete-profile eligibility, owner-only approval and idempotent forms.
+
+## Conversation and HTTP composition boundaries
+
+`TravelerProfileController` owns profile/consent/erasure UI and depends only on the
+profile application service plus `BotConversation`. The latter owns per-update
+actor/reply sequencing, persisted form interaction, menu and input/date formatting.
+`ProductBot` no longer stores its own actor/update/sequence or constructs these
+collaborators. Existing response keys and profile prompts remain unchanged.
+`BookingQueryService::detail()` enriches authorized review details with audited
+leader names, removing profile persistence knowledge from booking presentation.
+
+`HttpIngress` makes pure secret/method/body/JSON/update decisions before database
+composition; `config.php` applies the resulting status and only then constructs
+runtime services. `LegacyResponder` and `LegacyOutboxTransport` replace the old
+global output helpers and their process-static update sequence with explicit
+per-update dependencies. The renderer receives its responder through the adapter.
+No service reads a global request/actor/outbox. Unit tests cover HTTP outcomes and
+six response payload contracts; real HTTP/legacy integration tests exercise the
+production wiring, while direct conversation tests prove actor/form/key isolation.

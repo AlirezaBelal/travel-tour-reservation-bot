@@ -28,7 +28,9 @@
       "@php tests/catalogue_architecture_test.php",
       "@php tests/payment_rules_test.php",
       "@php tests/application_architecture_test.php",
-      "@php tests/tour_rules_test.php"
+      "@php tests/tour_rules_test.php",
+      "@php tests/http_ingress_test.php",
+      "@php tests/legacy_responder_test.php"
     ],
     "test:integration": [
       "@php tests/mysql_test.php",

@@ -4,7 +4,17 @@ declare(strict_types=1);
 /** Identity-free booking lists/history with authorization independent of Telegram. */
 final class BookingQueryService
 {
-    public function __construct(private PDO $pdo, private BookingService $bookings, private AccessControl $access) {}
+    public function __construct(private PDO $pdo, private BookingService $bookings, private AccessControl $access, private TravelerProfileService $profiles) {}
+
+    public function detail(int $actor, int $id, bool $admin = false): array
+    {
+        $booking = $this->bookings->booking($actor, $id, $admin);
+        $booking['leader_name'] = null;
+        if ($admin && $booking['user_id'] !== null && $this->access->allows($actor, 'profiles')) {
+            $booking['leader_name'] = $this->profiles->leaderForReview($actor, (int)$booking['user_id']);
+        }
+        return $booking;
+    }
 
     public function mine(int $actor, int $offset): array
     {

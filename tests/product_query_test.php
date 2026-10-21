@@ -10,8 +10,8 @@ Database::configure($pdo);
 $access = new AccessControl($pdo, [999]);
 $outbox = new Outbox($pdo);
 $bookings = new BookingService($pdo, $access, $outbox);
-$queries = new BookingQueryService($pdo, $bookings, $access);
 $profiles = new TravelerProfileService($pdo, new TravelerIdentity($pdo), new PrivacyService($pdo), $access);
+$queries = new BookingQueryService($pdo, $bookings, $access, $profiles);
 $checks = 0;
 $check = static function (bool $condition, string $label) use (&$checks): void {
     $checks++;
@@ -64,3 +64,26 @@ $bookings->transition(830, $id, 'cancelled');
 $profiles->erase(830);
 $check($profiles->name(830) === null && $queries->mine(830, 0) === [], 'erasure through profile service removes personal association');
 fwrite(STDOUT, "Product query boundaries passed ($checks checks).\n");
+
+// Profile controller and product UI share one response sequence and isolate actors.
+$conversation = new BotConversation($outbox, new BotSessionStore($pdo), $access, 'Asia/Tehran');
+$profileFlow = new TravelerProfileController($profiles, $conversation);
+foreach ([835, 836] as $actor) $bookings->ensureUser($actor);
+$conversation->begin(835, 910000);
+$check($profileFlow->callback('name', 835), 'profile callback routed independently');
+$profileFlow->input('name', [], 'Synthetic controller traveler');
+$check($conversation->session()['state'] === 'phone', 'profile input advances persisted form');
+foreach ([0, 1] as $sequence) {
+    $check((int)Database::run($pdo, 'SELECT chat_id FROM NotificationOutbox WHERE idem_key=?',
+        [hash('sha256', 'update:910000:reply:' . $sequence)])->fetchColumn() === 835,
+        'profile response key sequence remains stable');
+}
+$conversation->begin(836, 910001);
+$profileFlow->privacy();
+$check($conversation->session() === null, 'another actor cannot inherit profile form');
+$check((int)Database::run($pdo, 'SELECT chat_id FROM NotificationOutbox WHERE idem_key=?',
+    [hash('sha256', 'update:910001:reply:0')])->fetchColumn() === 836, 'new actor/update resets response sequence');
+$check((new BotSessionStore($pdo))->get(835)['state'] === 'phone', 'other actor form remains intact');
+$check(!$profileFlow->callback('unknown', 836) && !$profileFlow->input('unknown', [], 'Synthetic'),
+    'profile controller declines unrelated routes');
+fwrite(STDOUT, "Conversation boundaries passed ($checks total checks).\n");
