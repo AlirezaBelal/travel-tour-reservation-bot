@@ -20,7 +20,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up PHP
         uses: shivammathur/setup-php@v2
@@ -64,7 +64,7 @@ jobs:
 
       - name: Retain resolved dependency lockfile
         if: matrix.php-version == '8.4'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: composer-lock
           path: composer.lock
@@ -98,7 +98,7 @@ jobs:
           --health-timeout=5s
           --health-retries=10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -121,7 +121,7 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: acceptance-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Create synthetic configuration
         run: |
           cat > .env <<'ENV'
