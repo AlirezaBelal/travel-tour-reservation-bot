@@ -24,16 +24,21 @@ final class ProductBotFactory
             $access,
             $conversation
         );
+        $bookingFlow = new BookingController(
+            $bookings,
+            $payments,
+            new BookingReportService($pdo, $bookings, $access),
+            new BookingQueryService($pdo, new BookingReader($pdo, $access), $access, $profiles),
+            $access,
+            $conversation
+        );
         return new ProductBot(
             new TravelerProfileController($profiles, $conversation),
-            $bookings,
+            $bookingFlow,
             $access,
             $conversation,
             $tourFlow,
-            $payments,
-            new BookingReportService($pdo, $bookings, $access),
-            new NotificationAdminService($pdo, $access, $outbox),
-            new BookingQueryService($pdo, new BookingReader($pdo, $access), $access, $profiles)
+            new NotificationAdminService($pdo, $access, $outbox)
         );
     }
 }
