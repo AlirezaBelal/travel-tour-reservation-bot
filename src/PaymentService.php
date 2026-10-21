@@ -5,6 +5,9 @@ final class PaymentService
     public function __construct(private PDO $pdo, private Outbox $outbox)
     {
     }
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function callback(PaymentAdapter $adapter, array $payload): bool
     {
         $event = $adapter->verify($payload);

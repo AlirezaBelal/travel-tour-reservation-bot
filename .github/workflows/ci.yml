@@ -27,9 +27,11 @@ jobs:
           composer audit --working-dir=tools/quality --no-interaction
           mkdir -p quality-generated
           cp tools/quality/composer.lock quality-generated/toolchain.lock
-      - name: Analyze application classes at PHPStan level 5
+      - name: Analyze application classes at PHPStan level 6
         run: |
           php tools/quality/vendor/bin/phpstan analyse -c phpstan.neon --no-progress --error-format=json > quality-generated/phpstan-report.json
+      - name: Verify read-model contract enforcement
+        run: php tools/quality/check-contracts.php
       - name: Enforce source coding standard
         run: composer lint:style
       - name: Verify formatting-only source tokens

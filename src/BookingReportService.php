@@ -15,6 +15,9 @@ final class BookingReportService
     ) {
     }
 
+    /**
+     * @return array{capacity: int, remaining: int, statuses: list<array{status: string, requests: int|numeric-string, seats: int|numeric-string|null}>}
+     */
     public function summary(int $actor, int $tourId): array
     {
         $this->access->require($actor, 'reports');

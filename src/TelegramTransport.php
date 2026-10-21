@@ -5,6 +5,10 @@ final class TelegramTransport
     public function __construct(private string $token)
     {
     }
+    /**
+     * @param array<string, mixed> $payload
+     * @return array{ok: bool, code: int, retry_after: int}
+     */
     public function __invoke(string $method, array $payload): array
     {
         $temporary = null;

@@ -2,7 +2,11 @@
 
 declare(strict_types=1);
 
-/** Backward-compatible API facade; the current runtime injects all write use cases explicitly. */
+/**
+ * Backward-compatible API facade; the current runtime injects all write use cases explicitly.
+ * @phpstan-import-type Tour from TourInventory
+ * @phpstan-import-type Booking from BookingReader
+ */
 final class BookingService
 {
     private PaymentReviewService $paymentReview;
@@ -51,10 +55,16 @@ final class BookingService
     {
         return $this->inventory->used($tour);
     }
+    /**
+     * @return Tour
+     */
     public function tour(int $id, bool $lock = false): array
     {
         return $this->inventory->tour($id, $lock);
     }
+    /**
+     * @param array<string, mixed> $values
+     */
     public function saveTour(int $actor, array $values, ?int $id = null): int
     {
         return $this->tours->saveTour($actor, $values, $id);
@@ -67,6 +77,9 @@ final class BookingService
     {
         return $this->reservations->reserve($actor, $tourId, $quantity, $requestKey, $expectedVersion);
     }
+    /**
+     * @return Booking
+     */
     public function booking(int $actor, int $id, bool $administrative = false): array
     {
         return $this->reader->booking($actor, $id, $administrative);

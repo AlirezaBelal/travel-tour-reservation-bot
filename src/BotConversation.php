@@ -2,7 +2,10 @@
 
 declare(strict_types=1);
 
-/** Per-update Telegram response keys, menu, formatting and persisted form interaction. */
+/**
+ * Per-update Telegram response keys, menu, formatting and persisted form interaction.
+ * @phpstan-import-type Session from BotSessionStore
+ */
 final class BotConversation
 {
     private int $actor = 0;
@@ -39,10 +42,17 @@ final class BotConversation
     {
         return "update:{$this->update}:reply:" . $this->sequence++;
     }
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function enqueue(int $chat, string $method, array $payload, string $key): void
     {
         $this->outbox->enqueue($chat, $method, $payload, $key);
     }
+    /**
+     * @param list<list<array{text: string, callback_data: string}>> $buttons
+     * @param list<string> $permissions
+     */
     public function message(int $chat, string $text, string $key, array $buttons = [], ?int $subject = null, array $permissions = []): void
     {
         $this->outbox->message($chat, $text, $key, $buttons, $subject, $permissions);
@@ -53,11 +63,18 @@ final class BotConversation
         return "راهنما\n۱. از «پروفایل» نام سرپرست را ثبت کنید. برگزارکننده می‌تواند تکمیل شماره و کد ملی را الزامی کند.\n۲. از «تورها» یا «جست‌وجوی تور»، جزئیات و ظرفیت را ببینید و برای ۱ تا ۲۰ نفر درخواست بدهید.\n۳. در «رزروهای من»، وضعیت را پیگیری کنید یا پیش از شروع تور لغو کنید.\n\nثبت درخواست به معنی تأیید رزرو نیست. پرداخت پولی به بررسی دستی برگزارکننده نیاز دارد؛ پرداخت آنلاین و صدور بلیت خودکار نداریم.\nقیمت‌ها ریال و تاریخ‌ها میلادی‌اند. منطقه زمانی نمایش: {$this->timezone}.\n/cancel توقف فرم جاری؛ /privacy حریم خصوصی و حذف حساب.";
     }
 
+    /**
+     * @param list<list<array{text: string, callback_data: string}>> $buttons
+     * @param list<string> $permissions
+     */
     public function reply(string $text, array $buttons = [], ?int $subject = null, array $permissions = []): void
     {
         $this->outbox->message($this->actor, str_replace('\\n', "\n", $text), "update:{$this->update}:reply:" . ($this->sequence++), $buttons, $subject, $permissions);
     }
 
+    /**
+     * @return list<list<array{text: string, callback_data: string}>>
+     */
     public function menu(): array
     {
         $buttons = [[['text' => 'تورها','callback_data' => 'p:tours:0'],['text' => 'دسته‌ها','callback_data' => 'p:cats:0']],[['text' => 'جست‌وجوی تور','callback_data' => 'p:search:0'],['text' => 'رزروهای من','callback_data' => 'p:mine:0']],[['text' => 'پروفایل','callback_data' => 'p:profile:0'],['text' => 'راهنما','callback_data' => 'p:help:0']]];
@@ -67,16 +84,25 @@ final class BotConversation
         return $buttons;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function state(string $state, array $payload): void
     {
         $this->sessions->put($this->actor, $state, $payload);
     }
 
+    /**
+     * @return Session|null
+     */
     public function session(): ?array
     {
         return $this->sessions->get($this->actor);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function requireSession(string $state): array
     {
         return $this->sessions->require($this->actor, $state);

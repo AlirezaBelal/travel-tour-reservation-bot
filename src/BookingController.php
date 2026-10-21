@@ -20,11 +20,17 @@ final class BookingController
             || $this->handleBookingAdminCallback($action, $actor, $id, $arg);
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function input(string $state, array $payload, string $text): bool
     {
         return $this->handleConversationInput($state, $payload, $text) || $this->reviewInput($state, $payload, $text);
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function reviewInput(string $state, array $payload, string $text): bool
     {
         if ($state === 'reject') {
@@ -291,6 +297,9 @@ final class BookingController
         $this->conversation->reply('فایل در صف ارسال امن قرار گرفت.');
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function handleConversationInput(string $state, array $payload, string $text): bool
     {
         if ($state === 'support_message' || $state === 'admin_message') {

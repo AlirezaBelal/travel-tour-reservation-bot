@@ -13,6 +13,9 @@ final class TourService
     ) {
     }
 
+    /**
+     * @param array<string, mixed> $values
+     */
     public function saveTour(int $actor, array $values, ?int $id = null): int
     {
         $this->access->require($actor, 'tours');

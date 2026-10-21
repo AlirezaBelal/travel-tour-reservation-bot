@@ -3,7 +3,12 @@
 declare(strict_types=1);
 
 /** Pure rendering shared by the historical command and back-button routes.
- * @phpstan-type Topic array{id: int|string, Name: string, Groups?: int|string, caption?: string|null}
+ * @phpstan-type Topic array{
+ *     id: int|string,
+ *     Name: string,
+ *     Groups?: int|string,
+ *     caption?: string|null,
+ * }
  * @phpstan-type Rows list<list<array{text: string, callback_data: string}>>
  */
 final class LegacyKeyboard

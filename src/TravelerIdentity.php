@@ -11,6 +11,9 @@ final class TravelerIdentity
     {
     }
 
+    /**
+     * @return array{mobile: bool, national: bool}
+     */
     public function status(int $actor): array
     {
         $row = Database::run(

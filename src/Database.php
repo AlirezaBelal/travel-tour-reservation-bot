@@ -6,6 +6,9 @@ require_once __DIR__ . '/BookingRules.php';
 
 final class Database
 {
+    /**
+     * @param array<int|string, mixed> $args
+     */
     public static function run(PDO $pdo, string $sql, array $args = []): PDOStatement
     {
         $query = $pdo->prepare($sql);

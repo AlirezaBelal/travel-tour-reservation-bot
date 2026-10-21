@@ -1,6 +1,9 @@
 <?php
 
-/** Local signed simulator, NOT a merchant gateway or a real payment provider. */
+/**
+ * Local signed simulator, NOT a merchant gateway or a real payment provider.
+ * @phpstan-import-type PaymentEvent from PaymentAdapter
+ */
 final class SandboxPaymentAdapter implements PaymentAdapter
 {
     public function __construct(private string $secret)
@@ -9,10 +12,17 @@ final class SandboxPaymentAdapter implements PaymentAdapter
             throw new InvalidArgumentException('Sandbox signing key must contain at least 32 bytes.');
         }
     }
+    /**
+     * @param array<string, mixed> $event
+     */
     public function signature(array $event): string
     {
         return hash_hmac('sha256', json_encode([$event['order_ref'] ?? null,$event['transaction'] ?? null,$event['amount'] ?? null,$event['status'] ?? null,$event['timestamp'] ?? null], JSON_THROW_ON_ERROR), $this->secret);
     }
+    /**
+     * @param array<string, mixed> $callback
+     * @return PaymentEvent
+     */
     public function verify(array $callback): array
     {
         if (

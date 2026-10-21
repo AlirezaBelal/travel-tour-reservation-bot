@@ -5,6 +5,9 @@ final class WebhookProcessor
     public function __construct(private PDO $pdo, private BookingService $bookings, private ProductBot $bot, private Outbox $outbox)
     {
     }
+    /**
+     * @param array<string, mixed>|null $contact
+     */
     public function handle(int $update, int $actor, ?string $text, ?string $callback, ?callable $legacy = null, ?string $callbackId = null, ?array $contact = null): void
     {
         if (Database::run($this->pdo, 'SELECT update_id FROM UpdateReceipts WHERE update_id=?', [$update])->fetchColumn() !== false) {

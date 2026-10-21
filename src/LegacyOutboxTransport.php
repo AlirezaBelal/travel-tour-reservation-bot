@@ -10,6 +10,10 @@ final class LegacyOutboxTransport
     {
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array{ok: true, queued: true}
+     */
     public function send(string $method, array $payload = []): array
     {
         $chat = (int)($payload['chat_id'] ?? $this->actor);

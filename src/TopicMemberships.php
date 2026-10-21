@@ -39,6 +39,9 @@ final class TopicMemberships
         return $query->rowCount() === 1;
     }
 
+    /**
+     * @return list<int|numeric-string>
+     */
     public function approvedUsers(int|string $topicId): array
     {
         $query = $this->pdo->prepare("SELECT user_id FROM TopicMemberships WHERE topic_id = ? AND status = 'verify' ORDER BY user_id");

@@ -2,6 +2,9 @@
 
 final class WebhookRegistration
 {
+    /**
+     * @return array{url: string, secret_token: string, allowed_updates: string, drop_pending_updates: string}
+     */
     public static function parameters(string $url, string $secret): array
     {
         $parts = parse_url($url);

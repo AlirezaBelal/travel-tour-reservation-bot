@@ -5,6 +5,9 @@ declare(strict_types=1);
 /** Compatibility rendering boundary; all persistence and authority live in services. */
 final class LegacyHandlerAdapter
 {
+    /**
+     * @param list<int> $owners
+     */
     public static function dispatch(
         TopicCatalogue $catalogue,
         LegacyTopicService $topicForms,

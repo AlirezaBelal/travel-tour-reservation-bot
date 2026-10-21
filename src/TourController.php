@@ -73,6 +73,9 @@ final class TourController
         return true;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function input(string $state, array $payload, string $text): bool
     {
         return $this->handleSearchAndQuantityInput($state, $payload, $text)
@@ -80,6 +83,9 @@ final class TourController
             || $this->categoryInput($state, $payload, $text);
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function categoryInput(string $state, array $payload, string $text): bool
     {
         if ($state === 'category_parent') {
@@ -203,6 +209,9 @@ final class TourController
         $this->conversation->reply($text, $buttons);
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function handleSearchAndQuantityInput(string $state, array $payload, string $text): bool
     {
         if ($state === 'search') {
@@ -223,6 +232,9 @@ final class TourController
         return false;
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function handleTourFormInput(string $state, array $payload, string $text): bool
     {
         if (str_starts_with($state, 'tour_')) {

@@ -54,6 +54,9 @@ final class TravelerProfileService
         Database::run($this->pdo, "UPDATE Data SET Name=?,profile='true' WHERE UserId=?", [$name, $actor]);
     }
 
+    /**
+     * @param array<string, mixed> $contact
+     */
     public function saveMobile(int $actor, array $contact): void
     {
         $this->identity->saveMobile($actor, $contact);
