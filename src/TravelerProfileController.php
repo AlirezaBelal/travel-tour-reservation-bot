@@ -17,6 +17,9 @@ final class TravelerProfileController
     {
         $this->profiles->resetLegacyState($this->conversation->actor());
     }
+    /**
+     * @param array<string, mixed> $contact
+     */
     public function contact(array $contact): void
     {
         $this->profiles->saveMobile($this->conversation->actor(), $contact);
@@ -108,6 +111,9 @@ final class TravelerProfileController
         $this->conversation->reply('در پروفایل جدید نام سرپرست، شماره همراهی که با دکمه تلگرام به اشتراک گذاشته‌اید و کد ملی دارای رقم کنترل معتبر ذخیره می‌شود. شماره و کد ملی در پایگاه داده رمزگذاری شده و در گزارش‌های عمومی یا پیام‌های مدیر نمایش داده نمی‌شوند. بررسی رقم کنترل به معنی استعلام هویت از ثبت احوال نیست. حذف حساب پس از بستن رزروهای فعال، اطلاعات رمزگذاری‌شده را نیز پاک می‌کند. اطلاعات قدیمی پروفایل تا حذف حساب محفوظ‌اند. پاک‌سازی خودکار حساب غیرفعال فقط با سیاست مصوب اپراتور فعال می‌شود؛ پیشنهاد ۱۸۰ روز است. پیام‌های تلگرام و نسخه‌های پشتیبان قواعد نگهداری جداگانه دارند.', [[['text' => 'درخواست حذف حساب','callback_data' => 'p:erase:0']],[['text' => 'بازگشت','callback_data' => 'p:home:0']]]);
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function input(string $state, array $payload, string $text): bool
     {
         if ($state === 'phone') {

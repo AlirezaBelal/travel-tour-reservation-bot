@@ -43,6 +43,6 @@ Legacy memberships, commands and the old include-based renderer are deliberately
 
 ## Quality gates and debt
 
-CI runs PHP 8.0–8.4, MySQL, MariaDB, rollback/concurrency tests, Docker install/recovery/restore and PHPStan level 5 plus PHPCS across all `src/`, including the legacy template. Architecture tests inject synthetic violations. These checks reduce risk, not prove production readiness. Remaining debt: legacy rendering, array-shaped service contracts, limited static-analysis depth and incomplete numeric coverage measurement.
+CI runs PHP 8.0–8.4, MySQL, MariaDB, rollback/concurrency tests, Docker install/recovery/restore and PHPStan level 6 plus PHPCS across all `src/`, including the legacy template. Architecture tests inject synthetic violations. These checks reduce risk, not prove production readiness. Remaining debt: legacy rendering, partially dynamic conversation/Telegram payloads, static-analysis depth beyond level 6 and incomplete numeric coverage measurement.
 
 Further rationale: [ADR 1](adr/0001-modular-monolith.md) · [ADR 2](adr/0002-transactional-outbox.md) · [ADR 3](adr/0003-legacy-handler-compatibility.md) · [ADR 4](adr/0004-encrypted-traveler-identity.md) · [ADR 5](adr/0005-explicit-use-cases.md). [Security](../SECURITY.md) · [Acceptance](ACCEPTANCE.md).

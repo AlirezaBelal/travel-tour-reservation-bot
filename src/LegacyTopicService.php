@@ -5,6 +5,9 @@ declare(strict_types=1);
 /** Legacy category forms with explicit persistence and configured-owner authority. */
 final class LegacyTopicService
 {
+    /**
+     * @param list<int> $owners
+     */
     public function __construct(private PDO $pdo, private TopicCatalogue $catalogue, private array $owners)
     {
     }

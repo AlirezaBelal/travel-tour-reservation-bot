@@ -5,6 +5,9 @@ declare(strict_types=1);
 /** Owner-authorized legacy recipient selection and consumption of its persisted form. */
 final class LegacyBroadcastService
 {
+    /**
+     * @param list<int> $owners
+     */
     public function __construct(private PDO $pdo, private TopicMemberships $memberships, private array $owners)
     {
     }

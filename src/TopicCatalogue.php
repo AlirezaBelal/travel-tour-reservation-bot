@@ -2,18 +2,32 @@
 
 require_once __DIR__ . '/Database.php';
 
+/**
+ * @phpstan-type Topic array{
+ *     id: int|numeric-string,
+ *     Name: string,
+ *     Groups: int|numeric-string,
+ *     caption: string|null,
+ * }
+ */
 final class TopicCatalogue
 {
     public function __construct(private PDO $pdo)
     {
     }
 
+    /**
+     * @return list<Topic>
+     */
     public function all(): array
     {
         $query = $this->pdo->query('SELECT * FROM Topics');
         return $query->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * @return list<Topic>
+     */
     public function children(int $parent): array
     {
         $query = $this->pdo->prepare('SELECT id,Name,`Groups`,caption FROM Topics WHERE `Groups`=?');
@@ -21,6 +35,9 @@ final class TopicCatalogue
         return $query->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * @return Topic|null
+     */
     public function topic(int $id): ?array
     {
         $query = $this->pdo->prepare('SELECT id,Name,`Groups`,caption FROM Topics WHERE id=?');

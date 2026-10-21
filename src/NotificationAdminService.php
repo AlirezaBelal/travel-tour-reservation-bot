@@ -18,6 +18,9 @@ final class NotificationAdminService
         $this->outbox->retry($actor, $id, $this->access);
     }
 
+    /**
+     * @return array{statuses: list<array{status: string, total: int|numeric-string}>, failed: list<array{id: int|numeric-string, error_code: string|null}>}
+     */
     public function overview(int $actor): array
     {
         $this->access->require($actor, 'notify');

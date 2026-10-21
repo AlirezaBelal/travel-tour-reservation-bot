@@ -2,13 +2,19 @@
 
 declare(strict_types=1);
 
-/** Identity-free booking lists/history with authorization independent of Telegram. */
+/**
+ * Identity-free booking lists/history with authorization independent of Telegram.
+ * @phpstan-import-type Booking from BookingReader
+ */
 final class BookingQueryService
 {
     public function __construct(private PDO $pdo, private BookingReader $bookings, private AccessControl $access, private TravelerProfileService $profiles)
     {
     }
 
+    /**
+     * @return Booking
+     */
     public function detail(int $actor, int $id, bool $admin = false): array
     {
         $booking = $this->bookings->booking($actor, $id, $admin);
@@ -19,6 +25,9 @@ final class BookingQueryService
         return $booking;
     }
 
+    /**
+     * @return list<array{id: int|numeric-string, status: string}>
+     */
     public function mine(int $actor, int $offset): array
     {
         $this->page($offset);
@@ -29,6 +38,9 @@ final class BookingQueryService
         )->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * @return list<array{new_status: string, created_at: string}>
+     */
     public function history(int $actor, int $id, bool $admin = false): array
     {
         $this->bookings->booking($actor, $id, $admin);
@@ -39,6 +51,9 @@ final class BookingQueryService
         )->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * @return list<array{id: int|numeric-string, tour_id: int|numeric-string, quantity: int|numeric-string}>
+     */
     public function pending(int $actor, int $offset): array
     {
         $this->access->require($actor, 'review');
@@ -49,6 +64,9 @@ final class BookingQueryService
         )->fetchAll(PDO::FETCH_ASSOC);
     }
 
+    /**
+     * @return list<array{id: int|numeric-string, status: string, quantity: int|numeric-string}>
+     */
     public function all(int $actor, int $offset, ?int $tour = null): array
     {
         $this->access->require($actor, 'review');

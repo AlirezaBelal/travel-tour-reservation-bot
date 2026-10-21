@@ -5,6 +5,9 @@ declare(strict_types=1);
 /** Legacy membership/profile eligibility and owner approvals without Telegram helpers. */
 final class LegacyMembershipService
 {
+    /**
+     * @param list<int> $owners
+     */
     public function __construct(
         private PDO $pdo,
         private TopicMemberships $memberships,
@@ -13,6 +16,9 @@ final class LegacyMembershipService
     ) {
     }
 
+    /**
+     * @return array{UserId: int|numeric-string, profile: string|null, step: string|null}|null
+     */
     public function user(int $actor): ?array
     {
         $user = Database::run($this->pdo, 'SELECT UserId,profile,step FROM Data WHERE UserId=?', [$actor])->fetch(PDO::FETCH_ASSOC);

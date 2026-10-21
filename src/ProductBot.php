@@ -12,6 +12,9 @@ final class ProductBot
     ) {
     }
 
+    /**
+     * @param array<string, mixed>|null $contact
+     */
     public function dispatch(int $actor, ?string $text, ?string $callback, int $update, ?array $contact = null): bool
     {
         $this->conversation->begin($actor, $update);
@@ -211,6 +214,7 @@ final class ProductBot
 
     /**
      * Dispatch stored form input by responsibility; unknown states fail closed.
+     * @param array<string, mixed> $payload
      */
     private function input(string $state, array $payload, string $text): void
     {
@@ -226,6 +230,9 @@ final class ProductBot
         $this->handleAdministrativeInput($state, $payload, $text);
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     private function handleAdministrativeInput(string $state, array $payload, string $text): void
     {
         if ($state === 'role_user') {

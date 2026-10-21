@@ -6,6 +6,9 @@ final class Outbox
     {
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function enqueue(int $chat, string $method, array $payload, string $key): void
     {
         if (!in_array($method, ['sendMessage', 'copyMessage', 'editMessageText', 'editMessageCaption', 'answerCallbackQuery', 'sendDocument'], true)) {
@@ -35,6 +38,10 @@ final class Outbox
         ]);
     }
 
+    /**
+     * @param list<list<array{text: string, callback_data: string}>> $keyboard
+     * @param list<string> $permissions
+     */
     public function message(int $chat, string $text, string $key, array $keyboard = [], ?int $subject = null, array $permissions = []): void
     {
         $payload = ['text' => $text];

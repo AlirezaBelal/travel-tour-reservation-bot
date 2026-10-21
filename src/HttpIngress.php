@@ -5,7 +5,9 @@ declare(strict_types=1);
 /** Pure HTTP webhook decision: no database/bootstrap, output headers or input I/O. */
 final class HttpIngress
 {
-    /** @return array{status: int, update: array|null} */
+    /**
+     * @return array{status: int, update: array<string, mixed>|null}
+     */
     public static function decode(string $secret, mixed $suppliedSecret, string $method, mixed $body): array
     {
         if (!webhookSecretIsValid($secret, $suppliedSecret)) {

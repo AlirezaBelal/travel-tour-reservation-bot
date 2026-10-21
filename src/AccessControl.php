@@ -2,6 +2,9 @@
 
 final class AccessControl
 {
+    /**
+     * @param list<int> $owners
+     */
     public function __construct(private PDO $pdo, private array $owners)
     {
     }
@@ -52,6 +55,9 @@ final class AccessControl
         Database::run($this->pdo, 'INSERT INTO AuditLog(actor_id,action,target_type,target_id) VALUES (?,?,?,?)', [$actor, $action, $type, $id]);
     }
 
+    /**
+     * @return list<int>
+     */
     public function reviewers(): array
     {
         $ids = Database::run($this->pdo, "SELECT user_id FROM AdminRoles WHERE role IN ('manager','reviewer')")->fetchAll(PDO::FETCH_COLUMN);

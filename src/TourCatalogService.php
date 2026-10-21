@@ -5,6 +5,7 @@ declare(strict_types=1);
 /**
  * Authorized catalogue read model, independent of Telegram and conversation state.
  * It shares the caller's connection/transaction; it never commits or sends messages.
+ * @phpstan-import-type Tour from TourInventory
  */
 final class TourCatalogService
 {
@@ -51,7 +52,9 @@ final class TourCatalogService
         )->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** @return array{tour: array, remaining: int} */
+    /**
+     * @return array{tour: Tour, remaining: int}
+     */
     public function detail(int $actor, int $id): array
     {
         $tour = $this->bookings->tour($id);

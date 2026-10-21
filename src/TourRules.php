@@ -7,6 +7,9 @@ final class TourRules
 {
     public const FIELDS = ['category_id', 'title', 'destination', 'description', 'starts_at', 'ends_at', 'price', 'capacity', 'publication'];
 
+    /**
+     * @param array<string, mixed> $values
+     */
     public static function validate(array $values): void
     {
         $fields = self::FIELDS;

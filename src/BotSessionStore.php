@@ -1,6 +1,14 @@
 <?php
 
-/** Persistent per-user form state; independent from legacy Data.step. */
+/**
+ * Persistent per-user form state; independent from legacy Data.step.
+ * @phpstan-type Session array{
+ *     user_id: int|numeric-string,
+ *     state: string,
+ *     payload: string,
+ *     updated_at: string,
+ * }
+ */
 final class BotSessionStore
 {
     private const TTL_SECONDS = 1800;
@@ -9,6 +17,9 @@ final class BotSessionStore
     {
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     */
     public function put(int $actor, string $state, array $payload): void
     {
         Database::run(
@@ -19,6 +30,9 @@ final class BotSessionStore
         );
     }
 
+    /**
+     * @return Session|null
+     */
     public function get(int $actor): ?array
     {
         $row = Database::run(
@@ -36,6 +50,9 @@ final class BotSessionStore
         return $row;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function require(int $actor, string $state): array
     {
         $session = $this->get($actor);

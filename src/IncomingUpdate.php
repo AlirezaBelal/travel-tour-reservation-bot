@@ -9,6 +9,10 @@
  */
 final class IncomingUpdate
 {
+    /**
+     * @param array<string, mixed> $update
+     * @return array<string, mixed>
+     */
     public static function context(array $update): array
     {
         if (!isSupportedPrivateUpdate($update)) {
