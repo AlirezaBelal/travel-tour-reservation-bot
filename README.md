@@ -2,221 +2,68 @@
 
 [![CI](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/workflows/ci.yml) · [فارسی](README.fa.md)
 
-Open-source, self-hosted Telegram tour booking system with a Persian interface,
-group reservations, admin tools, and encrypted traveler profiles. Built with PHP
-and MySQL. GPL-3.0-only.
-
-*Discover tours, manage group reservations, and track bookings directly in Telegram.*
-
-For independent tour operators who want to run reservations in their own Telegram
-bot. Travelers discover a tour, reserve seats, track approval and cancel; operators
-manage inventory, manual payments and notifications from the Persian bot interface.
-
-**Start here:** [Install](#quick-start) · [Traveler/operator guide](#traveler-and-operator-guide) ·
-[Product scope](docs/PRODUCT.md) · [Upgrade and recovery](docs/DEPLOYMENT.md) · [فارسی](README.fa.md).
-The current source distribution is on `master`; there is no shared hosted service.
-
-**Self-hosted open-source distribution — not a production certification.** Automated tests use synthetic
-travelers, a simulated Telegram transport and a local signed payment simulator.
-A live Telegram installation, VPS/TLS deployment and merchant payment gateway are
-separate external acceptance gates. Public source code does not provide a hosted bot.
+Self-hosted, open-source **PHP/MySQL Telegram tour reservations** with a Persian traveler and admin interface. GPL-3.0-only. This repository provides source code, **not** a hosted bot or production certification.
 
 ## Features
 
-- Traveler profile: leader name, own-phone Telegram `request_contact` button, and checksum-valid Iranian national code. Mobile and national code are encrypted at rest in a separate table, never echoed to staff/CSV. Set `REQUIRE_VERIFIED_PROFILE=true` to enforce this before reservation (default false for upgrades). No category subscription is required.
-- Hierarchical categories independent of dated tours; destination/title search and pagination.
-- Tour dates, IRR integer pricing, publication controls, capacity and group sizes 1–20.
-- Transactional seat inventory: pending and confirmed reservations consume capacity.
-- Pending → confirmed/rejected/cancelled and confirmed → cancelled/completed, with history.
-- Ownership checks, duplicate webhook/booking protection and stale tour-price confirmation checks.
-- Persian guided Telegram administration, manager/reviewer/reporter roles and owner controls.
-- Free bookings, separate manual payment review, unique transaction references and a local sandbox adapter.
-- Durable database outbox, exponential retry, Telegram retry_after handling, rate control and failed-send review.
-- Upcoming confirmed-tour reminders, expired unpaid hold rejection and account anonymization.
-- Restricted CSV reports without traveler profile columns; formula neutralization and export audit.
-- Docker Compose, readiness checks, additive legacy migrations and synthetic backup/restore CI.
-
-Existing `/list`, topic administration, membership approval and broadcast
-commands remain available for compatibility. Legacy memberships are not invented
-into dated tours or bookings: an operator creates real tours separately.
+- Browse, search and publish tours; reserve **1–20 seats** with transactional capacity and price snapshots.
+- Track, approve, reject or cancel bookings. Operators review payments manually; there is **no live payment gateway or automatic refund**.
+- Role-based administration, aggregate reports, privacy-safe CSV exports, reminders and a retryable notification outbox.
+- Optional verified-own-contact and checksum-validated national-code onboarding with encrypted identifiers. These checks do not prove legal identity.
+- Backward-compatible legacy commands, Docker Compose, additive migrations and automated tests.
 
 ## Quick start
 
-Requirements: Git, Docker Engine with Compose, OpenSSL for secret generation, and an independently created Telegram
-bot token. The maintained container uses PHP 8.4 and MySQL 8.0.
+Requires Docker Compose, your **own** Telegram bot token, an HTTPS domain and private credentials.
 
-```bash
+~~~bash
 git clone https://github.com/AlirezaBelal/travel-tour-reservation-bot.git
 cd travel-tour-reservation-bot
 cp .env.example .env
-# Edit .env: token, owner Telegram IDs, webhook secret, database credentials, PROFILE_ENCRYPTION_KEY.
-# Generate a webhook secret: openssl rand -hex 32
-# Generate an encryption key: openssl rand -base64 32
+# Edit .env privately. Create independent DB passwords and owner IDs.
+# TELEGRAM_WEBHOOK_SECRET: openssl rand -hex 32
+# PROFILE_ENCRYPTION_KEY: openssl rand -base64 32
 docker compose build app
 docker compose run --rm migrate php bin/install.php
 docker compose run --rm migrate php bin/restrict-runtime.php --confirm
 docker compose up -d
 curl -f http://127.0.0.1:8080/health.php
-```
+~~~
 
-The `worker` service is essential: it sends queued messages, schedules reminders and
-runs configured retention. Without it, messages remain queued. Do not run the local simulator
-against real customer orders. Keep `PAYMENT_SANDBOX_ENABLED=false` in normal use.
+Put an HTTPS reverse proxy in front of `127.0.0.1:8080`; only `public/` is web-accessible. After securing the domain, use the supplied webhook helper with your authorized bot:
 
-Place an HTTPS reverse proxy on your domain in front of `127.0.0.1:8080`. In
-Telegram, open **@BotFather**, run `/newbot`, choose a name and a unique bot username,
-and store the resulting token privately in `.env`. Register
-`https://YOUR_DOMAIN/index.php` using Telegram's `setWebhook`, setting `secret_token`
-to the same `TELEGRAM_WEBHOOK_SECRET` and `allowed_updates` to
-`["message","callback_query"]`. Use a protected local configuration/script for
-credentials; never paste them into issues, screenshots or shared command logs.
-After configuring your domain/TLS, use the supplied credential-safe helper:
-
-```bash
+~~~bash
 docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.php --check
-# This next command contacts Telegram; run only with your own authorized bot/domain:
+# The following command contacts Telegram:
 docker compose run --rm app php bin/set-webhook.php https://YOUR_DOMAIN/index.php --confirm
-```
+~~~
 
-`--check` validates configuration syntax only. `--confirm` performs real registration
-without printing credentials and preserves pending updates. Then open your bot in
-a **private chat** and send `/start`.
-
-Only `public/` is a web document root. Never expose `.env`, repository root,
-dependencies, migrations or backups. The database is not published on a host port.
-For an existing installation, use the [upgrade guide](docs/MIGRATION.md) instead
-of treating the database as disposable. **Never use `docker compose down -v` on
-an installation whose data you need.**
-
-For optional synthetic draft data, set `APP_ENV=development` in a disposable
-configuration, then run `docker compose run --rm app php bin/seed-demo.php --confirm`.
-It is repeatable and creates no real traveler or payment. Restore production mode
-before normal use. The demo remains draft until explicitly published.
+The `worker` **must be running** to send notifications and process scheduled tasks. Never commit `.env` or expose your bot token, encryption key or personal data. **Do not use `docker compose down -v` on valuable data.** For existing databases, follow [migration](docs/MIGRATION.md) and [backup/recovery](docs/DEPLOYMENT.md) before changing anything.
 
 ## Traveler and operator guide
 
-Travelers: `/start` → **پروفایل** → enter leader name → share OWN phone via Telegram contact button → submit valid Iranian national code → **تور‌ها** or **جست‌وجوی تور** →
-view destination/dates/price/remaining capacity → enter number of people → confirm.
-Use **رزروهای من** for status/history or cancellation. **پیام به مدیریت** sends a
-booking-specific question privately through the bot; authorized managers can reply
-from that booking, so manual-payment coordination needs no external contact guide. `/cancel` exits a form;
-`/help` explains the flow and `/privacy` explains deletion and retention.
+Travelers: `/start` → profile → tour/search → select group size → confirm request → `/bookings` or «رزروهای من» to track/cancel. Only the account holder's Telegram-shared contact is accepted; `/privacy` describes erasure. A booking request is **not** final confirmation.
 
-Owners: put your numeric Telegram user ID in `TELEGRAM_ADMIN_IDS`, then `/admin`.
-Create categories and draft tours using the Persian wizard; publish when complete.
-Review pending requests; paid tours require manual payment verification before
-booking confirmation. Enter only an operator receipt reference, never bank/card
-or national-ID details. Review reports, queue failures and broadcasts in the same
-menu. Role changes, account deletion, category deletion and tour archiving require
-confirmation. Managers can view only the leader name, with an audit event; CSVs
-exclude name, phone, national code and Telegram user ID.
+Operators: configure `TELEGRAM_ADMIN_IDS`, open `/admin`, create/publish tours, review requests and manual payments, manage roles, reports and queued notifications. Never ask travelers to send bank credentials or national IDs in chat.
 
-| Role | Permissions |
-|---|---|
-| Owner (environment) | All operations and role assignment |
-| Manager | Tours/categories, bookings, payment review, reports/export, essential profile name, notifications |
-| Reviewer | Booking review and aggregate reports; no payment/export/profile access |
-| Reporter | Aggregate reports only |
-| Traveler | Own profile, bookings and cancellation |
+Prices are **integer IRR**, dates are Gregorian with a configurable display timezone, and storage uses UTC. One booking per user/tour remains even after cancellation. Pending requests hold seats; unpaid holds expire. `REQUIRE_VERIFIED_PROFILE` defaults to `false` for safe upgrades; enable only after establishing an identity-data collection policy. Old plaintext profile data is **not migrated automatically**.
 
-Dates entered in the wizard are Gregorian, e.g. `2027-04-21 08:30`, in
-`APP_TIMEZONE` (default Asia/Tehran). Storage and scheduling use UTC. Amounts are
-integer **Iranian rials (IRR)**, not tomans. Pending reservations hold seats. Unpaid
-pending holds expire after 24 hours and are rejected by the scheduler. A traveler
-may cancel before the tour starts. A manager completes a confirmed booking after
-its tour ends. One booking record per user/tour is retained even after cancellation;
-self-service rebooking of that same tour is not currently supported.
+Outbox messages are delivered **at least once**, so rare duplicate Telegram messages are possible. The signed payment sandbox is a **local simulator only**. Account erasure, retention, backup policy and deployment security remain operator responsibilities.
 
-## Payments and delivery limits
+## Development
 
-Payment status is separate from reservation status. There is no live gateway,
-automatic debit or automatic refund. Manual payment review records a hashed unique
-reference. Cancellation of a paid booking frees seats but does not return funds;
-the operator must arrange and record settlement outside this bot.
-
-`SandboxPaymentAdapter` is a **local signed simulator**, not an integrated provider
-sandbox. Only in `APP_ENV=development|test`, with an explicit test key and enable flag, `/payments/sandbox.php` verifies
-an HMAC event, freshness, exact order, amount, expiration and transaction uniqueness.
-`bin/sandbox-payment.php` generates such local test events. A real gateway adapter
-must verify the transaction against its provider's authoritative server API using
-reviewed official documentation and a merchant account. That integration is
-**BLOCKED EXTERNAL**; never consider callback query parameters proof of payment.
-
-Outbox insertion is atomic with booking changes. Event keys prevent duplicate
-queue entries and update receipts prevent repeated webhook mutations. Telegram
-sending is **at least once**: a process/network failure after Telegram accepts a
-message but before the database records success can cause a repeated message on
-retry. Telegram does not supply a sendMessage idempotency key; this project does
-not claim exactly-once delivery. Unknown/permanent failures are visible for review;
-8 exhausted attempts require authorized manual retry. Worker leases recover after
-five minutes. Delivery is conservatively limited globally and per chat; 429 pauses
-pending delivery according to retry_after. [Official API](https://core.telegram.org/bots/api#responseparameters)
-· [Telegram rate guidance](https://core.telegram.org/bots/faq#my-bot-is-hitting-limits-how-do-i-avoid-this).
-
-Automatic profile anonymization is **disabled by default** to protect existing
-installations during upgrade. After approving and publishing a retention policy,
-set `RETENTION_ENABLED=true` and `RETENTION_DAYS` (default 180). Explicit user-requested
-erasure remains available. Sent/failed queue payloads expire after seven days;
-update receipts retain a 30-day replay window. A minimal ingress counter remains
-for up to one day after account deletion to prevent resetting spam limits. Already-delivered/in-flight Telegram
-messages and offline backups cannot be recalled by a database deletion.
-
-## Development and verification
-
-```bash
+~~~bash
 composer install
 composer test:unit
-# Create a disposable MySQL database named exactly travel_tour_test.
-export TEST_MYSQL_DSN='mysql:host=127.0.0.1;port=3306;dbname=travel_tour_test;charset=utf8mb4'
-export TEST_MYSQL_USER=your_test_user
-# Set TEST_MYSQL_PASSWORD privately.
+# Integration tests require a disposable MySQL DB named travel_tour_test.
 composer test:integration
-composer audit
-# Optional development-only tools (separate locked toolchain):
 composer install --working-dir=tools/quality
 composer analyse
 composer lint:style
-```
+~~~
 
-Integration tests rebuild **only disposable fixtures** and must never target a real
-database. CI checks PHP 8.0–8.4 compatibility; use a maintained PHP version for
-hosting. It exercises old-schema migration, old Telegram workflows, tour booking
-and group capacity across concurrent PHP processes (including pre-existing read
-snapshots), role/ownership checks, payment simulation, retries/reminders/deletion,
-guided new Telegram workflows, actual HTTP entry points, container installation
-and dump/restore. See [acceptance gates](docs/ACCEPTANCE.md),
-[contribution guide](CONTRIBUTING.md), [architecture](docs/ARCHITECTURE.md),
-[operations](docs/DEPLOYMENT.md), [security](SECURITY.md) and [changelog](CHANGELOG.md).
+CI covers PHP 8.0–8.4, MySQL, MariaDB and synthetic Docker recovery; it **does not** verify a live Telegram server or payment provider.
 
-No test run proves your external Telegram token, HTTPS certificate, VPS security,
-backup storage or merchant account works. External gates remain explicitly open.
+**Guides:** [Documentation](docs/README.md) · [Architecture](docs/ARCHITECTURE.md) · [Product limits](docs/PRODUCT.md) · [Deployment](docs/DEPLOYMENT.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md).
 
-## Documentation and community
-
-[Documentation index](docs/README.md) · [Product scope](docs/PRODUCT.md) ·
-[Report a bug](https://github.com/AlirezaBelal/travel-tour-reservation-bot/issues) ·
-[Contribute](CONTRIBUTING.md) · [Security policy](SECURITY.md) ·
-[Repository maintenance](docs/REPOSITORY_MAINTENANCE.md) · [Source notes](docs/RELEASE_NOTES.md).
-
-Use `master` for installation and start focused contribution branches from it.
-There is no required development branch, category subscription or hosted service.
-Include your commit, installation method and synthetic reproduction steps when
-reporting a defect. Never attach `.env`, a database dump or traveler information.
-
-## License
-
-Licensed under **GPL-3.0-only**. See [LICENSE](LICENSE).
-
-## Encrypted contact and national-code data
-
-Migration 003 adds `TravelerIdentity` for encrypted identifiers. Generate `PROFILE_ENCRYPTION_KEY` with `php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'` and keep it private and backed up separately from the database. An absent key prevents identity submission; loss of key makes stored identifiers unreadable. Share phone via Telegram's own-contact button only: third-party/unattributed contacts and typed numbers are rejected. A national-code checksum does **not** verify identity with a government registry. Old plaintext legacy fields are not copied into this table. Operators must disclose the collection and retention purpose and choose whether to enforce completion before booking with `REQUIRE_VERIFIED_PROFILE=true`. New registration does not request sex or birthday. No Telegram group/category membership is needed for tour booking. A public source repository must never contain real user data or bot tokens.
-
-### Upgrading legacy profiles safely
-
-`/setprofile` now aliases `/profile`. The old plaintext registration form is retired,
-including unfinished `Data.step` states (`name`, `contact`, `NationalCode`, `sex`,
-`birthday`). Its next input is discarded and the user is directed to `/profile`.
-Existing plaintext rows are **not** copied, deleted or converted automatically.
-See [migration and key handling](docs/MIGRATION.md#migration-003-encrypted-traveler-identity).
-For a new installation, set `REQUIRE_VERIFIED_PROFILE=true` after generating a
-private `PROFILE_ENCRYPTION_KEY`; upgrades retain the compatibility default `false`.
+Licensed under [GPL-3.0-only](LICENSE).
