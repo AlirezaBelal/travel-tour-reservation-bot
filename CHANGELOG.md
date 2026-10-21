@@ -1,5 +1,13 @@
 # Changelog
 
+## Independent booking use cases — 2026-10-21
+
+- Separated reservation creation, lifecycle changes, authorized reads and history
+  persistence while preserving one transaction/connection and existing lock order.
+- Converted BookingService into a compatibility facade; current HTTP/CLI runtime
+  injects profile policy explicitly. Added direct policy, authorization and complete
+  outer-rollback tests while preserving old constructor/named-argument behavior.
+
 ## Static analysis and reproducible quality tools — 2026-10-21
 
 - Added isolated, locked PHPStan/PHPCS dependencies and a level-5 analysis gate

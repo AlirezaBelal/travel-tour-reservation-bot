@@ -13,7 +13,7 @@ final class ProductBotFactory
             new TravelerProfileController($profiles, $conversation), $bookings, $access, $conversation,
             new TourCatalogService($pdo, $bookings, $access), $payments,
             new BookingReportService($pdo, $bookings, $access), new NotificationAdminService($pdo, $access, $outbox),
-            new BookingQueryService($pdo, $bookings, $access, $profiles), new TopicCatalogue($pdo)
+            new BookingQueryService($pdo, new BookingReader($pdo, $access), $access, $profiles), new TopicCatalogue($pdo)
         );
     }
 }

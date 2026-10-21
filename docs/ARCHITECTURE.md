@@ -309,8 +309,8 @@ flowchart TB
 
 Remaining debt: `ProductBot` still owns several unrelated conversation flows.
 Its profile and booking SQL has since moved behind explicit application boundaries. The legacy renderer still uses scoped variables and an injected response adapter, while
-membership, deletion and broadcast operations live in services. `TourService` now owns tour editing and publication; `BookingService` retains
-reservation creation and lifecycle changes within the same booking aggregate. These extractions
+membership, deletion and broadcast operations live in services. `TourService` now owns tour editing and publication; `ReservationService` and `BookingLifecycleService` now coordinate the same
+booking aggregate through shared persistence, with `BookingService` as a compatibility facade. These extractions
 establish enforceable boundaries incrementally, not a completed Clean Architecture
 migration or evidence of a 9/10 code-quality score.
 
@@ -414,3 +414,26 @@ from production and locked separately; Composer audits both dependency graphs.
 The PHPCS configuration targets source classes with PSR-12 while preserving global
 class names (namespace migration is outside compatibility scope). The generated
 formatting proposal is reviewed separately before style enforcement is activated.
+
+## Independent reservation/lifecycle use cases and compatibility
+
+`ReservationService` owns creation, capacity/price checks, participant/payment
+creation and creation history/outbox. `BookingLifecycleService` owns authorized
+state transitions, payment prerequisite, cancellation timing and transition events.
+`BookingReader` provides ownership/reviewer-checked snapshots; `BookingHistoryStore`
+appends history within the caller's transaction. All collaborators use the same
+PDO and `TourInventory`; no transaction is split and lock order is unchanged.
+
+`BookingServiceFactory` explicitly supplies a captured verified-profile policy
+from HTTP/CLI configuration. Application write services contain no environment or
+global reads. The historical three-argument `BookingService` remains a compatibility
+facade with lazy defaults, including its named arguments. Only that fallback uses
+`LegacyProfileRequirement`, a clearly marked compatibility adapter preserving the
+old dynamically read environment behavior; current runtime factories never use it.
+The facade constructs no fallback operations when the complete graph is injected.
+
+Direct module tests prove that the injected profile policy cannot be overridden
+by environment changes, direct lifecycle authorization, idempotency, shared history
+and full reservation/payment/history/outbox rollback under an owning transaction.
+Existing facade/Telegram, eight-process capacity, two-process lifecycle and
+four-process manual-review tests remain required against both database engines.

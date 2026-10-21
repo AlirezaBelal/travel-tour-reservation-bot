@@ -11,7 +11,7 @@ $access = new AccessControl($pdo, [999]);
 $outbox = new Outbox($pdo);
 $bookings = new BookingService($pdo, $access, $outbox);
 $profiles = new TravelerProfileService($pdo, new TravelerIdentity($pdo), new PrivacyService($pdo), $access);
-$queries = new BookingQueryService($pdo, $bookings, $access, $profiles);
+$queries = new BookingQueryService($pdo, new BookingReader($pdo, $access), $access, $profiles);
 $checks = 0;
 $check = static function (bool $condition, string $label) use (&$checks): void {
     $checks++;

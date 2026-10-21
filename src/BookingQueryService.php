@@ -4,7 +4,7 @@ declare(strict_types=1);
 /** Identity-free booking lists/history with authorization independent of Telegram. */
 final class BookingQueryService
 {
-    public function __construct(private PDO $pdo, private BookingService $bookings, private AccessControl $access, private TravelerProfileService $profiles) {}
+    public function __construct(private PDO $pdo, private BookingReader $bookings, private AccessControl $access, private TravelerProfileService $profiles) {}
 
     public function detail(int $actor, int $id, bool $admin = false): array
     {
