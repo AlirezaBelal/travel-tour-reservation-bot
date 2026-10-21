@@ -12,6 +12,7 @@ final class ProductBot
         private BookingService $bookings,
         private AccessControl $access,
         private Outbox $outbox,
+        private TourCatalogService $catalogue,
         private string $timezone = 'Asia/Tehran',
         ?BookingReportService $reports = null,
         ?BotSessionStore $sessions = null,
@@ -457,22 +458,10 @@ final class ProductBot
     }
 
     private function listing(int $offset,?int $category=null,bool $admin=false):void {
-        if($offset>100000)throw new RuleViolation('شماره صفحه معتبر نیست.');
-        if($admin)$this->access->require($this->actor,'tours');
-        $args=[];
-        $where=$admin?'1=1':"publication='published' AND starts_at>UTC_TIMESTAMP()";
-        if($category!==null){
-            $where.=' AND category_id=?';
-            $args[]=$category;
-        }
-        $session=$this->session();
-        if(!$admin&&$session&&$session['state']==='filter'){
-            $filter=json_decode($session['payload'],true)['query'];
-            $where.=' AND (LOCATE(?,title)>0 OR LOCATE(?,destination)>0)';
-            $args[]=$filter;
-            $args[]=$filter;
-        }
-        $rows=Database::run($this->pdo,"SELECT id,title FROM Tours WHERE $where ORDER BY starts_at,id LIMIT 10 OFFSET $offset",$args)->fetchAll(PDO::FETCH_ASSOC);
+        $session = $this->session();
+        $query = !$admin && $session && $session['state'] === 'filter'
+            ? json_decode($session['payload'], true, 512, JSON_THROW_ON_ERROR)['query'] : null;
+        $rows = $this->catalogue->tours($this->actor, $offset, $category, $admin, $query);
         $buttons=[];
         foreach($rows as$row)$buttons[]=[['text'=>$row['title'],'callback_data'=>'p:tour:'.$row['id']]];
         if(count($rows)===10)$buttons[]=[['text'=>'صفحه بعد','callback_data'=>$admin?'p:manage_tours:'.($offset+10):($category!==null?'p:cat_tours:'.$category.':'.($offset+10):'p:tours:'.($offset+10))]];
@@ -481,8 +470,7 @@ final class ProductBot
     }
 
     private function categories(int $parent,int $offset):void {
-        if($offset>100000)throw new RuleViolation('صفحه معتبر نیست.');
-        $rows=Database::run($this->pdo,"SELECT id,Name FROM Topics WHERE `Groups`=? ORDER BY id LIMIT 20 OFFSET $offset",[$parent])->fetchAll(PDO::FETCH_ASSOC);
+        $rows = $this->catalogue->categories($parent, $offset);
         $buttons=[];
         foreach($rows as$row)$buttons[]=[['text'=>$row['id'].' — '.$row['Name'],'callback_data'=>'p:cats:'.$row['id']]];
         if($parent>0)$buttons[]=[['text'=>'تورهای این دسته','callback_data'=>"p:cat_tours:$parent:0"]];
@@ -492,9 +480,9 @@ final class ProductBot
     }
 
     private function showTour(int $id):void {
-        $tour=$this->bookings->tour($id);
-        if($tour['publication']!=='published'&&!$this->access->allows($this->actor,'tours')&&!Database::run($this->pdo,'SELECT id FROM Bookings WHERE user_id=? AND tour_id=?',[$this->actor,$id])->fetchColumn())throw new RuleViolation('این تور منتشر نشده است.');
-        $remaining=(int)$tour['capacity']-$this->bookings->used($id);
+        $detail = $this->catalogue->detail($this->actor, $id);
+        $tour = $detail['tour'];
+        $remaining = $detail['remaining'];
         $text="تور #$id: {$tour['title']}\nمقصد: {$tour['destination']}\n{$tour['description']}\nشروع: ".$this->local($tour['starts_at'])."\nپایان: ".$this->local($tour['ends_at'])."\nمنطقه زمانی: {$this->timezone}\nقیمت هر نفر: {$tour['price']} ریال\nظرفیت کل: {$tour['capacity']}؛ باقی‌مانده: $remaining\nوضعیت انتشار: ".(['published'=>'فعال','draft'=>'پیش‌نویس','inactive'=>'غیرفعال','archived'=>'بایگانی'][$tour['publication']]??'نامشخص');
         $buttons=[];
         if($tour['publication']==='published'&&$remaining>0&&$tour['starts_at']>gmdate('Y-m-d H:i:s'))$buttons[]=[['text'=>'درخواست رزرو','callback_data'=>"p:reserve:$id"]];

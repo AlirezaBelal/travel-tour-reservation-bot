@@ -190,7 +190,8 @@ Database::configure($db->pdo);
 $outbox = new Outbox($db->pdo);
 $access = new AccessControl($db->pdo, ADMINS);
 $bookings = new BookingService($db->pdo, $access, $outbox);
-$productBot = new ProductBot($db->pdo, $bookings, $access, $outbox, environmentValue('APP_TIMEZONE','Asia/Tehran'));
+$tourCatalog = new TourCatalogService($db->pdo, $bookings, $access);
+$productBot = new ProductBot($db->pdo, $bookings, $access, $outbox, $tourCatalog, environmentValue('APP_TIMEZONE','Asia/Tehran'));
 $processor = new WebhookProcessor($db->pdo, $bookings, $productBot, $outbox);
 
 $memberships = new TopicMemberships($db->pdo);

@@ -11,7 +11,7 @@ Database::configure($pdo);
 $access = new AccessControl($pdo, [999]);
 $outbox = new Outbox($pdo);
 $bookings = new BookingService($pdo, $access, $outbox);
-$bot = new ProductBot($pdo, $bookings, $access, $outbox);
+$bot = new ProductBot($pdo, $bookings, $access, $outbox, new TourCatalogService($pdo, $bookings, $access));
 $processor = new WebhookProcessor($pdo, $bookings, $bot, $outbox);
 $checks = 0;
 $update = 900000;
@@ -81,3 +81,26 @@ $check(str_contains($send(620, null, "p:tour:{$ids[0]}")['text'], 'منتشر ن
     'unpublication still denies unrelated traveler');
 $check(in_array("p:booking:$booking", $callbacks($send(621, '/bookings')), true), 'own booking listing retained');
 fwrite(STDOUT, "Catalogue characterization passed ($checks checks).\n");
+
+// The extracted boundary is callable without Telegram, sessions or an outbox sender.
+$catalogue = new TourCatalogService($pdo, $bookings, $access);
+$direct = $catalogue->tours(620, 0, $category);
+$check(count($direct) === 10 && (int)$direct[0]['id'] === $ids[1], 'direct catalogue applies publication rules');
+$check($catalogue->tours(620, 0, $category, false, "%_' OR 1=1 --") === [], 'direct search remains literal');
+$check(count($catalogue->tours(999, 0, $category, true, 'no match')) === 10, 'admin catalogue ignores traveler filter');
+$check($catalogue->detail(621, $ids[0])['remaining'] === 19, 'direct detail preserves capacity calculation');
+foreach ([
+    static fn () => $catalogue->tours(620, 0, null, true),
+    static fn () => $catalogue->detail(620, $draft),
+    static fn () => $catalogue->detail(620, $ids[0]),
+    static fn () => $catalogue->tours(620, -1),
+    static fn () => $catalogue->categories(0, 100001),
+] as $denied) {
+    try {
+        $denied();
+        throw new RuntimeException('Direct catalogue call bypassed authorization or bounds.');
+    } catch (RuleViolation $error) {
+        $check(true, 'direct service boundary fails closed');
+    }
+}
+fwrite(STDOUT, "Catalogue service integration passed ($checks total checks).\n");

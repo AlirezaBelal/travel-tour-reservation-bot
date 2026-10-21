@@ -1,5 +1,13 @@
 # Changelog
 
+## Catalogue application service — 2026-10-21
+
+- Characterized catalogue visibility, literal search, ordering and pagination before
+  extraction, with synthetic integration fixtures on MySQL and MariaDB.
+- Moved catalogue SQL and visibility authorization out of Telegram presentation
+  into an explicitly injected `TourCatalogService`, preserving transaction and
+  capacity-lock behavior. Added direct service tests and architecture guards.
+
 ## Architecture and CI hardening — 2026-10-21
 
 - Isolated legacy handler execution behind a typed compatibility adapter; real
