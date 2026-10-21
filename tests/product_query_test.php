@@ -87,3 +87,21 @@ $check((new BotSessionStore($pdo))->get(835)['state'] === 'phone', 'other actor 
 $check(!$profileFlow->callback('unknown', 836) && !$profileFlow->input('unknown', [], 'Synthetic'),
     'profile controller declines unrelated routes');
 fwrite(STDOUT, "Conversation boundaries passed ($checks total checks).\n");
+
+$categories = new TourCategoryService($pdo, new TopicCatalogue($pdo), $access);
+$denied(static fn () => $categories->create(831, 'Synthetic denied category', 0));
+$category = $categories->create(999, 'Synthetic authorized category', 0);
+$denied(static fn () => $categories->delete(831, $category));
+$check((new TopicCatalogue($pdo))->topic($category) !== null, 'unauthorized category deletion preserves row');
+$check($categories->delete(999, $category) === 1, 'authorized category deletion uses application boundary');
+$pdo->exec("CREATE TRIGGER synthetic_fail_category_audit BEFORE INSERT ON AuditLog FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic category audit failure'");
+try {
+    $categories->create(999, 'Synthetic category audit rollback', 0);
+    throw new RuntimeException('Expected category audit failure.');
+} catch (PDOException $error) {
+    $check(!(bool)Database::run($pdo, 'SELECT id FROM Topics WHERE Name=?', ['Synthetic category audit rollback'])->fetchColumn(),
+        'category and audit share one transaction');
+} finally {
+    $pdo->exec('DROP TRIGGER synthetic_fail_category_audit');
+}
+fwrite(STDOUT, "Category application boundaries passed ($checks total checks).\n");
