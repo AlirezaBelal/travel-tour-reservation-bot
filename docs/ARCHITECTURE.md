@@ -456,3 +456,12 @@ wizard, search, category, reservation and administrator tests are unchanged.
 PHPCS's Generic.Metrics.CyclomaticComplexity sniff records baseline `ProductBot`
 from commit `2c10ee7` and the final product/tour/profile controllers in CI artifacts.
 Metrics are evidence, not an alternative to the behavior gates.
+
+## Source loading compatibility
+
+`PaymentAdapter`, `SandboxPaymentAdapter`, `PaymentService` and `TelegramTransport`
+have individually named files so source dependencies and PSR-12 boundaries can be
+checked directly. `Payments.php` remains a pure compatibility loader and
+`NotificationWorker.php` requires the transport definition for existing callers.
+No class body, payment semantics or transport behavior changes. A no-network
+loader test checks all historical includes and the existing local signed adapter.
