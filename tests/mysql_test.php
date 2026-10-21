@@ -99,4 +99,32 @@ try {
 } catch (InvalidArgumentException) {
     verify(!$pdo->inTransaction(), 'failed creation rolls back');
 }
+
+// Nested topic changes must participate in the caller's transaction.
+$pdo->beginTransaction();
+$nestedId = $catalogue->create('Synthetic nested rollback', 5);
+verify($pdo->inTransaction(), 'topic create does not commit an outer transaction');
+$pdo->rollBack();
+verify($catalogue->topic($nestedId) === null, 'outer rollback removes nested topic creation');
+
+$pdo->beginTransaction();
+$removed = $catalogue->deleteTree(5);
+verify($removed === 2 && $pdo->inTransaction(), 'topic deletion joins the outer transaction');
+$pdo->rollBack();
+verify($catalogue->topic(5) !== null && $catalogue->topic($newId) !== null,
+    'outer rollback restores topic hierarchy');
+verify($repo->status(102, 5) === 'check', 'outer rollback restores cascaded memberships');
+
+$pdo->beginTransaction();
+try {
+    $catalogue->create('Synthetic invalid nested child', 999);
+    throw new RuntimeException('Missing nested parent accepted.');
+} catch (InvalidArgumentException) {
+    verify($pdo->inTransaction(), 'nested topic failure leaves transaction ownership with caller');
+} finally {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+}
+
 fwrite(STDOUT, "MySQL integration tests passed ({$checks} checks).\n");
