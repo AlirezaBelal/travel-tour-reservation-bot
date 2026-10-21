@@ -129,6 +129,24 @@ $calls = dispatchFlow(999, null, $approval);
 expectFlow($memberships->status(201, $leaf) === 'verify', 'administrator approves');
 expectFlow(count(array_filter($calls, fn($call) => (string)($call['payload']['chat_id'] ?? '') === '201')) === 1, 'traveler receives approval notification');
 expectFlow(dispatchFlow(999, null, $approval) === [], 'duplicate approval sends no duplicate notification');
+// Characterize legacy send forms before replacing their data-selection implementation.
+dispatchFlow(999, null, "send$leaf");
+expectFlow($db->get('Data', 'step', ['UserId' => 999]) === "send$leaf", 'legacy broadcast selection persists');
+$broadcastCalls = dispatchFlow(999, 'Synthetic legacy topic broadcast');
+$copies = array_values(array_filter($broadcastCalls, static fn ($call) => $call['method'] === 'copyMessage'));
+expectFlow(count($copies) === 1 && (int)$copies[0]['payload']['chat_id'] === 201,
+    'legacy category broadcast selects approved members only');
+expectFlow((int)$copies[0]['payload']['from_chat_id'] === 999 && (int)$copies[0]['payload']['message_id'] === 1,
+    'legacy broadcast preserves source message');
+dispatchFlow(999, null, 'sendAll');
+$broadcastCalls = dispatchFlow(999, 'Synthetic legacy all-profile broadcast');
+$recipients = array_map(static fn ($call) => (int)$call['payload']['chat_id'],
+    array_values(array_filter($broadcastCalls, static fn ($call) => $call['method'] === 'copyMessage')));
+expectFlow(in_array(201, $recipients, true) && in_array(999, $recipients, true)
+    && !in_array(202, $recipients, true), 'legacy all broadcast requires completed profile');
+$db->update('Data', ['step' => 'sendAll'], ['UserId' => 202]);
+expectFlow(dispatchFlow(202, 'Synthetic forged legacy broadcast') === []
+    && $db->get('Data', 'step', ['UserId' => 202]) === 'defult', 'forged non-owner broadcast state is retired');
 dispatchFlow(999, null, "delete-$root");
 expectFlow($db->has('Topics', ['id' => $leaf]), 'first delete click does not delete');
 dispatchFlow(202, null, "confirmDelete-$root");
