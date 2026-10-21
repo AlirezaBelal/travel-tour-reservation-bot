@@ -27,6 +27,8 @@ wfCheck($sessionStore->get(500) === null, 'session clear removes form state');
 Database::run($pdo, "INSERT INTO BotSessions(user_id,state,payload) VALUES (500,'unknown_synthetic_state','{}') ON DUPLICATE KEY UPDATE state='unknown_synthetic_state',payload='{}'");
 sendUpdate(500, 'Synthetic unsupported form');
 wfCheck(str_contains(lastReply(500)['text'], 'برای ادامه از دکمه تأیید'), 'unknown form state fails closed');
+sendUpdate(500, null, 'p:does_not_exist:0');
+wfCheck(str_contains(lastReply(500)['text'], 'این دکمه دیگر معتبر نیست'), 'unknown product callback fails closed');
 sendUpdate(500, '/cancel');
 sendUpdate(500,null,'p:profile:0');sendUpdate(500,null,'p:name:0');sendUpdate(500,'Synthetic New Traveler');wfCheck(Database::run($pdo,'SELECT Name FROM Data WHERE UserId=500')->fetchColumn()==='Synthetic New Traveler','minimal profile onboarding');wfCheck(Database::run($pdo,'SELECT N_Code FROM Data WHERE UserId=500')->fetchColumn()===null,'national code not collected');
 // Verify own-contact keyboard and encrypted identity storage without using any real personal data.
