@@ -14,6 +14,7 @@ The maintained installation source is `master`. Each operator runs their own bot
 | Reproduce automated checks / اجرای تست‌ها | [Acceptance](ACCEPTANCE.md) |
 | Fix bugs or contribute / مشارکت | [Contributing](../CONTRIBUTING.md) |
 | Review changes and limits / تغییرات نسخه | [Changelog](../CHANGELOG.md) · [Source notes](RELEASE_NOTES.md) |
+| Repository protection, branches and source releases / نگهداری مخزن | [Repository maintenance](REPOSITORY_MAINTENANCE.md) |
 | Handle credentials and personal data / امنیت | [Security](../SECURITY.md) |
 
 ## First usable installation

@@ -136,6 +136,16 @@ GitHub Actions و دیتابیس‌های موقت آن دریافت شد. ای�
 نکرد. در فایل‌ها و Diff جدید نباید Secret واقعی یا داده واقعی مسافر باشد.
 این مأموریت به ساخت Bot، تنظیم Webhook یا راه‌اندازی زیرساخت نیاز ندارد.
 
+## محدوده امتیاز و شاهد CI نهایی
+
+عدد ۹٫۱ این گزارش، امتیاز **وزن‌دار کیفیت مهندسی سورس** طبق جدول بالاست؛
+این عدد نباید به‌جای امتیاز مستقل Clean Code یا گواهی Production استفاده شود.
+مبنای شروع اصلاحات Commit قبلی 2c10ee7 بود؛ ارزیابی تحویل روی
+[Commit ef5a1c2](https://github.com/AlirezaBelal/travel-tour-reservation-bot/commit/ef5a1c2a12e0270fb98ecb926897e05fe09b43ff)
+با [CI موفق ۹/۹](https://github.com/AlirezaBelal/travel-tour-reservation-bot/actions/runs/39572108378)
+تأیید شده است. این شاهد ثابت تاریخی است و برای Commitهای جدید باید
+نتیجه CI همان Commit جداگانه بررسی شود.
+
 ## وضعیت تحویل، مشروط به CI موفق همان Commit
 
 - CLEAN CODE: VERIFIED — در محدوده ممیزی، نه ادعای کمال
@@ -144,6 +154,6 @@ GitHub Actions و دیتابیس‌های موقت آن دریافت شد. ای�
 - LEGACY MODERNIZATION: PARTIAL — Renderer سازگاری حفظ شده است
 - STATIC ANALYSIS: PASS — سطح ۵ و محدودیت مشخص
 - SECURITY REGRESSION: NONE FOUND — تأیید ابطال تاریخی مستقل است
-- MASTER CI: نتیجه همان Commit در تحویل نهایی ثبت می‌شود
+- MASTER CI: PASS — شاهد ۹/۹ مربوط به Commit ef5a1c2 در بالا؛ برای Commit جدید باید جدا تأیید شود
 - REPOSITORY: PUBLIC — نام و GPL-3.0-only حفظ می‌شوند
 - HOSTED INFRASTRUCTURE: NOT REQUIRED
