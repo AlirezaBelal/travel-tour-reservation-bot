@@ -6,7 +6,7 @@
 if ((is_string($text) && preg_match('/^\/setprofile(?:@[A-Za-z0-9_]+)?(?:\s.*)?$/u', $text))
     || isLegacyProfileStep(($membershipFlow->user((int)$chatId)['step'] ?? null))) {
     $topicForms->reset((int)$chatId);
-    return $response->bot('sendMessage', [
+    return $responder->bot('sendMessage', [
         'chat_id' => $chatId,
         'text' => 'فرم قدیمی پروفایل بسته شد؛ اطلاعات این پیام ذخیره نشد. برای ثبت امن اطلاعات، /profile را بفرستید.',
         'reply_markup' => json_encode(['remove_keyboard' => true]),
@@ -22,7 +22,7 @@ if (in_array((int)$fromId, $owners, true)) {
         $topicForms->createRoot((int)$fromId, (int)$chatId, $query);
         $T = 'دسته ایجاد شد.';
 
-        return $response->sendMessage($chatId, "$T");
+        return $responder->sendMessage($chatId, "$T");
 
     } elseif ($text === 'Topics') {
         $Topics = $catalogue->all();
@@ -55,7 +55,7 @@ if (in_array((int)$fromId, $owners, true)) {
         $keyboard[$m + 1][] = ['text' => "بازگشت", 'callback_data' => "BackHome"];
 
         $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-        return $response->sendkeyboard($chatId, $list, $keyboard);
+        return $responder->sendkeyboard($chatId, $list, $keyboard);
 
     } elseif ($text === '/send') {
         $Topics = $catalogue->all();
@@ -76,18 +76,18 @@ if (in_array((int)$fromId, $owners, true)) {
 
         $keyboard[$m + 1][] = ['text' => "ارسال به همه ", 'callback_data' => "sendAll"];
         $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-        $response->sendkeyboard($chatId, $selectSend, $keyboard);
+        $responder->sendkeyboard($chatId, $selectSend, $keyboard);
 
     } elseif ($text === 'ping') {
-        $response->sendMessage($chatId, "Bot is reachable.");
+        $responder->sendMessage($chatId, "Bot is reachable.");
 
     } elseif ($text === 'usage') {
         $memory = memory_get_usage(true) / 1024 / 1024;
-        $response->sendMessage($chatId, "Memory usage is " . round($memory, 2) . " MB");
+        $responder->sendMessage($chatId, "Memory usage is " . round($memory, 2) . " MB");
 
     } elseif (is_string($data) && str_starts_with($data, 'send')) {
         $broadcasts->begin((int)$fromId, (int)$chatId, $data);
-        return $response->sendMessage($chatId, "$reqForward");
+        return $responder->sendMessage($chatId, "$reqForward");
 
     } elseif (is_string($data) && str_starts_with($data, 'sub-')) {
         $keyboard = array();
@@ -127,7 +127,7 @@ if (in_array((int)$fromId, $owners, true)) {
         }
 
         $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-        return $response->editMessageKeyboard($chatId, $messageId, $caption, $keyboard, null);
+        return $responder->editMessageKeyboard($chatId, $messageId, $caption, $keyboard, null);
 
     } elseif (is_string($data) && str_starts_with($data, 'AddTopic-')) {
         $parentId = substr($data, strlen('AddTopic-'));
@@ -135,7 +135,7 @@ if (in_array((int)$fromId, $owners, true)) {
             return null;
         }
         $topicForms->begin((int)$fromId, (int)$chatId, (int)$parentId);
-        return $response->sendMessage($chatId, "$getTopic");
+        return $responder->sendMessage($chatId, "$getTopic");
     }
 }
 
@@ -143,7 +143,7 @@ if ($hasContent) {
 
     if (is_string($text) && preg_match('/^\/start(?:@[A-Za-z0-9_]+)?(?: [A-Za-z0-9_-]{1,64})?$/D', $text)) {
         $membershipFlow->ensureUser((int)$chatId);
-        return $response->sendMessage($chatId, "$start");
+        return $responder->sendMessage($chatId, "$start");
 
     } elseif ($text === '/list') {
         if ($membershipFlow->user((int)$chatId) !== null) {
@@ -179,13 +179,13 @@ if ($hasContent) {
                 }
 
                 $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-                $response->sendkeyboard($chatId, $list, $keyboard);
+                $responder->sendkeyboard($chatId, $list, $keyboard);
             } else {
-                $response->sendMessage($chatId, "$profileFalse");
+                $responder->sendMessage($chatId, "$profileFalse");
             }
         } else {
             $membershipFlow->ensureUser((int)$chatId);
-            $response->sendMessage($chatId, "$start");
+            $responder->sendMessage($chatId, "$start");
         }
 
     } else {
@@ -194,9 +194,9 @@ if ($hasContent) {
             if ($broadcast !== null) {
                 if (!$broadcast['authorized']) return null;
                 foreach ($broadcast['recipients'] as $recipient) {
-                    $response->copymessage($recipient, $chatId, $messageId);
+                    $responder->copymessage($recipient, $chatId, $messageId);
                 }
-                return $response->sendMessage($chatId, "$forwardTrue");
+                return $responder->sendMessage($chatId, "$forwardTrue");
             }
 
             $topicResult = $topicForms->submit((int)$fromId, (int)$chatId, is_string($text) ? $text : null);
@@ -206,7 +206,7 @@ if ($hasContent) {
                     'saved' => 'توضیحات دسته ذخیره شد.',
                     'missing' => 'دسته پیدا نشد؛ از منو دوباره انتخاب کنید.',
                 ][$topicResult] ?? null;
-                return $response === null ? null : $response->sendMessage($chatId, $response);
+                return $response === null ? null : $responder->sendMessage($chatId, $response);
             }
 
 
@@ -235,14 +235,14 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
                 $keyboard = [[['text' => 'تایید ✅', 'callback_data' => "approve:$chatId:$topicId"]]];
                 $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
 
-                $response->bot('sendMessage', ['chat_id' => $owners[0], 'text' => $TXT, 'reply_markup' => $keyboard, '_subject_user' => (int)$chatId]);
+                $responder->bot('sendMessage', ['chat_id' => $owners[0], 'text' => $TXT, 'reply_markup' => $keyboard, '_subject_user' => (int)$chatId]);
                 foreach ($owners as $admin) {
                     if ((int)$admin !== (int)$owners[0]) {
-                        $response->bot('sendMessage', ['chat_id' => $admin, 'text' => $TXT, '_subject_user' => (int)$chatId]);
+                        $responder->bot('sendMessage', ['chat_id' => $admin, 'text' => $TXT, '_subject_user' => (int)$chatId]);
                     }
                 }
 
-                $response->sendMessage($chatId, "$reqJoin");
+                $responder->sendMessage($chatId, "$reqJoin");
             }
         } else {
             foreach ($Topics as $Topic) {
@@ -279,7 +279,7 @@ if (is_string($data) && str_starts_with($data, 'join-')) {
             }
             $keyboard[$m][] = ['text' => "بازگشت", 'callback_data' => "BackToHome"];
             $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-            $response->sendkeyboard($chatId, "$caption", $keyboard);
+            $responder->sendkeyboard($chatId, "$caption", $keyboard);
         }
     }
 }
@@ -309,7 +309,7 @@ if ($data === "BackHome") {
     $keyboard[$m][] = ['text' => "ایجاد دسته", 'callback_data' => "AddTopic-0"];
     $keyboard[$m + 1][] = ['text' => "بازگشت", 'callback_data' => "BackHome"];
     $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-    return $response->editMessageKeyboard($chatId, $messageId, 'دسته‌ها', $keyboard, null);
+    return $responder->editMessageKeyboard($chatId, $messageId, 'دسته‌ها', $keyboard, null);
 }
 
 if ($data === "BackToHome") {
@@ -345,13 +345,13 @@ if ($data === "BackToHome") {
             }
 
             $keyboard = json_encode(['inline_keyboard' => $keyboard, 'resize_keyboard' => true], JSON_UNESCAPED_UNICODE);
-            return $response->editMessageKeyboard($chatId, $messageId, 'عضویت‌های قدیمی دسته‌ها', $keyboard, null);
+            return $responder->editMessageKeyboard($chatId, $messageId, 'عضویت‌های قدیمی دسته‌ها', $keyboard, null);
         }
 
-        $response->sendMessage($chatId, "$profileFalse");
+        $responder->sendMessage($chatId, "$profileFalse");
     } else {
         $membershipFlow->ensureUser((int)$chatId);
-        $response->sendMessage($chatId, "$start");
+        $responder->sendMessage($chatId, "$start");
     }
 
 } elseif (is_string($data) && (str_starts_with($data, 'approve:') || str_starts_with($data, 'taeed'))) {
@@ -371,16 +371,16 @@ if ($data === "BackToHome") {
         return null;
     }
     if (is_string($callbackId) && $callbackId !== '') {
-        $response->bot('answerCallbackQuery', [
+        $responder->bot('answerCallbackQuery', [
             'callback_query_id' => $callbackId,
             'text' => "عضویت تأیید شد.",
             'show_alert' => true,
         ]);
     }
 
-    $response->editMessageText($chatId, $messageId, "تایید شده ✅\n\n$Names");
+    $responder->editMessageText($chatId, $messageId, "تایید شده ✅\n\n$Names");
     $acceptTopic = "مدیریت ربات با عضویت شما در گروه $Names موافقت کرد✅";
-    $response->sendMessage($chatid, "$acceptTopic");
+    $responder->sendMessage($chatid, "$acceptTopic");
 
 } elseif (is_string($data) && preg_match('/^(delete|confirmDelete)-([1-9][0-9]*)$/D', $data, $match)) {
     if (!in_array((int)$fromId, $owners, true)) {
@@ -393,11 +393,11 @@ if ($data === "BackToHome") {
             [['text' => 'تأیید حذف دسته و تمام زیرمجموعه‌ها', 'callback_data' => "confirmDelete-$topicId"]],
             [['text' => 'انصراف', 'callback_data' => 'BackHome']],
         ]], JSON_UNESCAPED_UNICODE);
-        return $response->sendkeyboard($chatId, 'این کار دسته، تمام زیرمجموعه‌ها و درخواست‌های مرتبط را حذف می‌کند. تأیید می‌کنید؟', $keyboard);
+        return $responder->sendkeyboard($chatId, 'این کار دسته، تمام زیرمجموعه‌ها و درخواست‌های مرتبط را حذف می‌کند. تأیید می‌کنید؟', $keyboard);
     }
     $deleted = $topicForms->confirmDelete((int)$fromId, (int)$chatId, $topicId);
     if ($deleted === null) {
-        return $response->sendMessage($chatId, 'ابتدا حذف دسته را از منو انتخاب و تأیید کنید.');
+        return $responder->sendMessage($chatId, 'ابتدا حذف دسته را از منو انتخاب و تأیید کنید.');
     }
-    return $response->sendMessage($chatId, "تعداد دسته‌های حذف‌شده: $deleted");
+    return $responder->sendMessage($chatId, "تعداد دسته‌های حذف‌شده: $deleted");
 }
