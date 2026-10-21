@@ -31,6 +31,7 @@ changing booking, payment or notification rules.
 | BotSessionStore | Persistent per-user forms, 30-minute expiration, required-state verification, clearing |
 | AccessControl | Owner configuration, DB roles, least-privilege checks, audit events |
 | Outbox / NotificationWorker | Idempotent enqueue, durable dispatch state, retries/leases and delivery permissions |
+| NotificationAdminService | Authorized notification status/read model and batched broadcast enqueue; ProductBot only renders the Telegram UI |
 | PaymentAdapter / PaymentService | Verified events, unique order/transaction identity, amount/freshness checks |
 | PrivacyService / Scheduler | Explicit erasure, inactive-profile retention, reminders and unpaid hold expiration |
 
