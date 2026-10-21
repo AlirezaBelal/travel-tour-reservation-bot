@@ -9,8 +9,7 @@ The established handler remains available for legacy commands through
 single call while preserving the enclosing `WebhookProcessor` transaction.
 `tests/workflow_test.php` exercises that exact production boundary against
 disposable MySQL/MariaDB databases. The adapter does **not** claim to make
-the old handler pure or remove its legacy helper functions and global database
-context. Any subsequent refactor must first preserve these integration cases.
+the old handler pure or remove its legacy helper functions and global response helpers. Persistence now lives in explicit legacy services. Any subsequent refactor must first preserve these integration cases.
 
 ### Architecture decision: contain legacy code before migrating it
 
@@ -262,7 +261,8 @@ corresponding `Data.step` transitions. The composition root passes PDO,
 this service explicitly. The historical handler only routes these commands and
 maps outcomes to the existing Persian responses. Configured owners remain the
 legacy authority; application DB roles do not silently gain legacy permissions.
-Other legacy membership, deletion and broadcast paths remain behind the adapter.
+Legacy membership, deletion and broadcast routing remains behind the adapter;
+its operations now use separately authorized application services.
 
 Direct calls enforce owner authority independently of callback routing. Form
 submission locks the user's state row. Category creation and advancement to the
@@ -308,8 +308,8 @@ flowchart TB
 ```
 
 Remaining debt: `ProductBot` still owns several unrelated conversation flows.
-Its profile and booking SQL has since moved behind explicit application boundaries. The legacy handler still uses lexical variables and
-helper functions for membership, deletion and broadcast. `TourService` now owns tour editing and publication; `BookingService` retains
+Its profile and booking SQL has since moved behind explicit application boundaries. The legacy renderer still uses scoped variables and response helpers, while
+membership, deletion and broadcast operations live in services. `TourService` now owns tour editing and publication; `BookingService` retains
 reservation creation and lifecycle changes within the same booking aggregate. These extractions
 establish enforceable boundaries incrementally, not a completed Clean Architecture
 migration or evidence of a 9/10 code-quality score.
@@ -329,7 +329,7 @@ projection, legacy-data preservation and erasure.
 
 The application architecture test token-scans real source for presentation
 persistence/construction, pure payment-rule dependencies, global state in extracted
-services and source-level dependency cycles. Five source mutations prove detection
+services and source-level dependency cycles. Six source mutations prove detection
 without executing injected code. The cycle scope is references between classes
 with matching `src/*.php` filenames; dynamic includes and runtime-created edges
 are outside this narrow check.
@@ -352,3 +352,23 @@ Tests cover pure tour validation, direct service permission/capacity checks,
 outer rollback, outbox-induced edit rollback and two-process confirmation versus
 cancellation against an old snapshot. Existing eight-process capacity and
 four-process payment tests remain mandatory on both database engines.
+
+## Legacy application boundaries
+
+`LegacyUpdate` replaces the adapter's mixed variable bundle with the authenticated
+actor/chat, text/callback, message identifiers and content presence. The adapter
+scopes these explicit inputs and response strings for the compatibility renderer.
+The renderer no longer receives Medoo or runs persistence operations.
+`LegacyMembershipService` enforces complete-profile/leaf eligibility, duplicate
+request/approval behavior and configured-owner approvals. `LegacyBroadcastService`
+owns authorized recipient selection and one-time form consumption; the renderer
+continues to queue each copy through the established outbox helper and enclosing
+webhook receipt/transaction. Category deletion confirmation is owned atomically
+by `LegacyTopicService`. Topic read projections live in `TopicCatalogue`.
+
+The renderer is retained because its nested keyboard/edit-message contracts have
+real compatibility consumers. Removing it is not needed to enforce these service
+boundaries. Its remaining debt is response-helper coupling and repetitive keyboard
+layout, not hidden database operations. Characterization and direct-service tests
+cover category/all-profile broadcasts, original source messages, forged states,
+complete-profile eligibility, owner-only approval and idempotent forms.

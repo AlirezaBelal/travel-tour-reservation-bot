@@ -1,5 +1,13 @@
 # Changelog
 
+## Legacy application boundaries — 2026-10-21
+
+- Extracted legacy membership eligibility/approval and broadcast recipient/form
+  operations; moved category deletion confirmation into the existing topic service.
+- Replaced mixed adapter inputs with LegacyUpdate; the compatibility renderer no
+  longer receives Medoo or performs persistence. Preserved legacy broadcast behavior
+  with characterization, direct authorization and architecture-mutation coverage.
+
 ## Tour management separation — 2026-10-21
 
 - Separated pure tour validation and tour editing/publication from booking aggregate

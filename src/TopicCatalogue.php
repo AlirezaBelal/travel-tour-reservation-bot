@@ -6,6 +6,27 @@ final class TopicCatalogue
     {
     }
 
+    public function all(): array
+    {
+        $query = $this->pdo->query('SELECT * FROM Topics');
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function children(int $parent): array
+    {
+        $query = $this->pdo->prepare('SELECT id,Name,`Groups`,caption FROM Topics WHERE `Groups`=?');
+        $query->execute([$parent]);
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public function topic(int $id): ?array
+    {
+        $query = $this->pdo->prepare('SELECT id,Name,`Groups`,caption FROM Topics WHERE id=?');
+        $query->execute([$id]);
+        $row = $query->fetch(PDO::FETCH_ASSOC);
+        return $row === false ? null : $row;
+    }
+
     public function create(string $name, int $parentId): int
     {
         if (trim($name) === '' || strlen($name) > 300 || $parentId < 0) {
