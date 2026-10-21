@@ -164,6 +164,46 @@ $bulk=json_decode(Database::run($pdo,"SELECT payload FROM NotificationOutbox WHE
 wfCheck(($bulk['_permission_actor']??null)===509&&($bulk['_required_permissions']??[])===['notify'],'bulk send records authorizing manager');
 $access->assign(999,509,'none');$bulkSent=0;(new NotificationWorker($pdo,$access))->tick(function($method,$payload)use(&$bulkSent){if(($payload['text']??null)==='Synthetic revocable broadcast')$bulkSent++;return['ok'=>true,'code'=>200];},1000,false);
 wfCheck($bulkSent===0,'role revocation suppresses pending bulk delivery');
-// Rate limiting: one warning per minute, no unbounded message fan-out.
-for($i=0;$i<35;$i++)sendUpdate(507,'/help');wfCheck((int)Database::run($pdo,"SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=507")->fetchColumn()===31,'rate limit bounds replies');
+// Rate limiting: a replay counts once, including over-limit messages that
+// receive a warning; all receipts and warnings are committed atomically.
+$firstRateUpdate = sendUpdate(507, '/help');
+for ($i = 0; $i < 5; $i++) {
+    sendUpdate(507, '/help', null, $firstRateUpdate);
+}
+wfCheck((int)Database::run($pdo, 'SELECT SUM(hits) FROM RateLimits WHERE user_id=507')->fetchColumn() === 1,
+    'replayed accepted update does not consume additional rate quota');
+for ($i = 1; $i < 35; $i++) sendUpdate(507, '/help');
+wfCheck((int)Database::run($pdo, 'SELECT COUNT(*) FROM NotificationOutbox WHERE chat_id=507')->fetchColumn() === 31,
+    'rate limit bounds replies');
+$blockedUpdate = sendUpdate(507, '/help');
+$hitsAfterBlock = (int)Database::run($pdo, 'SELECT SUM(hits) FROM RateLimits WHERE user_id=507')->fetchColumn();
+for ($i = 0; $i < 5; $i++) sendUpdate(507, '/help', null, $blockedUpdate);
+wfCheck((int)Database::run($pdo, 'SELECT SUM(hits) FROM RateLimits WHERE user_id=507')->fetchColumn() === $hitsAfterBlock,
+    'replayed throttled update does not consume rate quota');
+wfCheck((int)Database::run($pdo, 'SELECT COUNT(*) FROM UpdateReceipts WHERE update_id=?', [$blockedUpdate])->fetchColumn() === 1,
+    'rate-limited update is durably deduplicated');
+
+// Broadcast: an outer transaction can cover multiple 200-recipient pages,
+// and rolling it back must also remove the enqueued notifications and audit.
+$pdo->beginTransaction();
+try {
+    for ($i = 0; $i < 205; $i++) {
+        Database::run($pdo, "INSERT INTO Data(UserId,step) VALUES (?,'defult')", [99000000 + $i]);
+    }
+    $expectedRecipients = (int)Database::run($pdo, 'SELECT COUNT(*) FROM Data')->fetchColumn();
+    $bulkUpdate = 990123456;
+    $firstBulkCount = $notificationAdmin->broadcast(999, $bulkUpdate, 0, 'Synthetic multiple-page delivery');
+    wfCheck($firstBulkCount === $expectedRecipients && $firstBulkCount >= 205,
+        'broadcast paginates across at least two recipient batches');
+    $queuedBulk = (int)Database::run($pdo, "SELECT COUNT(*) FROM NotificationOutbox WHERE JSON_UNQUOTE(JSON_EXTRACT(payload,'$.text'))=?", ['Synthetic multiple-page delivery'])->fetchColumn();
+    wfCheck($queuedBulk === $expectedRecipients, 'bulk pages enqueue every recipient once');
+    $notificationAdmin->broadcast(999, $bulkUpdate, 0, 'Synthetic multiple-page delivery');
+    wfCheck((int)Database::run($pdo, "SELECT COUNT(*) FROM NotificationOutbox WHERE JSON_UNQUOTE(JSON_EXTRACT(payload,'$.text'))=?", ['Synthetic multiple-page delivery'])->fetchColumn() === $queuedBulk,
+        'replaying a bulk update does not duplicate recipient outbox records');
+} finally {
+    $pdo->rollBack();
+}
+wfCheck((int)Database::run($pdo, "SELECT COUNT(*) FROM NotificationOutbox WHERE JSON_UNQUOTE(JSON_EXTRACT(payload,'$.text'))=?", ['Synthetic multiple-page delivery'])->fetchColumn() === 0,
+    'rollback removes broadcast notifications');
+
 fwrite(STDOUT,"Product Telegram workflows passed ($checks checks).\n");
