@@ -1,5 +1,13 @@
 # Changelog
 
+## Independent manual payment review — 2026-10-21
+
+- Extracted payment review from BookingService, keeping its public compatibility
+  delegate and the existing tour/booking/payment lock order. HTTP/CLI wiring is
+  explicit; Telegram now calls the payment application service directly.
+- Shared pure payment reference rules between the form and service. Added unit,
+  rollback, outbox-failure and four-process manual-review concurrency tests.
+
 ## Legacy category application flow — 2026-10-21
 
 - Extracted configured-owner category creation and caption forms from the legacy

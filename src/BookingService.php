@@ -1,7 +1,12 @@
 <?php
 final class BookingService
 {
-    public function __construct(private PDO $pdo, private AccessControl $access, private Outbox $outbox) {
+    private PaymentReviewService $paymentReview;
+
+    public function __construct(private PDO $pdo, private AccessControl $access, private Outbox $outbox,
+        ?PaymentReviewService $paymentReview = null) {
+        // Keep the public three-argument constructor compatible for existing integrations.
+        $this->paymentReview = $paymentReview ?? new PaymentReviewService($pdo, $access, $outbox);
     }
     public function ensureUser(int $id): void
     {
@@ -203,41 +208,9 @@ final class BookingService
     {
         Database::run($this->pdo, 'INSERT INTO BookingStatusHistory(booking_id,actor_id,old_status,new_status,reason) VALUES (?,?,?,?,?)', [$id,$actor,$old,$new,$reason]);
     }
+    /** Compatibility entry point for existing callers; new use cases inject payment review. */
     public function manualPayment(int $actor, int $id, string $reference): bool
     {
-        $this->access->require($actor, 'payments');
-        if (!preg_match('/^[A-Za-z0-9_-]{3,80}$/D', $reference)) {
-            throw new RuleViolation('شناسه تأیید پرداخت باید ۳ تا ۸۰ حرف یا عدد انگلیسی باشد.');
-        }
-        return Database::atomic($this->pdo, function () use ($actor,$id,$reference) {
-            $booking = Database::run($this->pdo, 'SELECT * FROM Bookings WHERE id=?', [$id])->fetch(PDO::FETCH_ASSOC);
-            if (!$booking) {
-                throw new RuleViolation('رزرو پیدا نشد.');
-            }
-            $this->tour((int)$booking['tour_id'], true);
-            $booking = Database::run($this->pdo, 'SELECT * FROM Bookings WHERE id=? FOR UPDATE', [$id])->fetch(PDO::FETCH_ASSOC);
-            $payment = Database::run($this->pdo, 'SELECT * FROM Payments WHERE booking_id=? FOR UPDATE', [$id])->fetch(PDO::FETCH_ASSOC);
-            if ($payment['status'] === 'paid') {
-                return false;
-            }
-            if (!in_array($booking['status'], ['pending','confirmed'], true)) {
-                throw new RuleViolation('پرداخت رزرو بسته‌شده قابل تأیید نیست.');
-            }
-            try {
-                Database::run($this->pdo, "UPDATE Payments SET status='paid',method='manual',provider_tx=? WHERE booking_id=?", ['manual:' . hash('sha256', $reference),$id]);
-            }
-            catch (PDOException $error) {
-                if (($error->errorInfo[1] ?? null) === 1062) {
-                    throw new RuleViolation('این شناسه پرداخت قبلاً استفاده شده است.');
-                }
-                throw $error;
-            }
-            $this->access->audit($actor, 'payment.manual', 'booking', $id);
-            if ($booking['user_id'] !== null) {
-                $this->outbox->message((int)$booking['user_id'], "پرداخت رزرو شماره $id توسط مدیر تأیید شد. وضعیت رزرو جداگانه بررسی می‌شود.", "payment:$id:paid");
-            }
-            return true;
-        }
-        );
+        return $this->paymentReview->record($actor, $id, $reference);
     }
 }
