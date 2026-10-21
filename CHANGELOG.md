@@ -1,5 +1,11 @@
 # Changelog
 
+## Tour management separation — 2026-10-21
+
+- Separated pure tour validation and tour editing/publication from booking aggregate
+  operations. Shared tour/capacity row locks and compatibility APIs are preserved.
+- Added direct tour rollback/capacity tests and a real confirmation/cancellation race.
+
 ## SQL-free product presentation — 2026-10-21
 
 - Extracted profile and booking-list/history operations with direct service

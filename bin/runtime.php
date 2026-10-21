@@ -11,4 +11,4 @@ $pdo=new PDO("mysql:host=$host;port=$port;dbname=$database;charset=utf8mb4",$env
 Database::configure($pdo);
 $owners=parseAdminIds($env('TELEGRAM_ADMIN_IDS'));
 if($owners===[])throw new RuntimeException('At least one owner required.');
-$access=new AccessControl($pdo,$owners);$outbox=new Outbox($pdo);$paymentReview=new PaymentReviewService($pdo,$access,$outbox);$bookings=new BookingService($pdo,$access,$outbox,$paymentReview);
+$access=new AccessControl($pdo,$owners);$outbox=new Outbox($pdo);$paymentReview=new PaymentReviewService($pdo,$access,$outbox);$bookings=BookingServiceFactory::create($pdo,$access,$outbox,$paymentReview);

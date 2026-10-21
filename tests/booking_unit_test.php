@@ -1,5 +1,5 @@
 <?php
-require __DIR__ . '/../src/Database.php';
+require __DIR__ . '/../src/BookingRules.php';
 $checks = 0;
 function unitCheck(bool $condition): void {
     global $checks;

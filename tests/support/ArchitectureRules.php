@@ -38,12 +38,12 @@ final class ArchitectureRules
                         break;
                     }
                 }
-                if ($name === 'PaymentRules' && $type === T_STRING
+                if (in_array($name, ['PaymentRules', 'BookingRules', 'TourRules'], true) && $type === T_STRING
                     && in_array(strtolower($value), ['pdo', 'database', 'outbox', 'productbot', 'curl_init', 'getenv'], true)) {
                     $errors[] = 'domain.infrastructure';
                 }
                 if (in_array($name, ['TravelerProfileService', 'BookingQueryService', 'LegacyTopicService',
-                    'PaymentReviewService', 'TourCatalogService'], true)
+                    'PaymentReviewService', 'TourCatalogService', 'TourService'], true)
                     && ($type === T_GLOBAL || ($type === T_VARIABLE
                         && in_array($value, ['$GLOBALS', '$_ENV', '$_SERVER', '$_POST'], true)))) {
                     $errors[] = 'application.global';
