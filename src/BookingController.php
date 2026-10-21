@@ -320,4 +320,5 @@ final class BookingController
             return true;
         }
         return false;
-    }}
+    }
+}
