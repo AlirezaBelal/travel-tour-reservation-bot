@@ -7,6 +7,18 @@ $values = ['category_id' => null, 'title' => 'Synthetic', 'destination' => 'Synt
     'ends_at' => '2028-04-21 09:00:00', 'price' => 0, 'capacity' => 20, 'publication' => 'draft'];
 TourRules::validate($values);
 $checks = 1;
+foreach (['title', 'destination'] as $field) {
+    foreach (['x', 'ش', '🌍'] as $character) {
+        TourRules::validate(array_replace($values, [$field => str_repeat($character, 200)]));
+        $checks++;
+        try {
+            TourRules::validate(array_replace($values, [$field => str_repeat($character, 201)]));
+            throw new RuntimeException('Tour text exceeds its database character limit.');
+        } catch (RuleViolation $error) {
+            $checks++;
+        }
+    }
+}
 foreach ([['title' => ' '], ['description' => str_repeat('x', 4001)], ['starts_at' => '2028-02-30 08:00:00'],
     ['ends_at' => $values['starts_at']], ['price' => -1], ['price' => '100'], ['price' => 1000000000001],
     ['capacity' => 0], ['capacity' => 100001], ['publication' => 'unknown']] as $invalid) {

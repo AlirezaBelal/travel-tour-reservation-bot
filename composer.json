@@ -40,6 +40,7 @@
       "@php tests/workflow_test.php",
       "@php tests/product_test.php",
       "@php tests/operations_test.php",
+      "@php tests/worker_boundary_test.php",
       "@php tests/product_workflow_test.php",
       "@php tests/catalogue_characterization_test.php",
       "@php tests/manual_payment_test.php",
