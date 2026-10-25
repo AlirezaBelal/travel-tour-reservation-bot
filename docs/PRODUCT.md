@@ -26,8 +26,8 @@ identity check; operators must explain collection, retention and deletion.
 ## What this distribution includes
 
 The complete PHP/MySQL source, Persian traveler/admin interface, Docker Compose,
-versioned migrations, synthetic automated tests, English/Persian installation
-guides and GPL-3.0-only license. `master` is the source entry point. Future changes
+versioned migrations, synthetic automated tests, English installation guides
+and GPL-3.0-only license. `master` is the source entry point. Future changes
 use focused branches and PRs; the original completion PR is closed.
 
 There is no hosted bot, hosting subscription, merchant account, customer support
