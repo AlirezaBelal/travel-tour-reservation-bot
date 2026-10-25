@@ -41,11 +41,11 @@ function isSensitiveAdminCallback(mixed $data): bool
 
 function isValidIranianNationalCode(string $input): bool
 {
-    if (!preg_match('/^\d{10}$/', $input)) {
+    if (!preg_match('/\A[0-9]{10}\z/D', $input)) {
         return false;
     }
 
-    if (preg_match('/^(\d)\1{9}$/', $input)) {
+    if (preg_match('/\A([0-9])\1{9}\z/D', $input)) {
         return false;
     }
 
@@ -64,12 +64,16 @@ function isValidIranianNationalCode(string $input): bool
 
 function isIranianMobileNumber(string $phoneNumber): bool
 {
-    $normalized = preg_replace('/[^0-9+]/', '', trim($phoneNumber));
-    if (!is_string($normalized) || $normalized === '') {
+    // Keep common human-readable separators, but reject non-phone content.
+    // Stripping arbitrary letters/control characters could turn a malformed
+    // Telegram contact into a plausible valid identity value.
+    if (strlen($phoneNumber) > 24 || preg_match('/\A[0-9+(). \t-]+\z/D', $phoneNumber) !== 1) {
         return false;
     }
 
-    return preg_match('/^(?:\+98|0098|98|0)?9\d{9}$/', $normalized) === 1;
+    $normalized = preg_replace('/[^0-9+]/', '', $phoneNumber);
+    return is_string($normalized)
+        && preg_match('/\A(?:\+98|0098|98|0)?9[0-9]{9}\z/D', $normalized) === 1;
 }
 
 /** Accept only an owner's Telegram request_contact submission, never a forwarded third-party card. */
