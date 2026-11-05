@@ -67,3 +67,9 @@ CI covers PHP 8.0–8.4, MySQL, MariaDB and synthetic Docker recovery; it **does
 **Guides:** [Documentation](docs/README.md) · [Architecture](docs/ARCHITECTURE.md) · [Product limits](docs/PRODUCT.md) · [Deployment](docs/DEPLOYMENT.md) · [Security](SECURITY.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md).
 
 Licensed under [GPL-3.0-only](LICENSE).
+
+## Live browser demo
+
+[Open the GitHub Pages demo](https://alirezabelal.github.io/travel-tour-reservation-bot/)
+
+The reservation sandbox uses fictional tour inventory to demonstrate capacity holds, administrative review, confirmation, rejection, cancellation, and reset. It creates no real booking, payment, message, or persistent user record.
