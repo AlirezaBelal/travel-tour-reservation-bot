@@ -27,3 +27,5 @@ backup*.sql*
 /tools/quality/vendor/
 /tools/quality/cache/
 /quality-generated/
+
+evidence/
